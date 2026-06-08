@@ -94,8 +94,8 @@ export default function ProductTypesPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Product Types</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage service categories — Domain, Hosting, SSL, Design, or custom types</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Product Types</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage service categories — Domain, Hosting, SSL, Design, or custom types</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -105,29 +105,29 @@ export default function ProductTypesPage() {
 
       <div className="card">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Name</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Slug</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Hosting Specs</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Packages</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Services</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Name</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Slug</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Hosting Specs</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Packages</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && types.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No product types yet</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No product types yet</td></tr>
             )}
             {types.map(t => (
-              <tr key={t.id} className="border-t border-gray-100 hover:bg-gray-50">
+              <tr key={t.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3">
                   <span className={`badge ${productTypeBadgeClass(t.color)}`}>{t.name}</span>
                 </td>
-                <td className="px-4 py-3 text-gray-500 font-mono text-xs">{t.slug}</td>
-                <td className="px-4 py-3 text-gray-600">{t.hasHostingSpecs ? 'Yes' : '—'}</td>
+                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 font-mono text-xs">{t.slug}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.hasHostingSpecs ? 'Yes' : '—'}</td>
                 <td className="px-4 py-3">{t._count?.packages || 0}</td>
                 <td className="px-4 py-3">{t._count?.services || 0}</td>
                 <td className="px-4 py-3">
@@ -149,10 +149,10 @@ export default function ProductTypesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-base font-semibold">{editId ? 'Edit Product Type' : 'Add Product Type'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-5 space-y-4">
               <div>
@@ -162,7 +162,7 @@ export default function ProductTypesPage() {
               <div>
                 <label className="label">Slug</label>
                 <input className="input font-mono text-sm" value={form.slug} onChange={e => setForm(f => ({ ...f, slug: e.target.value.toUpperCase() }))} placeholder="Auto-generated if empty" />
-                <p className="text-xs text-gray-400 mt-1">Uppercase code used in filters and API (e.g. DOMAIN)</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Uppercase code used in filters and API (e.g. DOMAIN)</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -185,10 +185,10 @@ export default function ProductTypesPage() {
               </div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" className="rounded border-gray-300" checked={form.hasHostingSpecs} onChange={e => setForm(f => ({ ...f, hasHostingSpecs: e.target.checked }))} />
-                <span className="text-sm text-gray-700">Include hosting resource fields on packages (disk, bandwidth, etc.)</span>
+                <span className="text-sm text-gray-700 dark:text-gray-300">Include hosting resource fields on packages (disk, bandwidth, etc.)</span>
               </label>
             </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200">
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={save} disabled={saving}>
                 {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Type'}

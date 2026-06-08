@@ -13,5 +13,5 @@ export default function HostingPackagesRedirect() {
       })
       .catch(() => router.replace('/product-packages'))
   }, [router])
-  return <div className="p-6 text-gray-500">Redirecting to Product Packages...</div>
+  return <div className="p-6 text-gray-500 dark:text-gray-400">Redirecting to Product Packages...</div>
 }

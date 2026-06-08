@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { createInvoiceForService, sendInvoiceToClient } from '@/lib/invoices'
+import { createInvoiceForService, sendInvoiceToClient, serviceRecordToInvoiceInput } from '@/lib/invoices'
 import { parseServiceInput, serviceInclude, toPrismaCreateData } from '@/lib/services'
 
 export async function GET(req: NextRequest) {
@@ -50,19 +50,7 @@ export async function POST(req: NextRequest) {
     let invoiceSent = null
 
     if (generateInvoice) {
-      invoice = await createInvoiceForService({
-        clientId: service.clientId,
-        typeName: service.productType.name,
-        name: service.name,
-        price: service.price,
-        setupFee: service.setupFee,
-        recurring: service.recurring,
-        period: service.period,
-        startDate: service.startDate,
-        nextDueDate: service.nextDueDate,
-        expiryDate: service.expiryDate,
-        productPackage: service.productPackage,
-      })
+      invoice = await createInvoiceForService(serviceRecordToInvoiceInput(service))
       if (sendInvoice && invoice) {
         invoiceSent = await sendInvoiceToClient(invoice.id, service.clientId)
       }

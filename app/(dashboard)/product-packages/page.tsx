@@ -149,8 +149,8 @@ export default function ProductPackagesPage() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Product Packages</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage plans and pricing for each product type</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Product Packages</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage plans and pricing for each product type</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -159,10 +159,10 @@ export default function ProductPackagesPage() {
       </div>
 
       <div className="card">
-        <div className="p-3 border-b border-gray-100 flex gap-2 flex-wrap">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 flex-wrap">
           <button
             onClick={() => setTypeFilter('')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${!typeFilter ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${!typeFilter ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
           >
             All
           </button>
@@ -170,43 +170,43 @@ export default function ProductPackagesPage() {
             <button
               key={t.id}
               onClick={() => setTypeFilter(t.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${typeFilter === t.id ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${typeFilter === t.id ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
             >
               {t.name}
             </button>
           ))}
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Type</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Package</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Details</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Monthly</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Yearly</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Setup</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Services</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Package</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Details</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Monthly</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Yearly</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Setup</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>}
+            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No packages yet</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
             )}
             {packages.map(p => (
-              <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50">
+              <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3">
                   <span className={`badge ${productTypeBadgeClass(p.productType?.color)}`}>
                     {p.productType?.name || '—'}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900">{p.name}</div>
-                  {p.description && <div className="text-xs text-gray-400 mt-0.5">{p.description}</div>}
+                  <div className="font-medium text-gray-900 dark:text-gray-100">{p.name}</div>
+                  {p.description && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{p.description}</div>}
                 </td>
-                <td className="px-4 py-3 text-xs text-gray-600">
+                <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
                   {p.productType?.hasHostingSpecs
                     ? `${p.diskSpaceGb}GB · ${p.bandwidthGb}GB BW · ${p.emailAccounts} emails`
                     : '—'}
@@ -234,10 +234,10 @@ export default function ProductPackagesPage() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 sticky top-0 bg-white">
+          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900">
               <h2 className="text-base font-semibold">{editId ? 'Edit Package' : 'Add Product Package'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
 
             <div className="p-5 space-y-5">
@@ -275,8 +275,8 @@ export default function ProductPackagesPage() {
               </div>
 
               {hasHostingSpecs && (
-                <div className="border-t border-gray-100 pt-5">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Hosting Resources</h3>
+                <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Hosting Resources</h3>
                   <div className="grid grid-cols-3 gap-3">
                     {[['diskSpaceGb', 'Disk (GB)'], ['bandwidthGb', 'Bandwidth (GB)'], ['emailAccounts', 'Email Accounts'], ['databases', 'Databases'], ['addonDomains', 'Addon Domains']].map(([k, l]) => (
                       <div key={k}>
@@ -288,8 +288,8 @@ export default function ProductPackagesPage() {
                 </div>
               )}
 
-              <div className="border-t border-gray-100 pt-5">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Pricing by Billing Cycle</h3>
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing by Billing Cycle</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually'], ['setupFee', 'Setup Fee']].map(([k, l]) => (
                     <div key={k}>
@@ -301,7 +301,7 @@ export default function ProductPackagesPage() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
               <button className="btn-primary" onClick={save} disabled={saving}>
                 {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Package'}

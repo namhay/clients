@@ -150,7 +150,7 @@ export function formatInvoiceItemDescription(description: string): string {
   return text
 }
 
-type ServiceForInvoice = {
+export type ServiceForInvoice = {
   clientId: string
   typeName: string
   name: string
@@ -162,6 +162,34 @@ type ServiceForInvoice = {
   nextDueDate: Date | null
   expiryDate: Date
   productPackage?: { name: string } | null
+}
+
+export function serviceRecordToInvoiceInput(service: {
+  clientId: string
+  name: string
+  price: number
+  setupFee: number
+  recurring: boolean
+  period: string | null
+  startDate: Date
+  nextDueDate: Date | null
+  expiryDate: Date
+  productType: { name: string }
+  productPackage?: { name: string } | null
+}): ServiceForInvoice {
+  return {
+    clientId: service.clientId,
+    typeName: service.productType.name,
+    name: service.name,
+    price: service.price,
+    setupFee: service.setupFee,
+    recurring: service.recurring,
+    period: service.period,
+    startDate: service.startDate,
+    nextDueDate: service.nextDueDate,
+    expiryDate: service.expiryDate,
+    productPackage: service.productPackage,
+  }
 }
 
 export function buildServiceInvoiceItems(service: ServiceForInvoice) {

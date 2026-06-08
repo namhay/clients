@@ -29,7 +29,7 @@ export async function getInvoiceCompanyProfile(): Promise<InvoiceCompanyProfile>
     email: settings.companyEmail || 'info@it-smart.biz',
     phone: settings.companyPhone || '098 720 760 / 099 720 760',
     website: env.COMPANY_WEBSITE || 'www.it-smart.biz',
-    bankName: env.BANK_NAME || 'ABA Bank Transfer',
+    bankName: env.BANK_NAME || 'ABA Bank',
     bankAccountNo: env.BANK_ACCOUNT_NO || '000087959',
     bankAccountName: env.BANK_ACCOUNT_NAME || 'IT SMART BIZ',
   }

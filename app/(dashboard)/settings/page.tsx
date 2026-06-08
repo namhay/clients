@@ -128,16 +128,16 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-gray-500">Loading settings...</div>
+    return <div className="p-6 text-gray-500 dark:text-gray-400">Loading settings...</div>
   }
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Settings</h1>
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Settings</h1>
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Company Information</h2>
-          <p className="text-xs text-gray-500 mb-4">Saved to database and your .env file</p>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Company Information</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file</p>
           <div className="space-y-3">
             <div>
               <label className="label">Company Name *</label>
@@ -162,8 +162,8 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">SMTP Email (cPanel)</h2>
-          <p className="text-xs text-gray-500 mb-4">Saved to database and your .env file</p>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">SMTP Email (cPanel)</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file</p>
           <div className="space-y-3">
             <div>
               <label className="label">SMTP Host</label>
@@ -197,8 +197,8 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-1">Telegram Bot</h2>
-          <p className="text-xs text-gray-500 mb-4">Saved to database and your .env file. Get a token from @BotFather.</p>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Telegram Bot</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file. Get a token from @BotFather.</p>
           <div className="space-y-3">
             <div>
               <label className="label">Bot Token</label>
@@ -212,10 +212,10 @@ export default function SettingsPage() {
               <label className="label">Reminder days before expiry</label>
               <input type="number" min="1" className="input" value={form.reminderDays} onChange={e => setForm(f => ({ ...f, reminderDays: e.target.value }))} />
             </div>
-            <div className="border-t border-gray-100 pt-3 mt-1">
-              <p className="text-xs font-medium text-gray-700 mb-2">Client connect links</p>
-              <p className="text-xs text-gray-500 mb-3">
-                Register the webhook once so clients can connect via <code className="bg-gray-100 px-1 rounded">t.me/your_bot?start=CLIENT_ID</code>.
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Client connect links</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                Register the webhook once so clients can connect via <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">t.me/your_bot?start=CLIENT_ID</code>.
                 Telegram only accepts <strong>public HTTPS</strong> URLs — not localhost.
               </p>
               {webhookStatus?.httpsRequired && (
@@ -229,14 +229,14 @@ export default function SettingsPage() {
                 </div>
               )}
               {webhookStatus && (
-                <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 mb-3 space-y-1">
+                <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-3 space-y-1">
                   <div>Base URL: <span className="font-mono">{webhookStatus.webhookBaseUrl}</span></div>
                   <div>Webhook: <span className="font-mono">{webhookStatus.expectedUrl}</span></div>
                   <div>Active: {webhookStatus.active ? 'Yes' : 'No'}</div>
                   {webhookStatus.webhookUrl && webhookStatus.webhookUrl !== webhookStatus.expectedUrl && (
                     <div>Current: <span className="font-mono">{webhookStatus.webhookUrl}</span></div>
                   )}
-                  {webhookStatus.lastError && <div className="text-red-600">Error: {webhookStatus.lastError}</div>}
+                  {webhookStatus.lastError && <div className="text-red-600 dark:text-red-400">Error: {webhookStatus.lastError}</div>}
                 </div>
               )}
               <button
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                 {webhookLoading ? 'Registering...' : 'Register Webhook'}
               </button>
               {webhookMessage && (
-                <p className={`text-xs mt-2 ${webhookMessage.includes('registered') || webhookMessage.includes('Registered') ? 'text-green-700' : 'text-red-600'}`}>
+                <p className={`text-xs mt-2 ${webhookMessage.includes('registered') || webhookMessage.includes('Registered') ? 'text-green-700 dark:text-green-300' : 'text-red-600 dark:text-red-400'}`}>
                   {webhookMessage}
                 </p>
               )}
@@ -255,12 +255,12 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 mb-4">Database & Deployment</h2>
-          <div className="space-y-2 text-xs text-gray-600">
-            <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=postgresql://...@neon.tech/neondb</div>
-            <p className="text-gray-500">Neon PostgreSQL — set DATABASE_URL and DIRECT_URL in .env (local) or Vercel env vars (production).</p>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Database & Deployment</h2>
+          <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=postgresql://...@neon.tech/neondb</div>
+            <p className="text-gray-500 dark:text-gray-400">Neon PostgreSQL — set DATABASE_URL and DIRECT_URL in .env (local) or Vercel env vars (production).</p>
             <div className="pt-2 space-y-1">
-              <p className="font-medium text-gray-700">Quick commands:</p>
+              <p className="font-medium text-gray-700 dark:text-gray-300">Quick commands:</p>
               <div className="bg-gray-900 text-green-400 rounded-lg p-3 font-mono space-y-1">
                 <div>npm install</div>
                 <div>npx prisma db push</div>
@@ -276,8 +276,8 @@ export default function SettingsPage() {
         <button className="btn-primary" onClick={save} disabled={saving}>
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
-        {saved && <span className="text-green-600 text-sm">✓ Saved to database and .env!</span>}
-        {error && <span className="text-red-600 text-sm">{error}</span>}
+        {saved && <span className="text-green-600 dark:text-green-400 text-sm">✓ Saved to database and .env!</span>}
+        {error && <span className="text-red-600 dark:text-red-400 text-sm">{error}</span>}
       </div>
     </div>
   )

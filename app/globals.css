@@ -7,7 +7,7 @@
     --sidebar-width: 220px;
   }
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
   }
 }
 
@@ -16,34 +16,50 @@
     @apply bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors flex items-center gap-2;
   }
   .btn-secondary {
-    @apply bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2;
+    @apply bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2
+      dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-gray-700;
   }
   .btn-danger {
-    @apply bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm font-medium border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2;
+    @apply bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm font-medium border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2
+      dark:bg-red-950/50 dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950;
   }
   .input {
-    @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white;
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white
+      dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500;
   }
   .label {
-    @apply block text-xs font-medium text-gray-600 mb-1;
+    @apply block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400;
   }
   .card {
-    @apply bg-white rounded-xl border border-gray-200 overflow-hidden;
+    @apply bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900 dark:border-gray-700;
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
   }
-  .badge-paid { @apply bg-green-100 text-green-800; }
-  .badge-unpaid { @apply bg-yellow-100 text-yellow-800; }
-  .badge-overdue { @apply bg-red-100 text-red-800; }
-  .badge-active { @apply bg-green-100 text-green-800; }
-  .badge-expired { @apply bg-red-100 text-red-800; }
-  .badge-domain { @apply bg-blue-100 text-blue-800; }
-  .badge-hosting { @apply bg-green-100 text-green-800; }
-  .badge-ssl { @apply bg-orange-100 text-orange-800; }
-  .badge-design { @apply bg-pink-100 text-pink-800; }
-  .badge-purple { @apply bg-purple-100 text-purple-800; }
-  .badge-gray { @apply bg-gray-100 text-gray-800; }
-  .badge-yellow { @apply bg-yellow-100 text-yellow-800; }
-  .badge-indigo { @apply bg-indigo-100 text-indigo-800; }
+  .badge-paid { @apply bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300; }
+  .badge-unpaid { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300; }
+  .badge-overdue { @apply bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300; }
+  .badge-active { @apply bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300; }
+  .badge-expired { @apply bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300; }
+  .badge-domain { @apply bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300; }
+  .badge-hosting { @apply bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300; }
+  .badge-ssl { @apply bg-orange-100 text-orange-800 dark:bg-orange-950 dark:text-orange-300; }
+  .badge-design { @apply bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-300; }
+  .badge-purple { @apply bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300; }
+  .badge-gray { @apply bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300; }
+  .badge-yellow { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-950 dark:text-yellow-300; }
+  .badge-indigo { @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300; }
+
+  .page-title { @apply text-xl font-semibold text-gray-900 dark:text-gray-100; }
+  .page-subtitle { @apply text-sm text-gray-500 dark:text-gray-400 mt-0.5; }
+  .card-header { @apply px-4 py-3 border-b border-gray-100 dark:border-gray-800; }
+  .card-header-title { @apply text-sm font-medium text-gray-900 dark:text-gray-100; }
+  .table-head { @apply bg-gray-50 dark:bg-gray-800/60; }
+  .table-th { @apply text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium; }
+  .table-row { @apply border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50; }
+  .stat-card { @apply bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4; }
+  .modal-backdrop { @apply fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4; }
+  .modal-panel { @apply bg-white dark:bg-gray-900 rounded-xl w-full shadow-xl max-h-[90vh] overflow-y-auto; }
+  .modal-header { @apply flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900; }
+  .modal-footer { @apply flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900; }
 }

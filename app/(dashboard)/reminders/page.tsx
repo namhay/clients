@@ -30,19 +30,19 @@ export default function RemindersPage() {
 
   return (
     <div className="p-6">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6">Reminders</h1>
+      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Reminders</h1>
 
       <div className="grid grid-cols-2 gap-6">
         <div>
-          <h2 className="text-sm font-medium text-gray-700 mb-3">Unpaid Invoices ({unpaid.length})</h2>
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Unpaid Invoices ({unpaid.length})</h2>
           <div className="space-y-2">
-            {unpaid.length === 0 && <div className="text-sm text-gray-400 py-4">No unpaid invoices.</div>}
+            {unpaid.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No unpaid invoices.</div>}
             {unpaid.map(inv => (
               <div key={inv.id} className="card p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="font-medium text-sm">{inv.client?.name}</div>
-                    <div className="text-xs text-gray-500">{inv.invoiceNo} · ${inv.total.toFixed(2)} · Due {formatDate(inv.dueDate)}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{inv.invoiceNo} · ${inv.total.toFixed(2)} · Due {formatDate(inv.dueDate)}</div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => send(inv.clientId,'email','Invoice',inv.id)}>📧 Email</button>
@@ -55,9 +55,9 @@ export default function RemindersPage() {
         </div>
 
         <div>
-          <h2 className="text-sm font-medium text-gray-700 mb-3">Expiring Services ({expiring.length})</h2>
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Expiring Services ({expiring.length})</h2>
           <div className="space-y-2">
-            {expiring.length === 0 && <div className="text-sm text-gray-400 py-4">No expiring services within 30 days.</div>}
+            {expiring.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No expiring services within 30 days.</div>}
             {expiring.map(svc => {
               const d = daysUntil(svc.expiryDate)
               return (
@@ -65,8 +65,8 @@ export default function RemindersPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-medium text-sm">{svc.client?.name}</div>
-                      <div className="text-xs text-gray-500">{svc.name} · Expires {formatDate(svc.expiryDate)}</div>
-                      <div className={`text-xs font-medium mt-0.5 ${d<0?'text-red-600':d<7?'text-orange-600':'text-yellow-600'}`}>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{svc.name} · Expires {formatDate(svc.expiryDate)}</div>
+                      <div className={`text-xs font-medium mt-0.5 ${d<0?'text-red-600 dark:text-red-400':d<7?'text-orange-600 dark:text-orange-400':'text-yellow-600 dark:text-yellow-400'}`}>
                         {d<0 ? `${Math.abs(d)} days overdue` : `${d} days left`}
                       </div>
                     </div>

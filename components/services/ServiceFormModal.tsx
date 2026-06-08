@@ -46,6 +46,7 @@ export default function ServiceFormModal({
   const [form, setForm] = useState(emptyForm())
   const [generateInvoice, setGenerateInvoice] = useState(false)
   const [sendInvoice, setSendInvoice] = useState(false)
+  const [generatingInvoice, setGeneratingInvoice] = useState(false)
 
   const selectedType = productTypes.find(t => t.id === form.productTypeId)
 
@@ -206,6 +207,35 @@ export default function ServiceFormModal({
     }
   }
 
+  const generateInvoiceNow = async () => {
+    if (!editId) return
+    const label = form.name || service?.name || 'this service'
+    if (!confirm(`Generate invoice for "${label}"?`)) return
+    const send = confirm('Also send invoice to client (email + Telegram)?')
+    setGeneratingInvoice(true)
+    try {
+      const res = await fetch(`/api/services/${editId}/invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendInvoice: send }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
+      const parts = [`Invoice ${data.invoice.invoiceNo} created.`]
+      if (send) {
+        const sent = data.invoiceSent
+        if (sent?.email || sent?.telegram) parts.push('Sent to client.')
+        else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
+      }
+      alert(parts.join(' '))
+      onSaved()
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to generate invoice')
+    } finally {
+      setGeneratingInvoice(false)
+    }
+  }
+
   if (!open) return null
 
   const clientLabel = lockClient
@@ -217,22 +247,22 @@ export default function ServiceFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 sticky top-0 bg-white">
+      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900">
           <h2 className="text-base font-semibold">
             {editId ? 'Edit Service' : lockClient && clientLabel ? `Add Service — ${clientLabel}` : 'Add Service'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
         </div>
 
         <div className="p-5 space-y-5">
           <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Product Details</h3>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Product Details</h3>
             <div className="grid grid-cols-2 gap-3">
               {lockClient ? (
                 <div className="col-span-2">
                   <label className="label">Client</label>
-                  <div className="input bg-gray-50 text-gray-700">{clientLabel}</div>
+                  <div className="input bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300">{clientLabel}</div>
                 </div>
               ) : (
                 <div>
@@ -252,7 +282,7 @@ export default function ServiceFormModal({
                   ))}
                 </select>
                 {productTypes.length === 0 && (
-                  <p className="text-xs text-orange-600 mt-1">
+                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                     No product types yet. <a href="/product-types" className="underline">Create one</a>
                   </p>
                 )}
@@ -271,7 +301,7 @@ export default function ServiceFormModal({
                     ))}
                   </select>
                   {productPackages.length === 0 && (
-                    <p className="text-xs text-orange-600 mt-1">
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                       No packages yet. <a href="/product-packages" className="underline">Create one</a>
                     </p>
                   )}
@@ -289,14 +319,14 @@ export default function ServiceFormModal({
                 />
               </div>
               {selectedPkg && isHosting && (
-                <div className="col-span-2 bg-gray-50 rounded-lg p-3 text-xs text-gray-600">
-                  <span className="font-medium text-gray-700">{selectedPkg.name}</span>
+                <div className="col-span-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300">
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{selectedPkg.name}</span>
                   {' — '}{selectedPkg.diskSpaceGb}GB disk · {selectedPkg.bandwidthGb}GB bandwidth · {selectedPkg.emailAccounts} emails · {selectedPkg.databases} DB
-                  {selectedPkg.description && <span className="block mt-1 text-gray-500">{selectedPkg.description}</span>}
+                  {selectedPkg.description && <span className="block mt-1 text-gray-500 dark:text-gray-400">{selectedPkg.description}</span>}
                 </div>
               )}
               {selectedPkg && !isHosting && selectedPkg.description && (
-                <div className="col-span-2 bg-gray-50 rounded-lg p-3 text-xs text-gray-500">
+                <div className="col-span-2 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-xs text-gray-500 dark:text-gray-400">
                   {selectedPkg.description}
                 </div>
               )}
@@ -313,8 +343,8 @@ export default function ServiceFormModal({
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Pricing & Billing</h3>
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing & Billing</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Billing Type</label>
@@ -352,8 +382,8 @@ export default function ServiceFormModal({
             </div>
           </div>
 
-          <div className="border-t border-gray-100 pt-5">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Billing Dates</h3>
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Billing Dates</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="label">Registration Date</label>
@@ -386,15 +416,15 @@ export default function ServiceFormModal({
               </div>
             </div>
             {form.recurring && (
-              <p className="text-xs text-gray-400 mt-2">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                 Dates auto-calculate from billing cycle. You can override next due and renewal dates manually.
               </p>
             )}
           </div>
 
-          {!editId && (
-            <div className="border-t border-gray-100 pt-5">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Invoice</h3>
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Invoice</h3>
+            {!editId ? (
               <div className="space-y-3">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -406,7 +436,7 @@ export default function ServiceFormModal({
                       if (!e.target.checked) setSendInvoice(false)
                     }}
                   />
-                  <span className="text-sm text-gray-700">Generate Invoice?</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Generate Invoice?</span>
                 </label>
                 {generateInvoice && (
                   <label className="flex items-center gap-2 cursor-pointer ml-6">
@@ -416,21 +446,38 @@ export default function ServiceFormModal({
                       checked={sendInvoice}
                       onChange={e => setSendInvoice(e.target.checked)}
                     />
-                    <span className="text-sm text-gray-700">Send Invoice</span>
-                    <span className="text-xs text-gray-400">(email + Telegram if configured)</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Send Invoice</span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500">(email + Telegram if configured)</span>
                   </label>
                 )}
                 {generateInvoice && (
-                  <p className="text-xs text-gray-400 ml-6">
+                  <p className="text-xs text-gray-400 dark:text-gray-500 ml-6">
                     Invoice due date uses the service next due / expiry date. Line items include recurring price and setup fee.
                   </p>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600 dark:text-gray-300">
+                  Generate an invoice from this service&apos;s current price and setup fee.
+                </p>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  disabled={generatingInvoice || saving}
+                  onClick={generateInvoiceNow}
+                >
+                  {generatingInvoice ? 'Generating...' : 'Generate Invoice'}
+                </button>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Save changes first — invoice uses the saved service data. Due date uses next due / expiry.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Service'}

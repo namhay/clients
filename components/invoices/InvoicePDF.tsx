@@ -25,30 +25,34 @@ const styles = StyleSheet.create({
   metaLine: { marginBottom: 3, lineHeight: 1.4 },
   label: { fontWeight: 700 },
   table: { border: '0.5pt solid #000' },
-  tableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000' },
-  tableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 28 },
-  th: { padding: 5, fontWeight: 700, fontSize: 8, textAlign: 'center', borderRight: '0.5pt solid #000' },
-  td: { padding: 5, fontSize: 9, borderRight: '0.5pt solid #000' },
+  tableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000', alignItems: 'stretch' },
+  tableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 28, alignItems: 'stretch' },
+  cell: { padding: 5, borderRight: '0.5pt solid #000', justifyContent: 'center' },
+  cellCenter: { alignItems: 'center' },
+  th: { fontWeight: 700, fontSize: 8, textAlign: 'center' },
+  td: { fontSize: 9 },
   colNo: { width: COL.no },
   colDesc: { width: COL.desc },
-  colQty: { width: COL.qty, textAlign: 'center' },
-  colPrice: { width: COL.price, textAlign: 'center' },
-  colAmount: { width: COL.amount, textAlign: 'center' },
+  colQty: { width: COL.qty },
+  colPrice: { width: COL.price },
+  colAmount: { width: COL.amount },
+  colTextCenter: { textAlign: 'center' },
   lastCol: { borderRight: 0 },
-  totalLabel: { width: COL.price, padding: 6, borderRight: '0.5pt solid #000', fontSize: 8, textAlign: 'left' },
-  totalValue: { width: COL.amount, padding: 6, textAlign: 'center', fontWeight: 700, fontSize: 11 },
-  paymentSection: { marginTop: 10 },
+  totalLabel: { fontSize: 8, textAlign: 'left' },
+  totalValue: { textAlign: 'center', fontWeight: 700, fontSize: 11 },
+  paymentSection: { marginTop: 10, textAlign: 'center' },
   paymentRow: { flexDirection: 'row', marginBottom: 6 },
   paymentColLeft: { width: '50%' },
   paymentColRight: { width: '50%' },
+  paymentBankLine: { fontSize: 9, lineHeight: 1.4 },
   paymentNotes: { fontSize: 8, lineHeight: 1.4 },
-  qrCenter: { alignItems: 'center', marginTop: -50, marginBottom: 4 },
-  paymentQr: { width: 80, height: 80, marginLeft: -150 },
+  qrCenter: { alignItems: 'center', marginBottom: 4 },
+  paymentQr: { width: 70, height: 70 },
   footer: { flexDirection: 'row', marginTop: -50, justifyContent: 'space-between' },
   signCol: { width: '42%', textAlign: 'center' },
-  signTopArea: { height: 83, alignItems: 'center', justifyContent: 'flex-start' },
+  signTopArea: { height: 50, alignItems: 'center', justifyContent: 'flex-start' },
   signLine: { borderTop: '0.5pt dotted #000', paddingTop: 6, fontSize: 8 },
-  stamp: { width: 140, height: 80, objectFit: 'contain' },
+  stamp: { width: 378, height: 230, marginTop: -20, marginBottom: 10, objectFit: 'contain' },
 })
 
 function formatInvoiceDate(date: string | Date) {
@@ -142,41 +146,67 @@ export default function InvoicePDF({ invoice, company, paymentQrSrc, logoSrc, st
         {/* Items table + total row (same column grid) */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.th, styles.colNo]}>ល.រ{'\n'}No.</Text>
-            <Text style={[styles.th, styles.colDesc]}>បរិយាយមុខទំនិញ{'\n'}Description</Text>
-            <Text style={[styles.th, styles.colQty]}>បរិមាណ{'\n'}Quantity</Text>
-            <Text style={[styles.th, styles.colPrice]}>តម្លៃឯកតា{'\n'}Unit Price</Text>
-            <Text style={[styles.th, styles.colAmount, styles.lastCol]}>តម្លៃសរុប{'\n'}Amount</Text>
+            <View style={[styles.cell, styles.colNo, styles.cellCenter]}>
+              <Text style={styles.th}>ល.រ{'\n'}No.</Text>
+            </View>
+            <View style={[styles.cell, styles.colDesc, styles.cellCenter]}>
+              <Text style={styles.th}>បរិយាយមុខទំនិញ{'\n'}Description</Text>
+            </View>
+            <View style={[styles.cell, styles.colQty, styles.cellCenter]}>
+              <Text style={styles.th}>បរិមាណ{'\n'}Quantity</Text>
+            </View>
+            <View style={[styles.cell, styles.colPrice, styles.cellCenter]}>
+              <Text style={styles.th}>តម្លៃឯកតា{'\n'}Unit Price</Text>
+            </View>
+            <View style={[styles.cell, styles.colAmount, styles.lastCol, styles.cellCenter]}>
+              <Text style={styles.th}>តម្លៃសរុប{'\n'}Amount</Text>
+            </View>
           </View>
           {invoice.items.map((item, i) => (
             <View key={i} style={styles.tableRow}>
-              <Text style={[styles.td, styles.colNo, { textAlign: 'center' }]}>{i + 1}</Text>
-              <Text style={[styles.td, styles.colDesc]}>
-                {formatInvoiceItemDescription(item.description)}
-                {'\n'}
-                ({formatInvoiceDate(item.periodStart ?? invoice.createdAt)} - {formatInvoiceDate(item.periodEnd ?? invoice.dueDate)})
-              </Text>
-              <Text style={[styles.td, styles.colQty]}>{item.quantity}</Text>
-              <Text style={[styles.td, styles.colPrice]}>$ {item.unitPrice.toFixed(2)}</Text>
-              <Text style={[styles.td, styles.colAmount, styles.lastCol]}>$ {item.total.toFixed(2)}</Text>
+              <View style={[styles.cell, styles.colNo, styles.cellCenter]}>
+                <Text style={[styles.td, styles.colTextCenter]}>{i + 1}</Text>
+              </View>
+              <View style={[styles.cell, styles.colDesc]}>
+                <Text style={styles.td}>
+                  {formatInvoiceItemDescription(item.description)}
+                  {'\n'}
+                  ({formatInvoiceDate(item.periodStart ?? invoice.createdAt)} - {formatInvoiceDate(item.periodEnd ?? invoice.dueDate)})
+                </Text>
+              </View>
+              <View style={[styles.cell, styles.colQty, styles.cellCenter]}>
+                <Text style={[styles.td, styles.colTextCenter]}>{item.quantity}</Text>
+              </View>
+              <View style={[styles.cell, styles.colPrice, styles.cellCenter]}>
+                <Text style={[styles.td, styles.colTextCenter]}>$ {item.unitPrice.toFixed(2)}</Text>
+              </View>
+              <View style={[styles.cell, styles.colAmount, styles.lastCol, styles.cellCenter]}>
+                <Text style={[styles.td, styles.colTextCenter]}>$ {item.total.toFixed(2)}</Text>
+              </View>
             </View>
           ))}
           <View style={[styles.tableRow, { borderBottom: 0, minHeight: 32 }]}>
-            <Text style={[styles.td, styles.colNo]}> </Text>
-            <Text style={[styles.td, styles.colDesc]}> </Text>
-            <Text style={[styles.td, styles.colQty]}> </Text>
-            <Text style={styles.totalLabel}>សរុប(បញ្ចូលទាំងអាករ) / TOTAL (VAT Included)</Text>
-            <Text style={[styles.totalValue, styles.lastCol]}>$ {invoice.total.toFixed(2)}</Text>
+            <View style={[styles.cell, styles.colNo]}><Text> </Text></View>
+            <View style={[styles.cell, styles.colDesc]}><Text> </Text></View>
+            <View style={[styles.cell, styles.colQty]}><Text> </Text></View>
+            <View style={[styles.cell, styles.colPrice]}>
+              <Text style={styles.totalLabel}>សរុប(បញ្ចូលទាំងអាករ) / TOTAL (VAT Included)</Text>
+            </View>
+            <View style={[styles.cell, styles.colAmount, styles.lastCol, styles.cellCenter]}>
+              <Text style={styles.totalValue}>$ {invoice.total.toFixed(2)}</Text>
+            </View>
           </View>
         </View>
 
         {/* Payment below table */}
         <View style={styles.paymentSection}>
           <View style={styles.paymentRow}>
-            <View style={styles.paymentColLeft}>
-              <Text style={{ fontWeight: 700, marginBottom: 3 }}>{company.bankName}</Text>
-              <Text>Account No.: {company.bankAccountNo}</Text>
-              <Text>Account Name: {company.bankAccountName}</Text>
+            <View style={invoice.notes ? styles.paymentColLeft : { width: '100%' }}>
+              <Text style={styles.paymentBankLine}>
+                Bank: <Text style={styles.label}>{company.bankName}</Text>
+                {' | Account No.: '}<Text style={styles.label}>{company.bankAccountNo}</Text>
+                {' | Account Name: '}<Text style={styles.label}>{company.bankAccountName}</Text>
+              </Text>
             </View>
             {invoice.notes && (
               <View style={styles.paymentColRight}>

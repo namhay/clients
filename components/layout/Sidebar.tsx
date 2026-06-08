@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
+import ThemeToggle from '@/components/layout/ThemeToggle'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -20,31 +21,32 @@ export default function Sidebar() {
   const { data: session } = useSession()
   const initials = session?.user?.name?.split(' ').map((n:string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
   return (
-    <aside className="w-[220px] min-w-[220px] bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
-      <div className="p-4 border-b border-gray-200">
+    <aside className="w-[220px] min-w-[220px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-screen sticky top-0">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
           </div>
-          <div><div className="text-sm font-semibold text-gray-900">ClientDesk</div><div className="text-xs text-gray-500">Hosting Manager</div></div>
+          <div><div className="text-sm font-semibold text-gray-900 dark:text-gray-100">ClientDesk</div><div className="text-xs text-gray-500 dark:text-gray-400">Hosting Manager</div></div>
         </div>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {navItems.map(item => {
           const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
           return (
-            <Link key={item.href} href={item.href} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}>
+            <Link key={item.href} href={item.href} className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${active ? 'bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 font-medium' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'}`}>
               <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} /></svg>
               {item.label}
             </Link>
           )
         })}
       </nav>
-      <div className="p-3 border-t border-gray-200">
+      <div className="p-3 border-t border-gray-200 dark:border-gray-800 space-y-3">
+        <ThemeToggle />
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
-          <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initials}</div>
-          <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-900 truncate">{session?.user?.name}</div><div className="text-xs text-gray-500">{(session?.user as any)?.role}</div></div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-gray-400 hover:text-gray-600" title="Sign out">
+          <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initials}</div>
+          <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{session?.user?.name}</div><div className="text-xs text-gray-500 dark:text-gray-400">{(session?.user as any)?.role}</div></div>
+          <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" title="Sign out">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>

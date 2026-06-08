@@ -26,10 +26,11 @@
     "bcryptjs": "^2.4.3",
     "next": "14.2.18",
     "next-auth": "^4.24.10",
+    "next-themes": "^0.4.6",
+    "node-telegram-bot-api": "^0.66.0",
     "nodemailer": "^7.0.7",
     "react": "^18",
-    "react-dom": "^18",
-    "node-telegram-bot-api": "^0.66.0"
+    "react-dom": "^18"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -12,6 +12,7 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editService, setEditService] = useState<any>(null)
+  const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -45,12 +46,38 @@ export default function ServicesPage() {
     load()
   }
 
+  const generateInvoice = async (s: any) => {
+    if (!confirm(`Generate invoice for "${s.name}"?`)) return
+    const sendInvoice = confirm('Also send invoice to client (email + Telegram)?')
+    setGeneratingInvoiceId(s.id)
+    try {
+      const res = await fetch(`/api/services/${s.id}/invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sendInvoice }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
+      const parts = [`Invoice ${data.invoice.invoiceNo} created.`]
+      if (sendInvoice) {
+        const sent = data.invoiceSent
+        if (sent?.email || sent?.telegram) parts.push('Sent to client.')
+        else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
+      }
+      alert(parts.join(' '))
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Failed to generate invoice')
+    } finally {
+      setGeneratingInvoiceId(null)
+    }
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">Services</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage products, pricing, and billing cycles</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Services</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage products, pricing, and billing cycles</p>
         </div>
         <button className="btn-primary" onClick={openAdd}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -59,10 +86,10 @@ export default function ServicesPage() {
       </div>
 
       <div className="card">
-        <div className="p-3 border-b border-gray-100 flex gap-2 flex-wrap">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 flex-wrap">
           <button
             onClick={() => setTypeFilter('')}
-            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${!typeFilter ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${!typeFilter ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
           >
             All
           </button>
@@ -70,40 +97,40 @@ export default function ServicesPage() {
             <button
               key={t.id}
               onClick={() => setTypeFilter(t.id)}
-              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${typeFilter === t.id ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${typeFilter === t.id ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
             >
               {t.name}
             </button>
           ))}
         </div>
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Client</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Service</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Type</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Billing</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Next Due</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Amount</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Client</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Service</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Next Due</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>}
+            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && services.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No services found</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No services found</td></tr>
             )}
             {services.map(s => {
               const dueDate = s.nextDueDate || s.expiryDate
               const d = daysUntil(dueDate)
               return (
-                <tr key={s.id} className="border-t border-gray-100 hover:bg-gray-50">
+                <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3 font-medium">{s.client?.name}</td>
                   <td className="px-4 py-3">
-                    <div className="text-gray-600">{s.name}</div>
+                    <div className="text-gray-600 dark:text-gray-300">{s.name}</div>
                     {s.productPackage && (
-                      <div className="text-xs text-gray-400 mt-0.5">{s.productPackage.name}</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{s.productPackage.name}</div>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -111,19 +138,19 @@ export default function ServicesPage() {
                       {s.productType?.name || '—'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{formatBillingCycle(s.period, s.recurring)}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatBillingCycle(s.period, s.recurring)}</td>
                   <td className="px-4 py-3">
-                    <div className={d < 0 ? 'text-red-600' : d < 30 ? 'text-orange-600' : 'text-gray-700'}>
+                    <div className={d < 0 ? 'text-red-600 dark:text-red-400' : d < 30 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}>
                       {formatDate(dueDate)}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-gray-400 dark:text-gray-500">
                       {d < 0 ? `${Math.abs(d)} days overdue` : `${d} days left`}
                     </div>
                   </td>
                   <td className="px-4 py-3">
                     <div>{formatCurrency(s.price)}</div>
                     {s.setupFee > 0 && (
-                      <div className="text-xs text-gray-400">+{formatCurrency(s.setupFee)} setup</div>
+                      <div className="text-xs text-gray-400 dark:text-gray-500">+{formatCurrency(s.setupFee)} setup</div>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -132,7 +159,14 @@ export default function ServicesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap">
+                      <button
+                        className="btn-secondary py-1 px-2 text-xs"
+                        disabled={generatingInvoiceId === s.id}
+                        onClick={() => generateInvoice(s)}
+                      >
+                        {generatingInvoiceId === s.id ? '...' : 'Invoice'}
+                      </button>
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(s)}>Edit</button>
                       <button className="btn-danger py-1 px-2 text-xs" onClick={() => del(s.id)}>Delete</button>
                     </div>
