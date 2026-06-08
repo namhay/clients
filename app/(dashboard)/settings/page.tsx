@@ -257,8 +257,8 @@ export default function SettingsPage() {
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 mb-4">Database & Deployment</h2>
           <div className="space-y-2 text-xs text-gray-600">
-            <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=mysql://user:pass@localhost/clientdesk</div>
-            <p className="text-gray-500">Set your MySQL credentials from cPanel in the .env file.</p>
+            <div className="bg-gray-50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=postgresql://...@neon.tech/neondb</div>
+            <p className="text-gray-500">Neon PostgreSQL — set DATABASE_URL and DIRECT_URL in .env (local) or Vercel env vars (production).</p>
             <div className="pt-2 space-y-1">
               <p className="font-medium text-gray-700">Quick commands:</p>
               <div className="bg-gray-900 text-green-400 rounded-lg p-3 font-mono space-y-1">
