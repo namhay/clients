@@ -1,0 +1,43 @@
+{
+  "name": "clientdesk",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "prisma generate && next dev",
+    "postinstall": "prisma generate",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed-catalog": "node scripts/seed-product-catalog.js",
+    "db:migrate-catalog": "node scripts/migrate-product-catalog.js",
+    "telegram:webhook": "node scripts/setup-telegram-webhook.js"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.7.2",
+    "@prisma/client": "^5.22.0",
+    "@react-pdf/renderer": "^3.4.4",
+    "bcryptjs": "^2.4.3",
+    "next": "14.2.18",
+    "next-auth": "^4.24.10",
+    "nodemailer": "^7.0.7",
+    "react": "^18",
+    "react-dom": "^18",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20",
+    "@types/nodemailer": "^6.4.17",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10.0.1",
+    "postcss": "^8",
+    "prisma": "^5.22.0",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}

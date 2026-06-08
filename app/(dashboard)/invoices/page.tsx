@@ -1,0 +1,293 @@
+'use client'
+import { useEffect, useState } from 'react'
+import { formatDate, formatCurrency } from '@/lib/utils'
+
+const statusColors: Record<string, string> = {
+  PAID: 'badge-paid',
+  UNPAID: 'badge-unpaid',
+  OVERDUE: 'badge-overdue',
+  CANCELLED: 'badge-domain',
+}
+
+const emptyForm = () => ({
+  invoiceNo: '',
+  clientId: '',
+  dueDate: '',
+  notes: '',
+  tax: '0',
+  status: 'UNPAID',
+  items: [{ description: '', quantity: 1, unitPrice: '', total: 0 }],
+})
+
+export default function InvoicesPage() {
+  const [invoices, setInvoices] = useState<any[]>([])
+  const [clients, setClients] = useState<any[]>([])
+  const [statusFilter, setStatusFilter] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [showModal, setShowModal] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState(emptyForm())
+
+  const load = async () => {
+    setLoading(true)
+    const [invs, cls] = await Promise.all([
+      fetch(`/api/invoices${statusFilter ? `?status=${statusFilter}` : ''}`).then(r => r.json()),
+      fetch('/api/clients').then(r => r.json()),
+    ])
+    setInvoices(invs)
+    setClients(cls)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [statusFilter])
+
+  const updateItem = (i: number, field: string, val: unknown) => {
+    setForm(f => {
+      const items = [...f.items]
+      items[i] = { ...items[i], [field]: val }
+      if (field === 'unitPrice' || field === 'quantity') {
+        items[i].total = (Number(items[i].unitPrice) || 0) * (Number(items[i].quantity) || 1)
+      }
+      return { ...f, items }
+    })
+  }
+
+  const openCreate = () => {
+    setEditId(null)
+    const d = new Date()
+    d.setDate(d.getDate() + 30)
+    setForm({ ...emptyForm(), dueDate: d.toISOString().split('T')[0] })
+    setShowModal(true)
+  }
+
+  const openEdit = (inv: any) => {
+    setEditId(inv.id)
+    setForm({
+      invoiceNo: inv.invoiceNo,
+      clientId: inv.clientId,
+      dueDate: new Date(inv.dueDate).toISOString().split('T')[0],
+      notes: inv.notes || '',
+      tax: String(inv.tax ?? 0),
+      status: inv.status || 'UNPAID',
+      items: inv.items?.length
+        ? inv.items.map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: String(item.unitPrice),
+            total: item.total,
+          }))
+        : [{ description: '', quantity: 1, unitPrice: '', total: 0 }],
+    })
+    setShowModal(true)
+  }
+
+  const save = async () => {
+    if (!form.clientId || !form.dueDate) return alert('Select client and due date')
+    if (editId && !form.invoiceNo.trim()) return alert('Invoice number is required')
+    const items = form.items
+      .filter(i => i.description)
+      .map(i => ({
+        description: i.description,
+        quantity: Number(i.quantity) || 1,
+        unitPrice: Number(i.unitPrice) || 0,
+        total: Number(i.total) || 0,
+      }))
+    if (!items.length) return alert('Add at least one item')
+
+    setSaving(true)
+    try {
+      const payload = {
+        ...form,
+        tax: Number(form.tax) || 0,
+        items,
+        ...(editId && { invoiceNo: form.invoiceNo.trim() }),
+      }
+      const url = editId ? `/api/invoices/${editId}` : '/api/invoices'
+      const method = editId ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return alert(result.error || 'Failed to save invoice')
+      setShowModal(false)
+      setEditId(null)
+      load()
+    } catch {
+      alert('Failed to save invoice')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const markPaid = async (id: string) => {
+    await fetch(`/api/invoices/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PAID' }),
+    })
+    load()
+  }
+
+  const downloadPDF = async (inv: any) => {
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}/pdf`)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        return alert(err.error || 'Failed to generate PDF')
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${inv.invoiceNo}.pdf`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      alert('Failed to download PDF')
+    }
+  }
+
+  const sendEmail = async (inv: any) => {
+    await fetch('/api/reminders/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
+    })
+    alert(`Invoice email sent to ${inv.client?.email}`)
+  }
+
+  const sendTelegram = async (inv: any) => {
+    const res = await fetch('/api/reminders/telegram', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return alert(data.error || 'Telegram send failed')
+    alert(`Invoice PDF sent to ${inv.client?.name} via Telegram`)
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-gray-900">Invoices</h1>
+        <button className="btn-primary" onClick={openCreate}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+          Create Invoice
+        </button>
+      </div>
+
+      <div className="card">
+        <div className="p-3 border-b border-gray-100 flex gap-2">
+          {['', 'UNPAID', 'PAID', 'OVERDUE'].map(s => (
+            <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{s || 'All'}</button>
+          ))}
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50"><tr>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Invoice #</th>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Client</th>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Amount</th>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Due Date</th>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 font-medium">Status</th>
+            <th className="px-4 py-2.5">Actions</th>
+          </tr></thead>
+          <tbody>
+            {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Loading...</td></tr>}
+            {!loading && invoices.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No invoices found</td></tr>}
+            {invoices.map(inv => (
+              <tr key={inv.id} className="border-t border-gray-100 hover:bg-gray-50">
+                <td className="px-4 py-3 font-semibold text-blue-700">{inv.invoiceNo}</td>
+                <td className="px-4 py-3 font-medium">{inv.client?.name}<div className="text-xs text-gray-400">{inv.client?.email}</div></td>
+                <td className="px-4 py-3 font-semibold">{formatCurrency(inv.total)}</td>
+                <td className="px-4 py-3 text-gray-600">{formatDate(inv.dueDate)}</td>
+                <td className="px-4 py-3"><span className={`badge ${statusColors[inv.status] || 'badge-unpaid'}`}>{inv.status}</span></td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 flex-wrap">
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(inv)}>Edit</button>
+                    {inv.status !== 'PAID' && <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>}
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => downloadPDF(inv)}>PDF</button>
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendEmail(inv)}>📧</button>
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendTelegram(inv)}>✈</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 sticky top-0 bg-white">
+              <h2 className="text-base font-semibold">{editId ? 'Edit Invoice' : 'Create Invoice'}</h2>
+              <button onClick={() => { setShowModal(false); setEditId(null) }} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              {editId && (
+                <div>
+                  <label className="label">Invoice Number *</label>
+                  <input className="input" value={form.invoiceNo} onChange={e => setForm(f => ({ ...f, invoiceNo: e.target.value }))} placeholder="e.g. 26-043 or INV-0001" />
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Client *</label>
+                  <select className="input" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
+                    <option value="">Select...</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Due Date *</label>
+                  <input type="date" className="input" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
+                </div>
+              </div>
+              {editId && (
+                <div>
+                  <label className="label">Status</label>
+                  <select className="input" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                    {['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              )}
+              <div>
+                <label className="label">Invoice Items</label>
+                <div className="space-y-2">
+                  {form.items.map((item, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_60px_80px_80px] gap-2">
+                      <input className="input text-xs" placeholder="Description" value={item.description} onChange={e => updateItem(i, 'description', e.target.value)} />
+                      <input type="number" className="input text-xs" placeholder="Qty" value={item.quantity} onChange={e => updateItem(i, 'quantity', e.target.value)} />
+                      <input type="number" className="input text-xs" placeholder="Price" value={item.unitPrice} onChange={e => updateItem(i, 'unitPrice', e.target.value)} />
+                      <div className="input text-xs flex items-center text-gray-500">${(item.total || 0).toFixed(2)}</div>
+                    </div>
+                  ))}
+                  <button className="btn-secondary text-xs py-1" onClick={() => setForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unitPrice: '', total: 0 }] }))}>+ Add Item</button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Tax (%)</label>
+                  <input type="number" className="input" value={form.tax} onChange={e => setForm(f => ({ ...f, tax: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Notes</label>
+                  <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Bank transfer details..." />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button className="btn-secondary" onClick={() => { setShowModal(false); setEditId(null) }}>Cancel</button>
+              <button className="btn-primary" onClick={save} disabled={saving}>
+                {saving ? 'Saving...' : editId ? 'Save Changes' : 'Create Invoice'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

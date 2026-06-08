@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 220px;
+  }
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-800 transition-colors flex items-center gap-2;
+  }
+  .btn-secondary {
+    @apply bg-white text-gray-700 px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 hover:bg-gray-50 transition-colors flex items-center gap-2;
+  }
+  .btn-danger {
+    @apply bg-red-50 text-red-700 px-4 py-2 rounded-lg text-sm font-medium border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-2;
+  }
+  .input {
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white;
+  }
+  .label {
+    @apply block text-xs font-medium text-gray-600 mb-1;
+  }
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 overflow-hidden;
+  }
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-paid { @apply bg-green-100 text-green-800; }
+  .badge-unpaid { @apply bg-yellow-100 text-yellow-800; }
+  .badge-overdue { @apply bg-red-100 text-red-800; }
+  .badge-active { @apply bg-green-100 text-green-800; }
+  .badge-expired { @apply bg-red-100 text-red-800; }
+  .badge-domain { @apply bg-blue-100 text-blue-800; }
+  .badge-hosting { @apply bg-green-100 text-green-800; }
+  .badge-ssl { @apply bg-orange-100 text-orange-800; }
+  .badge-design { @apply bg-pink-100 text-pink-800; }
+  .badge-purple { @apply bg-purple-100 text-purple-800; }
+  .badge-gray { @apply bg-gray-100 text-gray-800; }
+  .badge-yellow { @apply bg-yellow-100 text-yellow-800; }
+  .badge-indigo { @apply bg-indigo-100 text-indigo-800; }
+}
