@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { formatReminderRule } from '@/lib/product-types'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { daysUntil } from '@/lib/utils'
+import { toast } from '@/lib/toast'
 
 export default function RemindersPage() {
   const { formatDate } = useAppSettings()
@@ -26,9 +27,9 @@ export default function RemindersPage() {
     try {
       const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clientId, type:'reminder', invoiceId, serviceId }) })
       if (!res.ok) throw new Error((await res.json()).error)
-      alert(`${channel === 'email' ? 'Email' : 'Telegram'} reminder sent!`)
+      toast.success(`${channel === 'email' ? 'Email' : 'Telegram'} reminder sent!`)
       setLogs(l => [{ date: formatDate(new Date()), client: 'Sent', type, channel, status:'Sent' }, ...l])
-    } catch(e:any) { alert('Error: ' + e.message) }
+    } catch(e:any) { toast.error('Error: ' + e.message) }
   }
 
   return (

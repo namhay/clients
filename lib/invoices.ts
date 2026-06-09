@@ -1,9 +1,9 @@
 import { getClientById } from '@/lib/db/clients'
 import {
-  countInvoices,
   createInvoice,
   findInvoiceByInvoiceNo,
   getInvoiceById,
+  listInvoiceNumbers,
   listUnpaidInvoicesByClient,
   updateInvoiceRecord,
   type InvoiceItemRow,
@@ -20,17 +20,43 @@ import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
-import { addMonths, extendServiceByBillingCycle, getBillingMonths } from '@/lib/billing'
+import { addMonths, extendServiceByBillingCycle, getBillingMonths, revertServiceByBillingCycle } from '@/lib/billing'
 import { getAppSettings } from '@/lib/settings'
 import { serviceFields } from '@/lib/services'
 
 const INVOICE_STATUSES = ['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'] as const
 
+export function parseInvoiceSequenceNumber(invoiceNo: string, prefix: string): number | null {
+  const trimmed = invoiceNo.trim()
+  if (!trimmed) return null
+
+  if (prefix && trimmed.startsWith(prefix)) {
+    const suffix = trimmed.slice(prefix.length).trim()
+    const num = parseInt(suffix, 10)
+    return Number.isNaN(num) ? null : num
+  }
+
+  const match = trimmed.match(/(\d+)$/)
+  if (!match) return null
+  const num = parseInt(match[1], 10)
+  return Number.isNaN(num) ? null : num
+}
+
+export async function getMaxInvoiceSequence(prefix: string): Promise<number> {
+  const numbers = await listInvoiceNumbers()
+  let max = 0
+  for (const invoiceNo of numbers) {
+    const seq = parseInvoiceSequenceNumber(invoiceNo, prefix)
+    if (seq != null && seq > max) max = seq
+  }
+  return max
+}
+
 export async function getNextInvoiceNo(): Promise<string> {
-  const count = await countInvoices()
   const { invoicePrefix, invoiceStartNumber } = await getAppSettings()
-  const num = invoiceStartNumber + count
-  return `${invoicePrefix}${String(num).padStart(4, '0')}`
+  const maxExisting = await getMaxInvoiceSequence(invoicePrefix)
+  const nextNum = Math.max(invoiceStartNumber - 1, maxExisting) + 1
+  return `${invoicePrefix}${String(nextNum).padStart(4, '0')}`
 }
 
 export type InvoiceItemInput = {
@@ -131,6 +157,8 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
   const invoice = await updateInvoiceRecord(id, data, paidAt)
   if (data.status === 'PAID' && existing.status !== 'PAID') {
     await renewServicesForPaidInvoice(id)
+  } else if (data.status !== 'PAID' && existing.status === 'PAID') {
+    await revertServicesForUnpaidInvoice(id)
   }
   return invoice
 }
@@ -282,6 +310,34 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
       startDate: service.startDate,
       expiryDate: extension.expiryDate,
       nextDueDate: extension.nextDueDate,
+      price: service.price,
+      setupFee: service.setupFee,
+      recurring: service.recurring,
+      period: service.period,
+      status: service.status === 'CANCELLED' ? 'CANCELLED' : 'ACTIVE',
+      notes: service.notes,
+    }))
+  }
+}
+
+/** Roll back recurring services when a paid invoice is reverted to unpaid. */
+export async function revertServicesForUnpaidInvoice(invoiceId: string) {
+  const invoice = await getInvoiceById(invoiceId)
+  if (!invoice) return
+
+  const services = await getInvoiceServices(invoice)
+  for (const service of services) {
+    const reverted = revertServiceByBillingCycle(service)
+    if (!reverted) continue
+
+    await updateService(service.id, serviceFields({
+      clientId: service.clientId,
+      productTypeId: service.productTypeId,
+      productPackageId: service.productPackageId,
+      name: service.name,
+      startDate: service.startDate,
+      expiryDate: reverted.expiryDate,
+      nextDueDate: reverted.nextDueDate,
       price: service.price,
       setupFee: service.setupFee,
       recurring: service.recurring,

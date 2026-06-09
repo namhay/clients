@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from '@/lib/toast'
 
 const statusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -89,8 +90,8 @@ export default function InvoicesPage() {
   }
 
   const save = async () => {
-    if (!form.clientId || !form.invoiceDate || !form.dueDate) return alert('Select client, invoice date, and due date')
-    if (editId && !form.invoiceNo.trim()) return alert('Invoice number is required')
+    if (!form.clientId || !form.invoiceDate || !form.dueDate) return toast.error('Select client, invoice date, and due date')
+    if (editId && !form.invoiceNo.trim()) return toast.error('Invoice number is required')
     const items = form.items
       .filter(i => i.description)
       .map(i => ({
@@ -101,7 +102,7 @@ export default function InvoicesPage() {
         ...(i.periodStart ? { periodStart: i.periodStart } : {}),
         ...(i.periodEnd ? { periodEnd: i.periodEnd } : {}),
       }))
-    if (!items.length) return alert('Add at least one item')
+    if (!items.length) return toast.error('Add at least one item')
 
     setSaving(true)
     try {
@@ -119,24 +120,52 @@ export default function InvoicesPage() {
         body: JSON.stringify(payload),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(result.error || 'Failed to save invoice')
+      if (!res.ok) return toast.error(result.error || 'Failed to save invoice')
+      toast.success(editId ? 'Invoice updated' : 'Invoice created')
       setShowModal(false)
       setEditId(null)
       load()
     } catch {
-      alert('Failed to save invoice')
+      toast.error('Failed to save invoice')
     } finally {
       setSaving(false)
     }
   }
 
   const markPaid = async (id: string) => {
-    await fetch(`/api/invoices/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'PAID' }),
-    })
-    load()
+    try {
+      const res = await fetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID' }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as paid')
+      toast.success('Invoice marked as paid')
+      load()
+    } catch {
+      toast.error('Failed to mark invoice as paid')
+    }
+  }
+
+  const markUnpaid = async (inv: { id: string; invoiceNo: string }) => {
+    const confirmed = await toast.confirm(
+      `Mark ${inv.invoiceNo} as unpaid? It will be removed from transactions and linked services will roll back one billing cycle.`,
+    )
+    if (!confirmed) return
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'UNPAID' }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as unpaid')
+      toast.success('Invoice marked as unpaid')
+      load()
+    } catch {
+      toast.error('Failed to mark invoice as unpaid')
+    }
   }
 
   const viewPDF = (inv: any) => {
@@ -149,7 +178,7 @@ export default function InvoicesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
     })
-    alert(`Invoice email sent to ${inv.client?.email}`)
+    toast.success(`Invoice email sent to ${inv.client?.email}`)
   }
 
   const sendTelegram = async (inv: any) => {
@@ -159,8 +188,8 @@ export default function InvoicesPage() {
       body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
     })
     const data = await res.json().catch(() => ({}))
-    if (!res.ok) return alert(data.error || 'Telegram send failed')
-    alert(`Invoice PDF sent to ${inv.client?.name} via Telegram`)
+    if (!res.ok) return toast.error(data.error || 'Telegram send failed')
+    toast.success(`Invoice PDF sent to ${inv.client?.name} via Telegram`)
   }
 
   return (
@@ -184,24 +213,31 @@ export default function InvoicesPage() {
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice #</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Client</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
+            <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice Date</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Due Date</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
             <th className="px-4 py-2.5">Actions</th>
           </tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && invoices.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No invoices found</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!loading && invoices.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No invoices found</td></tr>}
             {invoices.map(inv => (
               <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{inv.invoiceNo}</td>
                 <td className="px-4 py-3 font-medium">{inv.client?.name}<div className="text-xs text-gray-400 dark:text-gray-500">{inv.client?.email}</div></td>
                 <td className="px-4 py-3 font-semibold">{formatCurrency(inv.total)}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.createdAt)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.dueDate)}</td>
                 <td className="px-4 py-3"><span className={`badge ${statusColors[inv.status] || 'badge-unpaid'}`}>{inv.status}</span></td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(inv)}>Edit</button>
-                    {inv.status !== 'PAID' && <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>}
+                    {inv.status !== 'PAID' && (
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>
+                    )}
+                    {inv.status === 'PAID' && (
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
+                    )}
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>View</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendEmail(inv)}>📧</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendTelegram(inv)}>✈</button>

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { DATE_FORMAT_OPTIONS } from '@/lib/date-format'
 import { APP_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
+import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
   companyName: '',
@@ -122,10 +123,10 @@ export default function SettingsPage() {
 
   const changePassword = async () => {
     if (!passwordForm.currentPassword || !passwordForm.newPassword) {
-      return alert('Enter your current and new password')
+      return toast.error('Enter your current and new password')
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      return alert('New passwords do not match')
+      return toast.error('New passwords do not match')
     }
     setPasswordSaving(true)
     setPasswordError('')
@@ -152,7 +153,7 @@ export default function SettingsPage() {
   }
 
   const save = async () => {
-    if (!form.companyName.trim()) return alert('Company name is required')
+    if (!form.companyName.trim()) return toast.error('Company name is required')
     setSaving(true)
     setError('')
     setSavedMessage('')
@@ -229,7 +230,7 @@ export default function SettingsPage() {
                   onChange={e => setForm(f => ({ ...f, invoiceStartNumber: e.target.value }))}
                   placeholder="50"
                 />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 50 → first invoice is INV-0050</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Minimum sequence number. Next invoice uses highest existing number + 1, or this if higher.</p>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BILLING_CYCLES, calculateBillingDates, toDateInput } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
 import { isOneTimePackage } from '@/lib/product-packages'
+import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
   clientId: '',
@@ -150,13 +151,13 @@ export default function ServiceFormModal({
 
   const save = async () => {
     if (!form.clientId || !form.name || !form.expiryDate) {
-      return alert('Fill required fields: client, name, and renewal date')
+      return toast.error('Fill required fields: client, name, and renewal date')
     }
     if (!form.productTypeId) {
-      return alert('Please select a product type')
+      return toast.error('Please select a product type')
     }
     if (!form.productPackageId) {
-      return alert('Please select a product package')
+      return toast.error('Please select a product package')
     }
     setSaving(true)
     try {
@@ -190,7 +191,7 @@ export default function ServiceFormModal({
         const message = result.error?.includes('Unknown argument')
           ? 'Failed to save service. Please try again.'
           : (result.error || 'Failed to save service')
-        return alert(message)
+        return toast.error(message)
       }
       if (!editId && result.invoice) {
         const parts = [`Invoice ${result.invoice.invoiceNo} created.`]
@@ -199,12 +200,12 @@ export default function ServiceFormModal({
           if (result.invoiceSent.telegram) parts.push('Telegram sent.')
           if (result.invoiceSent.errors?.length) parts.push(`Warnings: ${result.invoiceSent.errors.join('; ')}`)
         }
-        alert(parts.join(' '))
+        toast.success(parts.join(' '))
       }
       onClose()
       onSaved()
     } catch {
-      alert('Failed to save service. Please check your connection and try again.')
+      toast.error('Failed to save service. Please check your connection and try again.')
     } finally {
       setSaving(false)
     }
@@ -213,8 +214,8 @@ export default function ServiceFormModal({
   const generateInvoiceNow = async () => {
     if (!editId) return
     const label = form.name || service?.name || 'this service'
-    if (!confirm(`Generate invoice for "${label}"?`)) return
-    const send = confirm('Also send invoice to client (email + Telegram)?')
+    if (!await toast.confirm(`Generate invoice for "${label}"?`)) return
+    const send = await toast.confirm('Also send invoice to client (email + Telegram)?')
     setGeneratingInvoice(true)
     try {
       const res = await fetch(`/api/services/${editId}/invoice`, {
@@ -230,10 +231,10 @@ export default function ServiceFormModal({
         if (sent?.email || sent?.telegram) parts.push('Sent to client.')
         else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
       }
-      alert(parts.join(' '))
+      toast.success(parts.join(' '))
       onSaved()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to generate invoice')
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
     } finally {
       setGeneratingInvoice(false)
     }

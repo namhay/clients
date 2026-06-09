@@ -175,6 +175,12 @@ export async function countInvoices(): Promise<number> {
   return Number((rows[0] as { count: number }).count)
 }
 
+export async function listInvoiceNumbers(): Promise<string[]> {
+  const sql = getSql()
+  const rows = await sql`SELECT "invoiceNo" FROM "Invoice"`
+  return rows.map(r => String((r as { invoiceNo: string }).invoiceNo))
+}
+
 export async function listUnpaidInvoicesByClient(clientId: string): Promise<InvoiceWithRelations[]> {
   const sql = getSql()
   const rows = await sql`

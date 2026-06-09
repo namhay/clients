@@ -1,13 +1,16 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import TransactionEditModal, { type TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from '@/lib/toast'
 
 export default function TransactionsPage() {
-  const { formatDate, formatDateTime } = useAppSettings()
-  const [transactions, setTransactions] = useState<any[]>([])
+  const { formatDate } = useAppSettings()
+  const [transactions, setTransactions] = useState<TransactionRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [editTx, setEditTx] = useState<TransactionRow | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -29,12 +32,12 @@ export default function TransactionsPage() {
 
   const total = transactions.reduce((sum, t) => sum + (t.total || 0), 0)
 
-  const downloadPDF = async (inv: any) => {
+  const downloadPDF = async (inv: TransactionRow) => {
     try {
       const res = await fetch(`/api/invoices/${inv.id}/pdf`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        return alert(err.error || 'Failed to generate PDF')
+        return toast.error(err.error || 'Failed to generate PDF')
       }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -44,7 +47,7 @@ export default function TransactionsPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      alert('Failed to download PDF')
+      toast.error('Failed to download PDF')
     }
   }
 
@@ -89,10 +92,10 @@ export default function TransactionsPage() {
               </tr>
             )}
             {transactions.map(tx => {
-              const paidAt = tx.paidAt || tx.updatedAt
+              const paidAt = tx.paidAt || tx.updatedAt || tx.createdAt
               return (
                 <tr key={tx.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDateTime(paidAt)}</td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDate(paidAt)}</td>
                   <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{tx.invoiceNo}</td>
                   <td className="px-4 py-3">
                     <Link
@@ -108,7 +111,10 @@ export default function TransactionsPage() {
                   <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.total)}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(tx.createdAt)}</td>
                   <td className="px-4 py-3">
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => downloadPDF(tx)}>PDF</button>
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => setEditTx(tx)}>Edit</button>
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => downloadPDF(tx)}>PDF</button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -116,6 +122,13 @@ export default function TransactionsPage() {
           </tbody>
         </table>
       </div>
+
+      <TransactionEditModal
+        open={Boolean(editTx)}
+        transaction={editTx}
+        onClose={() => setEditTx(null)}
+        onSaved={load}
+      />
     </div>
   )
 }

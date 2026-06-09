@@ -5,6 +5,7 @@ import OrderFormModal from '@/components/orders/OrderFormModal'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from '@/lib/toast'
 
 export default function OrdersPage() {
   const { formatDate } = useAppSettings()
@@ -35,7 +36,7 @@ export default function OrdersPage() {
       const res = await fetch(`/api/invoices/${invoiceId}/pdf`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        return alert(err.error || 'Failed to generate PDF')
+        return toast.error(err.error || 'Failed to generate PDF')
       }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -45,7 +46,7 @@ export default function OrdersPage() {
       a.click()
       URL.revokeObjectURL(url)
     } catch {
-      alert('Failed to download PDF')
+      toast.error('Failed to download PDF')
     }
   }
 

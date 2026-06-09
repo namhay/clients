@@ -51,6 +51,19 @@ export function extendServiceByBillingCycle(service: {
   return { expiryDate, nextDueDate: expiryDate }
 }
 
+/** Roll back recurring service dates by one billing cycle from the current expiry. */
+export function revertServiceByBillingCycle(service: {
+  recurring: boolean
+  period: string | null
+  expiryDate: Date
+}): { expiryDate: Date; nextDueDate: Date } | null {
+  if (!service.recurring || !service.period) return null
+  const months = getBillingMonths(service.period)
+  if (!months) return null
+  const expiryDate = addMonths(service.expiryDate, -months)
+  return { expiryDate, nextDueDate: expiryDate }
+}
+
 export function toDateInput(date: Date | string | null | undefined): string {
   if (!date) return ''
   return new Date(date).toISOString().split('T')[0]

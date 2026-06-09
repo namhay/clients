@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { PRODUCT_TYPE_COLORS, formatReminderRule } from '@/lib/product-types'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
   name: '',
@@ -72,7 +73,7 @@ export default function ProductTypesPage() {
   }
 
   const save = async () => {
-    if (!form.name.trim()) return alert('Name is required')
+    if (!form.name.trim()) return toast.error('Name is required')
     setSaving(true)
     try {
       const method = editId ? 'PUT' : 'POST'
@@ -88,22 +89,22 @@ export default function ProductTypesPage() {
         }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(result.error || 'Failed to save')
+      if (!res.ok) return toast.error(result.error || 'Failed to save')
       setShowModal(false)
       setEditId(null)
       await load()
     } catch {
-      alert('Failed to save product type')
+      toast.error('Failed to save product type')
     } finally {
       setSaving(false)
     }
   }
 
   const del = async (id: string, name: string) => {
-    if (!confirm(`Delete product type "${name}"?`)) return
+    if (!await toast.confirm(`Delete product type "${name}"?`)) return
     const res = await fetch(`/api/product-types/${id}`, { method: 'DELETE' })
     const result = await res.json()
-    if (!res.ok) return alert(result.error || 'Failed to delete')
+    if (!res.ok) return toast.error(result.error || 'Failed to delete')
     load()
   }
 

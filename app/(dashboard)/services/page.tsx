@@ -5,6 +5,7 @@ import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { daysUntil, formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import ServiceFormModal from '@/components/services/ServiceFormModal'
+import { toast } from '@/lib/toast'
 
 export default function ServicesPage() {
   const { formatDate } = useAppSettings()
@@ -43,14 +44,14 @@ export default function ServicesPage() {
   }
 
   const del = async (id: string) => {
-    if (!confirm('Delete this service?')) return
+    if (!await toast.confirm('Delete this service?')) return
     await fetch(`/api/services/${id}`, { method: 'DELETE' })
     load()
   }
 
   const generateInvoice = async (s: any) => {
-    if (!confirm(`Generate invoice for "${s.name}"?`)) return
-    const sendInvoice = confirm('Also send invoice to client (email + Telegram)?')
+    if (!await toast.confirm(`Generate invoice for "${s.name}"?`)) return
+    const sendInvoice = await toast.confirm('Also send invoice to client (email + Telegram)?')
     setGeneratingInvoiceId(s.id)
     try {
       const res = await fetch(`/api/services/${s.id}/invoice`, {
@@ -66,9 +67,9 @@ export default function ServicesPage() {
         if (sent?.email || sent?.telegram) parts.push('Sent to client.')
         else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
       }
-      alert(parts.join(' '))
+      toast.success(parts.join(' '))
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to generate invoice')
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
     } finally {
       setGeneratingInvoiceId(null)
     }

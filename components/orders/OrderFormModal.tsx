@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BILLING_CYCLES, calculateBillingDates, toDateInput } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
 import { isOneTimePackage } from '@/lib/product-packages'
+import { toast } from '@/lib/toast'
 
 type OrderLine = {
   key: string
@@ -55,7 +56,6 @@ export default function OrderFormModal({
   const [productTypes, setProductTypes] = useState<any[]>([])
   const [packagesByType, setPackagesByType] = useState<Record<string, any[]>>({})
   const [clientId, setClientId] = useState('')
-  const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<OrderLine[]>([newLine()])
   const [generateInvoice, setGenerateInvoice] = useState(true)
   const [sendInvoice, setSendInvoice] = useState(false)
@@ -66,7 +66,6 @@ export default function OrderFormModal({
     fetch('/api/clients').then(r => r.json()).then(setClients)
     fetch('/api/product-types?active=true').then(r => r.json()).then(setProductTypes)
     setClientId(defaultClientId || '')
-    setNotes('')
     setLines([newLine()])
     setGenerateInvoice(true)
     setSendInvoice(false)
@@ -126,13 +125,13 @@ export default function OrderFormModal({
   }
 
   const save = async () => {
-    if (!clientId) return alert('Select a client')
+    if (!clientId) return toast.error('Select a client')
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]
-      if (!line.productTypeId) return alert(`Product ${i + 1}: select a product type`)
-      if (!line.productPackageId) return alert(`Product ${i + 1}: select a package`)
-      if (!line.name.trim()) return alert(`Product ${i + 1}: enter a name`)
-      if (!line.expiryDate) return alert(`Product ${i + 1}: enter expiry date`)
+      if (!line.productTypeId) return toast.error(`Product ${i + 1}: select a product type`)
+      if (!line.productPackageId) return toast.error(`Product ${i + 1}: select a package`)
+      if (!line.name.trim()) return toast.error(`Product ${i + 1}: enter a name`)
+      if (!line.expiryDate) return toast.error(`Product ${i + 1}: enter expiry date`)
     }
 
     setSaving(true)
@@ -142,7 +141,6 @@ export default function OrderFormModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId,
-          notes,
           generateInvoice,
           sendInvoice: generateInvoice && sendInvoice,
           items: lines.map(line => ({
@@ -160,7 +158,7 @@ export default function OrderFormModal({
         }),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(result.error || 'Failed to create order')
+      if (!res.ok) return toast.error(result.error || 'Failed to create order')
 
       const parts = [`Order created with ${lines.length} product(s).`]
       if (result.invoice) {
@@ -171,11 +169,11 @@ export default function OrderFormModal({
           if (result.invoiceSent.errors?.length) parts.push(`Warnings: ${result.invoiceSent.errors.join('; ')}`)
         }
       }
-      alert(parts.join(' '))
+      toast.success(parts.join(' '))
       onClose()
       onSaved()
     } catch {
-      alert('Failed to create order')
+      toast.error('Failed to create order')
     } finally {
       setSaving(false)
     }
@@ -211,10 +209,6 @@ export default function OrderFormModal({
                 </select>
               </div>
             )}
-            <div className="col-span-2">
-              <label className="label">Order notes</label>
-              <textarea className="input" rows={2} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional notes for all services..." />
-            </div>
           </div>
 
           <div className="space-y-4">

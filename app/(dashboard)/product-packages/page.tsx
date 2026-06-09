@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { toast } from '@/lib/toast'
 
 const emptyForm = (productTypeId = '') => ({
   productTypeId,
@@ -102,8 +103,8 @@ export default function ProductPackagesPage() {
   }
 
   const save = async () => {
-    if (!form.name.trim()) return alert('Package name is required')
-    if (!form.productTypeId) return alert('Product type is required')
+    if (!form.name.trim()) return toast.error('Package name is required')
+    if (!form.productTypeId) return toast.error('Product type is required')
     setSaving(true)
     try {
       const method = editId ? 'PUT' : 'POST'
@@ -132,22 +133,23 @@ export default function ProductPackagesPage() {
         body: JSON.stringify(body),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) return alert(result.error || 'Failed to save package')
+      if (!res.ok) return toast.error(result.error || 'Failed to save package')
+      toast.success(editId ? 'Package updated' : 'Package created')
       setShowModal(false)
       setEditId(null)
       await load()
     } catch {
-      alert('Failed to save package')
+      toast.error('Failed to save package')
     } finally {
       setSaving(false)
     }
   }
 
   const del = async (id: string, name: string) => {
-    if (!confirm(`Delete "${name}"?`)) return
+    if (!await toast.confirm(`Delete "${name}"?`)) return
     const res = await fetch(`/api/product-packages/${id}`, { method: 'DELETE' })
     const result = await res.json()
-    if (!res.ok) return alert(result.error || 'Failed to delete')
+    if (!res.ok) return toast.error(result.error || 'Failed to delete')
     load()
   }
 

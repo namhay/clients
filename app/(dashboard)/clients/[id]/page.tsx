@@ -6,7 +6,9 @@ import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 import OrderFormModal from '@/components/orders/OrderFormModal'
+import TransactionEditModal, { type TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { toast } from '@/lib/toast'
 
 const invoiceStatusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -32,6 +34,7 @@ export default function ClientProfilePage() {
   } | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
+  const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -76,8 +79,8 @@ export default function ClientProfilePage() {
   }
 
   const generateInvoice = async (s: any) => {
-    if (!confirm(`Generate invoice for "${s.name}"?`)) return
-    const sendInvoice = confirm('Also send invoice to client (email + Telegram)?')
+    if (!await toast.confirm(`Generate invoice for "${s.name}"?`)) return
+    const sendInvoice = await toast.confirm('Also send invoice to client (email + Telegram)?')
     setGeneratingInvoiceId(s.id)
     try {
       const res = await fetch(`/api/services/${s.id}/invoice`, {
@@ -93,17 +96,17 @@ export default function ClientProfilePage() {
         if (sent?.email || sent?.telegram) parts.push('Sent to client.')
         else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
       }
-      alert(parts.join(' '))
+      toast.success(parts.join(' '))
       load()
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Failed to generate invoice')
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
     } finally {
       setGeneratingInvoiceId(null)
     }
   }
 
   const saveClient = async () => {
-    if (!form.name || !form.email) return alert('Name and email are required')
+    if (!form.name || !form.email) return toast.error('Name and email are required')
     await fetch(`/api/clients/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -138,8 +141,15 @@ export default function ClientProfilePage() {
   const initials = client.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
   const activeServices = client.services?.filter((s: any) => s.status === 'ACTIVE').length || 0
   const unpaidInvoices = client.invoices?.filter((i: any) => i.status === 'UNPAID' || i.status === 'OVERDUE') || []
+  const paidInvoices = client.invoices?.filter((i: any) => i.status === 'PAID') || []
   const unpaidTotal = unpaidInvoices.reduce((sum: number, i: any) => sum + i.total, 0)
-  const paidTotal = client.invoices?.filter((i: any) => i.status === 'PAID').reduce((sum: number, i: any) => sum + i.total, 0) || 0
+  const paidTotal = paidInvoices.reduce((sum: number, i: any) => sum + i.total, 0)
+  const invoicedTotal = client.invoices?.reduce((sum: number, i: any) => sum + i.total, 0) || 0
+  const transactions = [...paidInvoices].sort((a: any, b: any) => {
+    const aDate = new Date(a.paidAt || a.updatedAt).getTime()
+    const bDate = new Date(b.paidAt || b.updatedAt).getTime()
+    return bDate - aDate
+  })
 
   return (
     <div className="p-6">
@@ -182,7 +192,7 @@ export default function ClientProfilePage() {
             <button
               className="btn-danger"
               onClick={async () => {
-                if (!confirm('Delete this client and all their data?')) return
+                if (!await toast.confirm('Delete this client and all their data?')) return
                 await fetch(`/api/clients/${id}`, { method: 'DELETE' })
                 router.push('/clients')
               }}
@@ -191,6 +201,21 @@ export default function ClientProfilePage() {
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {[
+          { label: 'Total Invoiced', value: formatCurrency(invoicedTotal), sub: `${client.invoices?.length || 0} invoices` },
+          { label: 'Total Paid', value: formatCurrency(paidTotal), sub: `${paidInvoices.length} payments` },
+          { label: 'Outstanding', value: formatCurrency(unpaidTotal), sub: `${unpaidInvoices.length} unpaid` },
+          { label: 'Active Services', value: activeServices, sub: `${client.services?.length || 0} total` },
+        ].map(stat => (
+          <div key={stat.label} className="card p-4">
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{stat.label}</div>
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">{stat.value}</div>
+            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{stat.sub}</div>
+          </div>
+        ))}
       </div>
 
       <div className="card p-5 mb-6">
@@ -225,21 +250,6 @@ export default function ClientProfilePage() {
             Telegram bot not configured. Add TELEGRAM_BOT_TOKEN in Settings, then register the webhook.
           </p>
         )}
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Services', value: client.services?.length || 0, sub: `${activeServices} active` },
-          { label: 'Invoices', value: client.invoices?.length || 0, sub: `${unpaidInvoices.length} unpaid` },
-          { label: 'Outstanding', value: formatCurrency(unpaidTotal), sub: 'unpaid balance' },
-          { label: 'Total Paid', value: formatCurrency(paidTotal), sub: 'lifetime' },
-        ].map(stat => (
-          <div key={stat.label} className="card p-4">
-            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">{stat.label}</div>
-            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mt-1">{stat.value}</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{stat.sub}</div>
-          </div>
-        ))}
       </div>
 
       <div className="card mb-6">
@@ -347,6 +357,53 @@ export default function ClientProfilePage() {
         </table>
       </div>
 
+      <div className="card mb-6">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transactions</h2>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{transactions.length} paid</span>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-800/50">
+            <tr>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Paid Date</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice #</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice Date</th>
+              <th className="px-4 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {!transactions.length && (
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No payments recorded yet</td></tr>
+            )}
+            {transactions.map((tx: any) => (
+              <tr key={tx.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDate(tx.paidAt || tx.updatedAt)}</td>
+                <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{tx.invoiceNo}</td>
+                <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.total)}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(tx.createdAt)}</td>
+                <td className="px-4 py-3">
+                  <button
+                    className="btn-secondary py-1 px-2 text-xs"
+                    onClick={() => setEditTransaction({
+                      id: tx.id,
+                      invoiceNo: tx.invoiceNo,
+                      total: tx.total,
+                      createdAt: tx.createdAt,
+                      paidAt: tx.paidAt,
+                      updatedAt: tx.updatedAt,
+                      client: { name: client.name, email: client.email },
+                    })}
+                  >
+                    Edit
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
       {client.reminderLogs?.length > 0 && (
         <div className="card">
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
@@ -375,6 +432,13 @@ export default function ClientProfilePage() {
         onSaved={load}
         defaultClientId={client.id}
         defaultClientName={client.name}
+      />
+
+      <TransactionEditModal
+        open={Boolean(editTransaction)}
+        transaction={editTransaction}
+        onClose={() => setEditTransaction(null)}
+        onSaved={load}
       />
 
       {showEditModal && (

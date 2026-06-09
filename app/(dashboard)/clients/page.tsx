@@ -1,11 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import OrderFormModal from '@/components/orders/OrderFormModal'
+import { toast } from '@/lib/toast'
 
 export default function ClientsPage() {
-  const { formatDate } = useAppSettings()
   const [clients, setClients] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
@@ -24,7 +23,7 @@ export default function ClientsPage() {
   useEffect(() => { load() }, [])
 
   const save = async () => {
-    if (!form.name || !form.email) return alert('Name and email are required')
+    if (!form.name || !form.email) return toast.error('Name and email are required')
     const method = editId ? 'PUT' : 'POST'
     const url = editId ? `/api/clients/${editId}` : '/api/clients'
     await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(form) })
@@ -32,7 +31,7 @@ export default function ClientsPage() {
   }
 
   const del = async (id: string) => {
-    if (!confirm('Delete this client and all their data?')) return
+    if (!await toast.confirm('Delete this client and all their data?')) return
     await fetch(`/api/clients/${id}`, { method: 'DELETE' }); load(search)
   }
 
@@ -66,12 +65,11 @@ export default function ClientsPage() {
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Phone</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoices</th>
-            <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Joined</th>
             <th className="px-4 py-2.5"></th>
           </tr></thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && clients.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No clients found</td></tr>}
+            {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!loading && clients.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No clients found</td></tr>}
             {clients.map(c => (
               <tr key={c.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3">
@@ -98,7 +96,6 @@ export default function ClientsPage() {
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{c.phone || '-'}</td>
                 <td className="px-4 py-3"><span className="badge badge-domain">{c._count?.services || 0}</span></td>
                 <td className="px-4 py-3"><span className="badge badge-unpaid">{c._count?.invoices || 0}</span></td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{formatDate(c.createdAt)}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
                     <Link href={`/clients/${c.id}`} className="btn-secondary py-1 px-2 text-xs">View</Link>
@@ -129,10 +126,28 @@ export default function ClientsPage() {
               <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3">
-              {[['name','Full Name *','text'],['email','Email *','email'],['phone','Phone','text'],['company','Company','text'],['address','Address','text'],['vatTin','VAT TIN','text'],['telegramId','Telegram ID','text']].map(([k,l,t]) => (
-                <div key={k}><label className="label">{l}</label><input type={t} className="input" value={(form as any)[k]} onChange={e => setForm(f => ({...f,[k]:e.target.value}))} /></div>
+              {[['name', 'Full Name *', 'text'], ['email', 'Email *', 'email'], ['phone', 'Phone', 'text'], ['company', 'Company', 'text']].map(([k, l, t]) => (
+                <div key={k}>
+                  <label className="label">{l}</label>
+                  <input type={t} className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
+                </div>
               ))}
-              <div className="col-span-2"><label className="label">Notes</label><textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({...f,notes:e.target.value}))} /></div>
+              <div className="col-span-2">
+                <label className="label">Address</label>
+                <textarea className="input" rows={2} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">VAT TIN</label>
+                <input type="text" className="input" value={form.vatTin} onChange={e => setForm(f => ({ ...f, vatTin: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Telegram ID</label>
+                <input type="text" className="input" value={form.telegramId} onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Notes</label>
+                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
