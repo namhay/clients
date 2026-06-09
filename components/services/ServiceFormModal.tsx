@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { BILLING_CYCLES, calculateBillingDates, toDateInput } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
+import { isOneTimePackage } from '@/lib/product-packages'
 
 const emptyForm = () => ({
   clientId: '',
@@ -64,10 +65,12 @@ export default function ServiceFormModal({
     const id = pkgId ?? next.productPackageId
     const pkg = productPackages.find(p => p.id === id)
     if (!pkg) return next
-    const period = next.recurring ? next.period : 'YEARLY'
+    const oneTime = isOneTimePackage(pkg)
+    const period = oneTime ? 'YEARLY' : (next.recurring ? next.period : 'YEARLY')
     return {
       ...next,
       productPackageId: id,
+      recurring: oneTime ? false : next.recurring,
       price: String(getPackagePrice(pkg, period)),
       setupFee: String(pkg.setupFee ?? 0),
     }
@@ -243,6 +246,7 @@ export default function ServiceFormModal({
     : null
 
   const selectedPkg = productPackages.find(p => p.id === form.productPackageId)
+  const packageIsOneTime = selectedPkg ? isOneTimePackage(selectedPkg) : false
   const isHosting = selectedType?.hasHostingSpecs
 
   return (
@@ -351,6 +355,7 @@ export default function ServiceFormModal({
                 <select
                   className="input"
                   value={form.recurring ? 'recurring' : 'onetime'}
+                  disabled={packageIsOneTime}
                   onChange={e => updateForm({ recurring: e.target.value === 'recurring' }, e.target.value === 'recurring')}
                 >
                   <option value="recurring">Recurring</option>

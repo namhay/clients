@@ -6,10 +6,10 @@ import { formatInvoiceItemDescription } from '@/lib/invoices'
 // Column widths — Unit Price & Amount equal; Total row uses same grid
 const COL = {
   no: '7%',
-  desc: '48%',
-  qty: '12%',
-  price: '16.5%',
-  amount: '16.5%',
+  desc: '55%',
+  qty: '10%',
+  price: '14%',
+  amount: '14%',
 } as const
 
 const styles = StyleSheet.create({
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
   colAmount: { width: COL.amount },
   colTextCenter: { textAlign: 'center' },
   lastCol: { borderRight: 0 },
-  colTotalLeftMerged: { width: '83.5%' },
+  colTotalLeftMerged: { width: '86%' },
   totalLabelCell: {
     padding: 6,
     borderRight: '0.5pt solid #000',
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  totalMergedLabel: { fontSize: 8, textAlign: 'right' },
+  totalMergedLabel: { fontSize: 10, textAlign: 'right' },
   totalMergedAmount: { fontWeight: 700, fontSize: 14, textAlign: 'center' },
   paymentSection: { marginTop: 10, textAlign: 'center' },
   paymentRow: { flexDirection: 'row', marginBottom: 6 },

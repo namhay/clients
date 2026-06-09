@@ -8,11 +8,13 @@ const emptyForm = (productTypeId = '') => ({
   productTypeId,
   name: '',
   description: '',
+  billingType: 'RECURRING' as 'RECURRING' | 'ONE_TIME',
   diskSpaceGb: '5',
   bandwidthGb: '50',
   emailAccounts: '5',
   databases: '1',
   addonDomains: '0',
+  oneTimePrice: '',
   priceMonthly: '',
   priceQuarterly: '',
   priceSemiAnnual: '',
@@ -86,6 +88,8 @@ export default function ProductPackagesPage() {
       emailAccounts: String(p.emailAccounts ?? 5),
       databases: String(p.databases ?? 1),
       addonDomains: String(p.addonDomains ?? 0),
+      billingType: p.billingType === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING',
+      oneTimePrice: p.billingType === 'ONE_TIME' ? String(p.priceYearly) : '',
       priceMonthly: String(p.priceMonthly),
       priceQuarterly: String(p.priceQuarterly),
       priceSemiAnnual: String(p.priceSemiAnnual),
@@ -106,6 +110,8 @@ export default function ProductPackagesPage() {
       const url = editId ? `/api/product-packages/${editId}` : '/api/product-packages'
       const body: Record<string, unknown> = {
         ...form,
+        billingType: form.billingType,
+        oneTimePrice: parseFloat(form.oneTimePrice) || 0,
         priceMonthly: parseFloat(form.priceMonthly) || 0,
         priceQuarterly: parseFloat(form.priceQuarterly) || 0,
         priceSemiAnnual: parseFloat(form.priceSemiAnnual) || 0,
@@ -182,18 +188,17 @@ export default function ProductPackagesPage() {
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Package</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Details</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Monthly</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Yearly</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Setup</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Price</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
             )}
             {packages.map(p => (
               <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
@@ -211,9 +216,20 @@ export default function ProductPackagesPage() {
                     ? `${p.diskSpaceGb}GB · ${p.bandwidthGb}GB BW · ${p.emailAccounts} emails`
                     : '—'}
                 </td>
-                <td className="px-4 py-3">{formatCurrency(p.priceMonthly)}</td>
-                <td className="px-4 py-3">{formatCurrency(p.priceYearly)}</td>
-                <td className="px-4 py-3">{p.setupFee > 0 ? formatCurrency(p.setupFee) : '—'}</td>
+                <td className="px-4 py-3">
+                  <span className={`badge ${p.billingType === 'ONE_TIME' ? 'badge-domain' : 'badge-hosting'}`}>
+                    {p.billingType === 'ONE_TIME' ? 'One-time' : 'Recurring'}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {p.billingType === 'ONE_TIME'
+                    ? formatCurrency(p.priceYearly)
+                    : (
+                      <span className="text-xs text-gray-600 dark:text-gray-300">
+                        {formatCurrency(p.priceMonthly)}/mo · {formatCurrency(p.priceYearly)}/yr
+                      </span>
+                    )}
+                </td>
                 <td className="px-4 py-3"><span className="badge badge-hosting">{p._count?.services || 0}</span></td>
                 <td className="px-4 py-3">
                   <span className={`badge ${p.active ? 'badge-active' : 'badge-expired'}`}>
@@ -289,15 +305,50 @@ export default function ProductPackagesPage() {
               )}
 
               <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing by Billing Cycle</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually'], ['setupFee', 'Setup Fee']].map(([k, l]) => (
-                    <div key={k}>
-                      <label className="label">{l} (USD)</label>
-                      <input type="number" min="0" step="0.01" className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
-                    </div>
-                  ))}
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing</h3>
+                <div className="mb-3">
+                  <label className="label">Billing Type</label>
+                  <select
+                    className="input max-w-xs"
+                    value={form.billingType}
+                    onChange={e => setForm(f => ({
+                      ...f,
+                      billingType: e.target.value as 'RECURRING' | 'ONE_TIME',
+                    }))}
+                  >
+                    <option value="RECURRING">Recurring</option>
+                    <option value="ONE_TIME">One-time</option>
+                  </select>
                 </div>
+                {form.billingType === 'ONE_TIME' ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="label">One-time Price (USD)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        className="input"
+                        value={form.oneTimePrice}
+                        onChange={e => setForm(f => ({ ...f, oneTimePrice: e.target.value }))}
+                        placeholder="e.g. 299"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Setup Fee (USD)</label>
+                      <input type="number" min="0" step="0.01" className="input" value={form.setupFee} onChange={e => setForm(f => ({ ...f, setupFee: e.target.value }))} />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually'], ['setupFee', 'Setup Fee']].map(([k, l]) => (
+                      <div key={k}>
+                        <label className="label">{l} (USD)</label>
+                        <input type="number" min="0" step="0.01" className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

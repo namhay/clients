@@ -24,6 +24,7 @@ function mapProductPackage(row: Record<string, unknown>): ProductPackageRow {
     emailAccounts: row.emailAccounts != null ? Number(row.emailAccounts) : null,
     databases: row.databases != null ? Number(row.databases) : null,
     addonDomains: row.addonDomains != null ? Number(row.addonDomains) : null,
+    billingType: String(row.billingType ?? 'RECURRING').toUpperCase() === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING',
     priceMonthly: Number(row.priceMonthly ?? 0),
     priceQuarterly: Number(row.priceQuarterly ?? 0),
     priceSemiAnnual: Number(row.priceSemiAnnual ?? 0),
@@ -62,6 +63,7 @@ function mapWithRelations(row: Record<string, unknown>): ProductPackageWithRelat
 const PACKAGE_SELECT = `
   pp.id, pp."productTypeId", pp.name, pp.description,
   pp."diskSpaceGb", pp."bandwidthGb", pp."emailAccounts", pp.databases, pp."addonDomains",
+  pp."billingType",
   pp."priceMonthly", pp."priceQuarterly", pp."priceSemiAnnual", pp."priceYearly",
   pp."setupFee", pp.active, pp."sortOrder", pp."createdAt", pp."updatedAt",
   pt.id AS pt_id, pt.name AS pt_name, pt.slug AS pt_slug, pt.color AS pt_color,
@@ -158,12 +160,12 @@ export async function createProductPackage(data: ProductPackageInput): Promise<P
     INSERT INTO "ProductPackage" (
       id, "productTypeId", name, description,
       "diskSpaceGb", "bandwidthGb", "emailAccounts", databases, "addonDomains",
-      "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
+      "billingType", "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
       "setupFee", active, "sortOrder", "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.productTypeId}, ${data.name}, ${data.description},
       ${data.diskSpaceGb}, ${data.bandwidthGb}, ${data.emailAccounts}, ${data.databases}, ${data.addonDomains},
-      ${data.priceMonthly}, ${data.priceQuarterly}, ${data.priceSemiAnnual}, ${data.priceYearly},
+      ${data.billingType}, ${data.priceMonthly}, ${data.priceQuarterly}, ${data.priceSemiAnnual}, ${data.priceYearly},
       ${data.setupFee}, ${data.active}, ${data.sortOrder}, ${now}, ${now}
     )
   `
@@ -185,6 +187,7 @@ export async function updateProductPackage(id: string, data: ProductPackageInput
       "emailAccounts" = ${data.emailAccounts},
       databases = ${data.databases},
       "addonDomains" = ${data.addonDomains},
+      "billingType" = ${data.billingType},
       "priceMonthly" = ${data.priceMonthly},
       "priceQuarterly" = ${data.priceQuarterly},
       "priceSemiAnnual" = ${data.priceSemiAnnual},

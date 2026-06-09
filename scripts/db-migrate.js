@@ -40,6 +40,46 @@ async function main() {
   console.log('✓ ProductType reminderTiming column ready')
   console.log('✓ AppSettings invoiceStartNumber column ready')
   console.log('✓ AppSettings dateFormat column ready')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "Order" (
+      id TEXT PRIMARY KEY,
+      "clientId" TEXT NOT NULL REFERENCES "Client"(id),
+      "invoiceId" TEXT REFERENCES "Invoice"(id),
+      status TEXT NOT NULL DEFAULT 'COMPLETED',
+      notes TEXT,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+  await sql`
+    CREATE TABLE IF NOT EXISTS "OrderItem" (
+      id TEXT PRIMARY KEY,
+      "orderId" TEXT NOT NULL REFERENCES "Order"(id) ON DELETE CASCADE,
+      "serviceId" TEXT REFERENCES "Service"(id),
+      "productTypeId" TEXT NOT NULL REFERENCES "ProductType"(id),
+      "productPackageId" TEXT REFERENCES "ProductPackage"(id),
+      name TEXT NOT NULL,
+      price DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "setupFee" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "startDate" TIMESTAMPTZ NOT NULL,
+      "expiryDate" TIMESTAMPTZ NOT NULL,
+      "nextDueDate" TIMESTAMPTZ,
+      recurring BOOLEAN NOT NULL DEFAULT true,
+      period TEXT,
+      "sortOrder" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+
+  console.log('✓ Order and OrderItem tables ready')
+
+  await sql`
+    ALTER TABLE "ProductPackage"
+    ADD COLUMN IF NOT EXISTS "billingType" TEXT NOT NULL DEFAULT 'RECURRING'
+  `
+
+  console.log('✓ ProductPackage billingType column ready')
 }
 
 main().catch(e => {

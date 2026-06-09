@@ -1,3 +1,5 @@
+export type PackageBillingType = 'RECURRING' | 'ONE_TIME'
+
 export type ProductPackageInput = {
   productTypeId: string
   name: string
@@ -7,6 +9,7 @@ export type ProductPackageInput = {
   emailAccounts: number | null
   databases: number | null
   addonDomains: number | null
+  billingType: PackageBillingType
   priceMonthly: number
   priceQuarterly: number
   priceSemiAnnual: number
@@ -14,6 +17,14 @@ export type ProductPackageInput = {
   setupFee: number
   active: boolean
   sortOrder: number
+}
+
+export function parsePackageBillingType(value: unknown): PackageBillingType {
+  return String(value || 'RECURRING').toUpperCase() === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING'
+}
+
+export function isOneTimePackage(pkg: { billingType?: string }): boolean {
+  return parsePackageBillingType(pkg.billingType) === 'ONE_TIME'
 }
 
 function parseOptionalInt(value: unknown): number | null {
@@ -32,6 +43,9 @@ export function parseProductPackageInput(
   const name = String(body.name || '').trim()
   if (!name) throw new Error('Package name is required')
 
+  const billingType = parsePackageBillingType(body.billingType)
+  const oneTimePrice = parseFloat(String(body.oneTimePrice ?? body.priceYearly)) || 0
+
   return {
     productTypeId,
     name,
@@ -41,10 +55,11 @@ export function parseProductPackageInput(
     emailAccounts: hasHostingSpecs ? (parseOptionalInt(body.emailAccounts) ?? 0) : null,
     databases: hasHostingSpecs ? (parseOptionalInt(body.databases) ?? 0) : null,
     addonDomains: hasHostingSpecs ? (parseOptionalInt(body.addonDomains) ?? 0) : null,
-    priceMonthly: parseFloat(String(body.priceMonthly)) || 0,
-    priceQuarterly: parseFloat(String(body.priceQuarterly)) || 0,
-    priceSemiAnnual: parseFloat(String(body.priceSemiAnnual)) || 0,
-    priceYearly: parseFloat(String(body.priceYearly)) || 0,
+    billingType,
+    priceMonthly: billingType === 'ONE_TIME' ? 0 : parseFloat(String(body.priceMonthly)) || 0,
+    priceQuarterly: billingType === 'ONE_TIME' ? 0 : parseFloat(String(body.priceQuarterly)) || 0,
+    priceSemiAnnual: billingType === 'ONE_TIME' ? 0 : parseFloat(String(body.priceSemiAnnual)) || 0,
+    priceYearly: billingType === 'ONE_TIME' ? oneTimePrice : parseFloat(String(body.priceYearly)) || 0,
     setupFee: parseFloat(String(body.setupFee)) || 0,
     active: body.active !== false,
     sortOrder: parseInt(String(body.sortOrder)) || 0,

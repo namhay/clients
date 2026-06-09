@@ -41,8 +41,8 @@ const PACKAGES_BY_SLUG = {
     { name: 'Wildcard SSL', description: 'Wildcard SSL for all subdomains', priceYearly: 75, setupFee: 10, sortOrder: 2 },
   ],
   DESIGN: [
-    { name: 'Basic Website', description: 'Simple brochure-style website', priceYearly: 0, setupFee: 299, sortOrder: 1 },
-    { name: 'eCommerce Website', description: 'Online store with payment integration', priceYearly: 0, setupFee: 799, sortOrder: 2 },
+    { name: 'Basic Website', description: 'Simple brochure-style website', billingType: 'ONE_TIME', priceYearly: 299, setupFee: 0, sortOrder: 1 },
+    { name: 'eCommerce Website', description: 'Online store with payment integration', billingType: 'ONE_TIME', priceYearly: 799, setupFee: 0, sortOrder: 2 },
   ],
 }
 
@@ -108,6 +108,7 @@ async function upsertProductPackage(productTypeId, pkg) {
     WHERE "productTypeId" = ${productTypeId} AND name = ${pkg.name}
     LIMIT 1
   `
+  const billingType = String(pkg.billingType || 'RECURRING').toUpperCase() === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING'
   const values = {
     description: pkg.description ?? null,
     diskSpaceGb: pkg.diskSpaceGb ?? null,
@@ -115,9 +116,10 @@ async function upsertProductPackage(productTypeId, pkg) {
     emailAccounts: pkg.emailAccounts ?? null,
     databases: pkg.databases ?? null,
     addonDomains: pkg.addonDomains ?? null,
-    priceMonthly: pkg.priceMonthly ?? 0,
-    priceQuarterly: pkg.priceQuarterly ?? 0,
-    priceSemiAnnual: pkg.priceSemiAnnual ?? 0,
+    billingType,
+    priceMonthly: billingType === 'ONE_TIME' ? 0 : (pkg.priceMonthly ?? 0),
+    priceQuarterly: billingType === 'ONE_TIME' ? 0 : (pkg.priceQuarterly ?? 0),
+    priceSemiAnnual: billingType === 'ONE_TIME' ? 0 : (pkg.priceSemiAnnual ?? 0),
     priceYearly: pkg.priceYearly ?? 0,
     setupFee: pkg.setupFee ?? 0,
     sortOrder: pkg.sortOrder ?? 0,
@@ -131,6 +133,7 @@ async function upsertProductPackage(productTypeId, pkg) {
         "emailAccounts" = ${values.emailAccounts},
         databases = ${values.databases},
         "addonDomains" = ${values.addonDomains},
+        "billingType" = ${values.billingType},
         "priceMonthly" = ${values.priceMonthly},
         "priceQuarterly" = ${values.priceQuarterly},
         "priceSemiAnnual" = ${values.priceSemiAnnual},
@@ -146,12 +149,12 @@ async function upsertProductPackage(productTypeId, pkg) {
     INSERT INTO "ProductPackage" (
       id, "productTypeId", name, description,
       "diskSpaceGb", "bandwidthGb", "emailAccounts", databases, "addonDomains",
-      "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
+      "billingType", "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
       "setupFee", active, "sortOrder", "createdAt", "updatedAt"
     ) VALUES (
       ${randomUUID()}, ${productTypeId}, ${pkg.name}, ${values.description},
       ${values.diskSpaceGb}, ${values.bandwidthGb}, ${values.emailAccounts}, ${values.databases}, ${values.addonDomains},
-      ${values.priceMonthly}, ${values.priceQuarterly}, ${values.priceSemiAnnual}, ${values.priceYearly},
+      ${values.billingType}, ${values.priceMonthly}, ${values.priceQuarterly}, ${values.priceSemiAnnual}, ${values.priceYearly},
       ${values.setupFee}, true, ${values.sortOrder}, ${now}, ${now}
     )
   `

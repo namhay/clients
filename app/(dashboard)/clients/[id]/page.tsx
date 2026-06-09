@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
-import ServiceFormModal from '@/components/services/ServiceFormModal'
+import OrderFormModal from '@/components/orders/OrderFormModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 
 const invoiceStatusColors: Record<string, string> = {
@@ -22,7 +22,7 @@ export default function ClientProfilePage() {
   const [client, setClient] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showEditModal, setShowEditModal] = useState(false)
-  const [showServiceModal, setShowServiceModal] = useState(false)
+  const [showOrderModal, setShowOrderModal] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', address: '', vatTin: '', telegramId: '', notes: '' })
   const [telegramConnect, setTelegramConnect] = useState<{
     link: string
@@ -177,7 +177,7 @@ export default function ClientProfilePage() {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button className="btn-primary" onClick={() => setShowServiceModal(true)}>Add Service</button>
+            <button className="btn-primary" onClick={() => setShowOrderModal(true)}>Add Order</button>
             <button className="btn-secondary" onClick={() => setShowEditModal(true)}>Edit Client</button>
             <button
               className="btn-danger"
@@ -367,13 +367,12 @@ export default function ClientProfilePage() {
         </div>
       )}
 
-      <ServiceFormModal
-        open={showServiceModal}
-        onClose={() => setShowServiceModal(false)}
+      <OrderFormModal
+        open={showOrderModal}
+        onClose={() => setShowOrderModal(false)}
         onSaved={load}
         defaultClientId={client.id}
         defaultClientName={client.name}
-        lockClient
       />
 
       {showEditModal && (

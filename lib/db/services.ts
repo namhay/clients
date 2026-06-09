@@ -32,6 +32,7 @@ export type ProductPackageNested = {
   emailAccounts: number | null
   databases: number | null
   addonDomains: number | null
+  billingType: 'RECURRING' | 'ONE_TIME'
   priceMonthly: number
   priceQuarterly: number
   priceSemiAnnual: number
@@ -87,6 +88,7 @@ const SERVICE_SELECT = `
   pp.description AS pp_description, pp."diskSpaceGb" AS pp_diskSpaceGb,
   pp."bandwidthGb" AS pp_bandwidthGb, pp."emailAccounts" AS pp_emailAccounts,
   pp.databases AS pp_databases, pp."addonDomains" AS pp_addonDomains,
+  pp."billingType" AS pp_billingType,
   pp."priceMonthly" AS pp_priceMonthly, pp."priceQuarterly" AS pp_priceQuarterly,
   pp."priceSemiAnnual" AS pp_priceSemiAnnual, pp."priceYearly" AS pp_priceYearly,
   pp."setupFee" AS pp_setupFee, pp.active AS pp_active, pp."sortOrder" AS pp_sortOrder,
@@ -138,6 +140,7 @@ function mapProductPackageNested(row: Record<string, unknown>): ProductPackageNe
     emailAccounts: row.pp_emailAccounts != null ? Number(row.pp_emailAccounts) : null,
     databases: row.pp_databases != null ? Number(row.pp_databases) : null,
     addonDomains: row.pp_addonDomains != null ? Number(row.pp_addonDomains) : null,
+    billingType: String(row.pp_billingType ?? 'RECURRING').toUpperCase() === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING',
     priceMonthly: Number(row.pp_priceMonthly ?? 0),
     priceQuarterly: Number(row.pp_priceQuarterly ?? 0),
     priceSemiAnnual: Number(row.pp_priceSemiAnnual ?? 0),

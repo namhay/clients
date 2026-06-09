@@ -13,12 +13,15 @@ export interface ProductType {
   sortOrder: number
 }
 
+export type PackageBillingType = 'RECURRING' | 'ONE_TIME'
+
 export interface ProductPackage {
   id: string
   productTypeId: string
   productType?: ProductType
   name: string
   description?: string | null
+  billingType?: PackageBillingType
   priceMonthly: number
   priceYearly: number
   setupFee: number

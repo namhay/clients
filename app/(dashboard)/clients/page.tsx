@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
-import ServiceFormModal from '@/components/services/ServiceFormModal'
+import OrderFormModal from '@/components/orders/OrderFormModal'
 
 export default function ClientsPage() {
   const { formatDate } = useAppSettings()
@@ -12,8 +12,8 @@ export default function ClientsPage() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name:'', email:'', phone:'', company:'', address:'', vatTin:'', telegramId:'', notes:'' })
   const [editId, setEditId] = useState<string|null>(null)
-  const [showServiceModal, setShowServiceModal] = useState(false)
-  const [serviceClient, setServiceClient] = useState<{ id: string; name: string } | null>(null)
+  const [showOrderModal, setShowOrderModal] = useState(false)
+  const [orderClient, setOrderClient] = useState<{ id: string; name: string } | null>(null)
 
   const load = async (q='') => {
     setLoading(true)
@@ -41,9 +41,9 @@ export default function ClientsPage() {
     setEditId(c.id); setShowModal(true)
   }
 
-  const addService = (c: any) => {
-    setServiceClient({ id: c.id, name: c.name })
-    setShowServiceModal(true)
+  const addOrder = (c: any) => {
+    setOrderClient({ id: c.id, name: c.name })
+    setShowOrderModal(true)
   }
 
   return (
@@ -93,7 +93,7 @@ export default function ClientsPage() {
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
                     <Link href={`/clients/${c.id}`} className="btn-secondary py-1 px-2 text-xs">View</Link>
-                    <button className="btn-primary py-1 px-2 text-xs" onClick={() => addService(c)}>Add Service</button>
+                    <button className="btn-primary py-1 px-2 text-xs" onClick={() => addOrder(c)}>Add Order</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => edit(c)}>Edit</button>
                     <button className="btn-danger py-1 px-2 text-xs" onClick={() => del(c.id)}>Delete</button>
                   </div>
@@ -104,13 +104,12 @@ export default function ClientsPage() {
         </table>
       </div>
 
-      <ServiceFormModal
-        open={showServiceModal}
-        onClose={() => { setShowServiceModal(false); setServiceClient(null) }}
+      <OrderFormModal
+        open={showOrderModal}
+        onClose={() => { setShowOrderModal(false); setOrderClient(null) }}
         onSaved={() => load(search)}
-        defaultClientId={serviceClient?.id}
-        defaultClientName={serviceClient?.name}
-        lockClient
+        defaultClientId={orderClient?.id}
+        defaultClientName={orderClient?.name}
       />
 
       {showModal && (

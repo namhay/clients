@@ -228,19 +228,34 @@ export function buildServiceInvoiceItems(service: ServiceForInvoice) {
 }
 
 export async function createInvoiceForService(service: ServiceForInvoice, tax = 0) {
-  const items = buildServiceInvoiceItems(service)
+  return createInvoiceForServices([service], service.clientId, tax)
+}
+
+export async function createInvoiceForServices(
+  services: ServiceForInvoice[],
+  clientId: string,
+  tax = 0,
+  dueDate?: Date,
+) {
+  if (!services.length) throw new Error('No services to invoice')
+
+  const items = services.flatMap(s => buildServiceInvoiceItems(s))
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
   const invoiceNo = await getNextInvoiceNo()
-  const dueDate = service.nextDueDate || service.expiryDate
+
+  const dueDates = services.map(s => s.nextDueDate || s.expiryDate)
+  const invoiceDueDate = dueDate || dueDates.reduce((earliest, d) => (
+    d < earliest ? d : earliest
+  ), dueDates[0])
 
   return createInvoice({
-    clientId: service.clientId,
+    clientId,
     invoiceNo,
     subtotal,
     tax,
     total,
-    dueDate,
+    dueDate: invoiceDueDate,
     notes: '',
     status: 'UNPAID',
     items,
