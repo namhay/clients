@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { PRODUCT_TYPE_COLORS } from '@/lib/product-types'
+import { PRODUCT_TYPE_COLORS, formatReminderRule } from '@/lib/product-types'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 
 const emptyForm = () => ({
@@ -11,6 +11,7 @@ const emptyForm = () => ({
   active: true,
   sortOrder: '0',
   reminderDaysBeforeExpiry: '14',
+  reminderTiming: 'BEFORE' as 'BEFORE' | 'AFTER',
   autoInvoiceDaysBeforeExpiry: '14',
 })
 
@@ -64,6 +65,7 @@ export default function ProductTypesPage() {
       active: t.active,
       sortOrder: String(t.sortOrder),
       reminderDaysBeforeExpiry: String(t.reminderDaysBeforeExpiry ?? 14),
+      reminderTiming: t.reminderTiming === 'AFTER' ? 'AFTER' : 'BEFORE',
       autoInvoiceDaysBeforeExpiry: String(t.autoInvoiceDaysBeforeExpiry ?? 14),
     })
     setShowModal(true)
@@ -147,7 +149,9 @@ export default function ProductTypesPage() {
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.hasHostingSpecs ? 'Yes' : '—'}</td>
                 <td className="px-4 py-3">{t._count?.packages || 0}</td>
                 <td className="px-4 py-3">{t._count?.services || 0}</td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.reminderDaysBeforeExpiry ?? 14}d</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  {formatReminderRule(t.reminderDaysBeforeExpiry ?? 14, t.reminderTiming ?? 'BEFORE')}
+                </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.autoInvoiceDaysBeforeExpiry ?? 14}d</td>
                 <td className="px-4 py-3">
                   <span className={`badge ${t.active ? 'badge-active' : 'badge-expired'}`}>
@@ -210,7 +214,20 @@ export default function ProductTypesPage() {
                 <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Renewal Timing</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">Reminder alert (days before expiry)</label>
+                    <label className="label">Reminder timing</label>
+                    <select
+                      className="input"
+                      value={form.reminderTiming}
+                      onChange={e => setForm(f => ({ ...f, reminderTiming: e.target.value as 'BEFORE' | 'AFTER' }))}
+                    >
+                      <option value="BEFORE">Before due date</option>
+                      <option value="AFTER">After due date</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">
+                      Reminder alert ({form.reminderTiming === 'AFTER' ? 'days after' : 'days before'} due date)
+                    </label>
                     <input
                       type="number"
                       min="1"
@@ -218,19 +235,21 @@ export default function ProductTypesPage() {
                       value={form.reminderDaysBeforeExpiry}
                       onChange={e => setForm(f => ({ ...f, reminderDaysBeforeExpiry: e.target.value }))}
                     />
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 14 for Domain/Hosting, 1 for WiFi</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                      e.g. 14 before expiry, or 5 after overdue
+                    </p>
                   </div>
-                  <div>
-                    <label className="label">Auto-generate invoice (days before expiry)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      className="input"
-                      value={form.autoInvoiceDaysBeforeExpiry}
-                      onChange={e => setForm(f => ({ ...f, autoInvoiceDaysBeforeExpiry: e.target.value }))}
-                    />
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">When renewal invoice should be created</p>
-                  </div>
+                </div>
+                <div>
+                  <label className="label">Auto-generate invoice (days before expiry)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="input max-w-xs"
+                    value={form.autoInvoiceDaysBeforeExpiry}
+                    onChange={e => setForm(f => ({ ...f, autoInvoiceDaysBeforeExpiry: e.target.value }))}
+                  />
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">When renewal invoice should be created</p>
                 </div>
               </div>
             </div>

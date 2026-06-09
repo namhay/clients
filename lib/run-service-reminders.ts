@@ -1,8 +1,7 @@
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { listServices } from '@/lib/db/services'
-import { getMaxReminderWindowDays } from '@/lib/db/product-types'
 import { sendEmail, reminderEmailTemplate } from '@/lib/email'
-import { expiryWithinDays, filterServicesDueForReminder } from '@/lib/reminders'
+import { filterServicesDueForReminder, getReminderExpiryBounds } from '@/lib/reminders'
 import { getAppSettings } from '@/lib/settings'
 import { sendTelegram, reminderTelegramMessage } from '@/lib/telegram'
 
@@ -15,9 +14,10 @@ export type ReminderRunResult = {
 
 export async function runServiceExpiryReminders(): Promise<ReminderRunResult> {
   const settings = await getAppSettings()
-  const maxDays = await getMaxReminderWindowDays()
+  const bounds = await getReminderExpiryBounds()
   const candidates = await listServices({
-    expiryDateLte: expiryWithinDays(maxDays),
+    expiryDateGte: bounds.gte,
+    expiryDateLte: bounds.lte,
     status: 'ACTIVE',
   })
   const services = filterServicesDueForReminder(candidates)

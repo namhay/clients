@@ -8,6 +8,7 @@ export type AppSettingsData = {
   companyEmail: string
   companyPhone: string
   invoicePrefix: string
+  invoiceStartNumber: number
   reminderDays: number
   reminderTime: string
   reminderTimezone: string
@@ -32,6 +33,7 @@ function envDefaults(): AppSettingsData {
     companyEmail: env.COMPANY_EMAIL || '',
     companyPhone: env.COMPANY_PHONE || '',
     invoicePrefix: env.INVOICE_PREFIX || 'INV-',
+    invoiceStartNumber: parseInt(env.INVOICE_START_NUMBER) || 1,
     reminderDays: 7,
     reminderTime: '09:00',
     reminderTimezone: 'Asia/Phnom_Penh',
@@ -55,6 +57,7 @@ function mergeFromEnv(data: AppSettingsData): AppSettingsData {
     companyEmail: data.companyEmail || env.companyEmail,
     companyPhone: data.companyPhone || env.companyPhone,
     invoicePrefix: data.invoicePrefix || env.invoicePrefix,
+    invoiceStartNumber: data.invoiceStartNumber || env.invoiceStartNumber,
     reminderDays: data.reminderDays || env.reminderDays,
     reminderTime: data.reminderTime || env.reminderTime,
     reminderTimezone: data.reminderTimezone || env.reminderTimezone,
@@ -92,6 +95,7 @@ export function parseSettingsInput(
     companyEmail: String(body.companyEmail || '').trim(),
     companyPhone: String(body.companyPhone || '').trim(),
     invoicePrefix,
+    invoiceStartNumber: Math.max(1, parseInt(String(body.invoiceStartNumber)) || base.invoiceStartNumber || 1),
     reminderDays: Math.max(1, parseInt(String(body.reminderDays)) || 7),
     reminderTime: parseReminderTime(body.reminderTime, base.reminderTime),
     reminderTimezone: parseReminderTimezone(body.reminderTimezone, base.reminderTimezone),
@@ -114,6 +118,7 @@ function toEnvUpdates(data: AppSettingsData) {
     COMPANY_EMAIL: data.companyEmail,
     COMPANY_PHONE: data.companyPhone,
     INVOICE_PREFIX: data.invoicePrefix,
+    INVOICE_START_NUMBER: String(data.invoiceStartNumber),
     SMTP_HOST: data.smtpHost,
     SMTP_PORT: String(data.smtpPort),
     SMTP_SECURE: data.smtpSecure ? 'true' : 'false',

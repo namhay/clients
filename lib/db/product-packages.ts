@@ -47,6 +47,7 @@ function mapWithRelations(row: Record<string, unknown>): ProductPackageWithRelat
     active: Boolean(row.pt_active),
     sortOrder: Number(row.pt_sortOrder),
     reminderDaysBeforeExpiry: Number(row.pt_reminderDaysBeforeExpiry ?? 14),
+    reminderTiming: String(row.pt_reminderTiming ?? 'BEFORE').toUpperCase() === 'AFTER' ? 'AFTER' : 'BEFORE',
     autoInvoiceDaysBeforeExpiry: Number(row.pt_autoInvoiceDaysBeforeExpiry ?? 14),
     createdAt: new Date(row.pt_createdAt as string),
     updatedAt: new Date(row.pt_updatedAt as string),
@@ -66,6 +67,7 @@ const PACKAGE_SELECT = `
   pt.id AS pt_id, pt.name AS pt_name, pt.slug AS pt_slug, pt.color AS pt_color,
   pt."hasHostingSpecs" AS pt_hasHostingSpecs, pt.active AS pt_active, pt."sortOrder" AS pt_sortOrder,
   pt."reminderDaysBeforeExpiry" AS pt_reminderDaysBeforeExpiry,
+  pt."reminderTiming" AS pt_reminderTiming,
   pt."autoInvoiceDaysBeforeExpiry" AS pt_autoInvoiceDaysBeforeExpiry,
   pt."createdAt" AS pt_createdAt, pt."updatedAt" AS pt_updatedAt,
   (SELECT COUNT(*)::int FROM "Service" s WHERE s."productPackageId" = pp.id) AS service_count

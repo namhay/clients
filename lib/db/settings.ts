@@ -14,6 +14,7 @@ function mapSettings(row: Record<string, unknown>): AppSettingsRow {
     companyEmail: String(row.companyEmail ?? ''),
     companyPhone: String(row.companyPhone ?? ''),
     invoicePrefix: String(row.invoicePrefix ?? 'INV-'),
+    invoiceStartNumber: Number(row.invoiceStartNumber ?? 1),
     reminderDays: Number(row.reminderDays ?? 7),
     reminderTime: String(row.reminderTime ?? '09:00'),
     reminderTimezone: String(row.reminderTimezone ?? 'Asia/Phnom_Penh'),
@@ -43,13 +44,13 @@ export async function createSettings(data: AppSettingsData): Promise<AppSettings
   const rows = await sql`
     INSERT INTO "AppSettings" (
       id, "companyName", "companyAddress", "companyEmail", "companyPhone",
-      "invoicePrefix", "reminderDays", "reminderTime", "reminderTimezone",
+      "invoicePrefix", "invoiceStartNumber", "reminderDays", "reminderTime", "reminderTimezone",
       "smtpHost", "smtpPort", "smtpSecure",
       "smtpUser", "smtpPass", "smtpFrom", "telegramBotToken", "telegramDefaultChatId",
       "updatedAt"
     ) VALUES (
       'default', ${data.companyName}, ${data.companyAddress}, ${data.companyEmail}, ${data.companyPhone},
-      ${data.invoicePrefix}, ${data.reminderDays}, ${data.reminderTime}, ${data.reminderTimezone},
+      ${data.invoicePrefix}, ${data.invoiceStartNumber}, ${data.reminderDays}, ${data.reminderTime}, ${data.reminderTimezone},
       ${data.smtpHost}, ${data.smtpPort}, ${data.smtpSecure},
       ${data.smtpUser}, ${data.smtpPass}, ${data.smtpFrom}, ${data.telegramBotToken}, ${data.telegramDefaultChatId},
       ${now}
@@ -72,6 +73,7 @@ export async function upsertSettings(data: AppSettingsData): Promise<AppSettings
       "companyEmail" = ${data.companyEmail},
       "companyPhone" = ${data.companyPhone},
       "invoicePrefix" = ${data.invoicePrefix},
+      "invoiceStartNumber" = ${data.invoiceStartNumber},
       "reminderDays" = ${data.reminderDays},
       "reminderTime" = ${data.reminderTime},
       "reminderTimezone" = ${data.reminderTimezone},

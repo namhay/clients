@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { countInvoices, createInvoice, listInvoices } from '@/lib/db/invoices'
-import { getAppSettings } from '@/lib/settings'
+import { createInvoice, listInvoices } from '@/lib/db/invoices'
+import { getNextInvoiceNo } from '@/lib/invoices'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -24,9 +24,7 @@ export async function POST(req: NextRequest) {
   const { clientId, items, dueDate, notes, tax = 0 } = body
   const subtotal = items.reduce((s: number, i: { total: number }) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
-  const count = await countInvoices()
-  const { invoicePrefix: prefix } = await getAppSettings()
-  const invoiceNo = `${prefix}${String(count + 1).padStart(4, '0')}`
+  const invoiceNo = await getNextInvoiceNo()
   const invoice = await createInvoice({
     clientId,
     invoiceNo,

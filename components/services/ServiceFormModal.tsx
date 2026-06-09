@@ -44,7 +44,7 @@ export default function ServiceFormModal({
   const [productPackages, setProductPackages] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
-  const [generateInvoice, setGenerateInvoice] = useState(false)
+  const [generateInvoice, setGenerateInvoice] = useState(true)
   const [sendInvoice, setSendInvoice] = useState(false)
   const [generatingInvoice, setGeneratingInvoice] = useState(false)
 
@@ -135,7 +135,7 @@ export default function ServiceFormModal({
         clientId: defaultClientId || '',
       })
       setForm(base)
-      setGenerateInvoice(false)
+      setGenerateInvoice(true)
       setSendInvoice(false)
     }
   }, [open, service, defaultClientId])
@@ -436,7 +436,7 @@ export default function ServiceFormModal({
                       if (!e.target.checked) setSendInvoice(false)
                     }}
                   />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Generate Invoice?</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Generate Invoice</span>
                 </label>
                 {generateInvoice && (
                   <label className="flex items-center gap-2 cursor-pointer ml-6">

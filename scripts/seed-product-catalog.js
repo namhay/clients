@@ -4,10 +4,10 @@ const { randomUUID } = require('crypto')
 const sql = neon(process.env.DATABASE_URL)
 
 const PRODUCT_TYPES = [
-  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
 ]
 
 const PACKAGES_BY_SLUG = {
@@ -80,6 +80,7 @@ async function upsertProductType(t) {
         "hasHostingSpecs" = ${t.hasHostingSpecs},
         "sortOrder" = ${t.sortOrder},
         "reminderDaysBeforeExpiry" = ${t.reminderDaysBeforeExpiry},
+        "reminderTiming" = ${t.reminderTiming || 'BEFORE'},
         "autoInvoiceDaysBeforeExpiry" = ${t.autoInvoiceDaysBeforeExpiry},
         "updatedAt" = ${now}
       WHERE slug = ${t.slug}
@@ -90,10 +91,10 @@ async function upsertProductType(t) {
   await sql`
     INSERT INTO "ProductType" (
       id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${t.name}, ${t.slug}, ${t.color}, ${t.hasHostingSpecs}, true,
-      ${t.sortOrder}, ${t.reminderDaysBeforeExpiry}, ${t.autoInvoiceDaysBeforeExpiry},
+      ${t.sortOrder}, ${t.reminderDaysBeforeExpiry}, ${t.reminderTiming || 'BEFORE'}, ${t.autoInvoiceDaysBeforeExpiry},
       ${now}, ${now}
     )
   `

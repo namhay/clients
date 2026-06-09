@@ -9,6 +9,7 @@ import {
   filterServicesDueForAutoInvoice,
   filterServicesDueForReminder,
   getMaxExpiryWindowDays,
+  getReminderExpiryBounds,
 } from '@/lib/reminders'
 
 export async function GET(req: NextRequest) {
@@ -33,8 +34,14 @@ export async function GET(req: NextRequest) {
   if (clientId) filters.clientId = clientId
 
   if (usePerTypeFilter) {
-    const maxDays = await getMaxExpiryWindowDays()
-    filters.expiryDateLte = expiryWithinDays(maxDays)
+    if (dueForReminder || expiringSoon) {
+      const bounds = await getReminderExpiryBounds()
+      filters.expiryDateLte = bounds.lte
+      if (bounds.gte) filters.expiryDateGte = bounds.gte
+    } else {
+      const maxDays = await getMaxExpiryWindowDays()
+      filters.expiryDateLte = expiryWithinDays(maxDays)
+    }
     filters.status = 'ACTIVE'
   }
 

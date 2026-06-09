@@ -23,7 +23,18 @@ async function main() {
     ADD COLUMN IF NOT EXISTS "lastReminderRunDate" TEXT
   `
 
+  await sql`
+    ALTER TABLE "ProductType"
+    ADD COLUMN IF NOT EXISTS "reminderTiming" TEXT NOT NULL DEFAULT 'BEFORE'
+  `
+  await sql`
+    ALTER TABLE "AppSettings"
+    ADD COLUMN IF NOT EXISTS "invoiceStartNumber" INTEGER NOT NULL DEFAULT 1
+  `
+
   console.log('✓ AppSettings reminder schedule columns ready')
+  console.log('✓ ProductType reminderTiming column ready')
+  console.log('✓ AppSettings invoiceStartNumber column ready')
 }
 
 main().catch(e => {

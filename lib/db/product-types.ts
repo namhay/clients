@@ -1,5 +1,5 @@
 import { getSql, newId } from '@/lib/db'
-import type { ProductTypeInput } from '@/lib/product-types'
+import type { ProductTypeInput, ReminderTiming } from '@/lib/product-types'
 
 export type ProductTypeRow = ProductTypeInput & {
   id: string
@@ -21,6 +21,7 @@ function mapProductType(row: Record<string, unknown>): ProductTypeRow {
     active: Boolean(row.active),
     sortOrder: Number(row.sortOrder),
     reminderDaysBeforeExpiry: Number(row.reminderDaysBeforeExpiry ?? 14),
+    reminderTiming: (String(row.reminderTiming ?? 'BEFORE').toUpperCase() === 'AFTER' ? 'AFTER' : 'BEFORE') as ReminderTiming,
     autoInvoiceDaysBeforeExpiry: Number(row.autoInvoiceDaysBeforeExpiry ?? 14),
     createdAt: new Date(row.createdAt as string),
     updatedAt: new Date(row.updatedAt as string),
@@ -76,7 +77,7 @@ export async function getProductTypeBySlug(slug: string): Promise<ProductTypeRow
   const sql = getSql()
   const rows = await sql`
     SELECT id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
     FROM "ProductType" WHERE slug = ${slug.toUpperCase()} LIMIT 1
   `
   const row = rows[0] as Record<string, unknown> | undefined
@@ -90,14 +91,14 @@ export async function createProductType(data: ProductTypeInput): Promise<Product
   const rows = await sql`
     INSERT INTO "ProductType" (
       id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.name}, ${data.slug}, ${data.color}, ${data.hasHostingSpecs}, ${data.active},
-      ${data.sortOrder}, ${data.reminderDaysBeforeExpiry}, ${data.autoInvoiceDaysBeforeExpiry},
+      ${data.sortOrder}, ${data.reminderDaysBeforeExpiry}, ${data.reminderTiming}, ${data.autoInvoiceDaysBeforeExpiry},
       ${now}, ${now}
     )
     RETURNING id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
   `
   return mapProductType(rows[0] as Record<string, unknown>)
 }
@@ -114,11 +115,12 @@ export async function updateProductType(id: string, data: ProductTypeInput): Pro
       active = ${data.active},
       "sortOrder" = ${data.sortOrder},
       "reminderDaysBeforeExpiry" = ${data.reminderDaysBeforeExpiry},
+      "reminderTiming" = ${data.reminderTiming},
       "autoInvoiceDaysBeforeExpiry" = ${data.autoInvoiceDaysBeforeExpiry},
       "updatedAt" = ${now}
     WHERE id = ${id}
     RETURNING id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
   `
   const row = rows[0] as Record<string, unknown> | undefined
   if (!row) throw new Error('Product type not found')
@@ -141,14 +143,26 @@ export async function deleteProductType(id: string) {
   await sql`DELETE FROM "ProductType" WHERE id = ${id}`
 }
 
-export async function getMaxReminderWindowDays(): Promise<number> {
+export type ReminderWindow = { before: number; after: number; invoice: number }
+
+export async function getMaxReminderWindow(): Promise<ReminderWindow> {
   const sql = getSql()
   const rows = await sql`
     SELECT
-      COALESCE(MAX("reminderDaysBeforeExpiry"), 14) AS reminder_max,
+      COALESCE(MAX(CASE WHEN COALESCE("reminderTiming", 'BEFORE') = 'BEFORE' THEN "reminderDaysBeforeExpiry" END), 14) AS before_max,
+      COALESCE(MAX(CASE WHEN "reminderTiming" = 'AFTER' THEN "reminderDaysBeforeExpiry" END), 0) AS after_max,
       COALESCE(MAX("autoInvoiceDaysBeforeExpiry"), 14) AS invoice_max
     FROM "ProductType"
   `
-  const row = rows[0] as { reminder_max: number; invoice_max: number }
-  return Math.max(Number(row.reminder_max), Number(row.invoice_max), 1)
+  const row = rows[0] as { before_max: number; after_max: number; invoice_max: number }
+  return {
+    before: Math.max(Number(row.before_max), 1),
+    after: Math.max(Number(row.after_max), 0),
+    invoice: Math.max(Number(row.invoice_max), 1),
+  }
+}
+
+export async function getMaxReminderWindowDays(): Promise<number> {
+  const window = await getMaxReminderWindow()
+  return Math.max(window.before, window.after, window.invoice, 1)
 }

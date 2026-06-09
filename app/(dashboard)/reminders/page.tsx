@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { formatReminderRule } from '@/lib/product-types'
 import { formatDate, daysUntil } from '@/lib/utils'
 
 export default function RemindersPage() {
@@ -61,6 +62,8 @@ export default function RemindersPage() {
             {expiring.map(svc => {
               const d = daysUntil(svc.expiryDate)
               const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
+              const remindTiming = svc.productType?.reminderTiming ?? 'BEFORE'
+              const remindRule = formatReminderRule(remindDays, remindTiming)
               return (
                 <div key={svc.id} className="card p-3">
                   <div className="flex items-start justify-between gap-2">
@@ -70,7 +73,9 @@ export default function RemindersPage() {
                         {svc.productType?.name} · {svc.name} · Expires {formatDate(svc.expiryDate)}
                       </div>
                       <div className={`text-xs font-medium mt-0.5 ${d<0?'text-red-600 dark:text-red-400':d<7?'text-orange-600 dark:text-orange-400':'text-yellow-600 dark:text-yellow-400'}`}>
-                        {d<0 ? `${Math.abs(d)} days overdue` : `${d} days left · remind ${remindDays}d before`}
+                        {d < 0
+                          ? `${Math.abs(d)} days overdue · remind ${remindRule}`
+                          : `${d} days left · remind ${remindRule}`}
                       </div>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">

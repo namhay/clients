@@ -14,6 +14,13 @@ import { getAppSettings } from '@/lib/settings'
 
 const INVOICE_STATUSES = ['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'] as const
 
+export async function getNextInvoiceNo(): Promise<string> {
+  const count = await countInvoices()
+  const { invoicePrefix, invoiceStartNumber } = await getAppSettings()
+  const num = invoiceStartNumber + count
+  return `${invoicePrefix}${String(num).padStart(4, '0')}`
+}
+
 export type InvoiceItemInput = {
   description: string
   quantity: number
@@ -212,9 +219,7 @@ export async function createInvoiceForService(service: ServiceForInvoice, tax = 
   const items = buildServiceInvoiceItems(service)
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
-  const count = await countInvoices()
-  const { invoicePrefix: prefix } = await getAppSettings()
-  const invoiceNo = `${prefix}${String(count + 1).padStart(4, '0')}`
+  const invoiceNo = await getNextInvoiceNo()
   const dueDate = service.nextDueDate || service.expiryDate
 
   return createInvoice({

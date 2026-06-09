@@ -8,6 +8,7 @@ const emptyForm = () => ({
   companyEmail: '',
   companyPhone: '',
   invoicePrefix: 'INV-',
+  invoiceStartNumber: '1',
   reminderDays: '7',
   reminderTime: '09:00',
   reminderTimezone: 'Asia/Phnom_Penh',
@@ -49,6 +50,7 @@ export default function SettingsPage() {
       companyEmail: String(data.companyEmail || ''),
       companyPhone: String(data.companyPhone || ''),
       invoicePrefix: String(data.invoicePrefix || 'INV-'),
+      invoiceStartNumber: String(data.invoiceStartNumber ?? 1),
       reminderDays: String(data.reminderDays ?? 7),
       reminderTime: String(data.reminderTime || '09:00'),
       reminderTimezone: String(data.reminderTimezone || 'Asia/Phnom_Penh'),
@@ -116,6 +118,7 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
+          invoiceStartNumber: parseInt(form.invoiceStartNumber) || 1,
           reminderDays: parseInt(form.reminderDays) || 7,
         }),
       })
@@ -162,9 +165,23 @@ export default function SettingsPage() {
               <label className="label">Phone</label>
               <input className="input" value={form.companyPhone} onChange={e => setForm(f => ({ ...f, companyPhone: e.target.value }))} placeholder="+855 12 345 678" />
             </div>
-            <div>
-              <label className="label">Invoice Prefix</label>
-              <input className="input" value={form.invoicePrefix} onChange={e => setForm(f => ({ ...f, invoicePrefix: e.target.value }))} placeholder="INV-" />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Invoice Prefix</label>
+                <input className="input" value={form.invoicePrefix} onChange={e => setForm(f => ({ ...f, invoicePrefix: e.target.value }))} placeholder="INV-" />
+              </div>
+              <div>
+                <label className="label">Invoice start from</label>
+                <input
+                  type="number"
+                  min="1"
+                  className="input"
+                  value={form.invoiceStartNumber}
+                  onChange={e => setForm(f => ({ ...f, invoiceStartNumber: e.target.value }))}
+                  placeholder="50"
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 50 → first invoice is INV-0050</p>
+              </div>
             </div>
           </div>
         </div>
