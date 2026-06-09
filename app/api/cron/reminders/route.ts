@@ -1,17 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authorizeCron } from '@/lib/cron-auth'
 import { updateLastReminderRunDate } from '@/lib/db/settings'
 import { getZonedParts, parseReminderTimezone } from '@/lib/reminder-schedule'
+import { runAutoInvoices } from '@/lib/run-auto-invoices'
 import { runServiceExpiryReminders } from '@/lib/run-service-reminders'
 import { getAppSettings } from '@/lib/settings'
-
-function authorizeCron(req: NextRequest) {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const auth = req.headers.get('authorization')
-  const bearer = auth?.startsWith('Bearer ') ? auth.slice(7) : null
-  const header = req.headers.get('x-cron-secret')
-  return bearer === secret || header === secret
-}
 
 export async function GET(req: NextRequest) {
   if (!authorizeCron(req)) {
@@ -33,6 +26,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  const invoices = await runAutoInvoices()
   const result = await runServiceExpiryReminders()
   await updateLastReminderRunDate(today)
 
@@ -41,6 +35,7 @@ export async function GET(req: NextRequest) {
     date: today,
     reminderTime: settings.reminderTime,
     reminderTimezone: timezone,
+    invoices,
     ...result,
   })
 }

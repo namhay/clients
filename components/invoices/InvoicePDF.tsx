@@ -13,6 +13,14 @@ const COL = {
   amount: '14%',
 } as const
 
+/** Meta header: customer label | customer value | invoice label | invoice value */
+const META_COL = {
+  customerLabel: '20%',
+  customerValue: '48%',
+  invoiceLabel: '21%',
+  invoiceValue: '11%',
+} as const
+
 const styles = StyleSheet.create({
   page: { padding: 36, fontFamily: 'InvoiceFont', fontSize: 9, color: '#000' },
   logoWrap: { alignItems: 'center', marginBottom: 8 },
@@ -21,11 +29,12 @@ const styles = StyleSheet.create({
   companyTin: { fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.45 },
   titleKh: { fontSize: 20, textAlign: 'center', marginTop: 8 },
   titleEn: { fontSize: 18, fontWeight: 700, textAlign: 'center', marginTop: 2, marginBottom: 14 },
-  metaRow: { flexDirection: 'row', marginBottom: 12 },
-  metaColCustomer: { width: '70%' },
-  metaColInvoice: { width: '30%', alignItems: 'flex-end' },
-  metaLineRight: { marginBottom: 3, lineHeight: 1.4, textAlign: 'right' },
-  metaLine: { marginBottom: 3, lineHeight: 1.4 },
+  metaGrid: { marginBottom: 12 },
+  metaGridRow: { flexDirection: 'row', marginBottom: 3, alignItems: 'flex-start' },
+  metaGridLabel: { fontSize: 9, lineHeight: 1.4 },
+  metaGridValue: { fontSize: 9, fontWeight: 700, lineHeight: 1.4 },
+  metaGridLabelCell: { paddingRight: 6 },
+  metaGridValueCell: { paddingRight: 8 },
   valueBold: { fontSize: 10, fontWeight: 700 },
   table: { border: '0.5pt solid #000' },
   tableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000', alignItems: 'stretch' },
@@ -68,18 +77,46 @@ const styles = StyleSheet.create({
   qrCenter: { alignItems: 'center', marginBottom: 4 },
   paymentQr: { width: 70, height: 70 },
   footer: { flexDirection: 'row', marginTop: -75, justifyContent: 'space-between', alignItems: 'flex-end' },
-  signCol: { width: '42%', textAlign: 'center' },
+  signCol: { width: '33%', textAlign: 'center' },
   signTopArea: { minHeight: 5, alignItems: 'center', justifyContent: 'flex-end' },
-  signLine: { borderTop: '0.5pt dotted #000', paddingTop: 6, fontSize: 8 },
+  signLine: { borderTop: '0.5pt dotted #000', paddingTop: 6 },
+  signCaption: { fontSize: 10, lineHeight: 1.45, textAlign: 'center' },
   stamp: { width: 180, marginBottom: 5,height: 90, objectFit: 'contain' },
 })
 
-function BilingualLabel({ km, en, value, alignRight }: { km: string; en: string; value?: string; alignRight?: boolean }) {
+type MetaLabel = { km: string; en: string }
+
+function MetaGridRow({
+  customerLabel,
+  customerValue,
+  invoiceLabel,
+  invoiceValue,
+}: {
+  customerLabel?: MetaLabel
+  customerValue?: string
+  invoiceLabel?: MetaLabel
+  invoiceValue?: string
+}) {
+  if (!customerValue && !invoiceValue) return null
   return (
-    <Text style={alignRight ? styles.metaLineRight : styles.metaLine}>
-      <Text>{km} / {en}: </Text>
-      {value !== undefined && <Text style={styles.valueBold}>{value}</Text>}
-    </Text>
+    <View style={styles.metaGridRow}>
+      <View style={[styles.metaGridLabelCell, { width: META_COL.customerLabel }]}>
+        {customerLabel && (
+          <Text style={styles.metaGridLabel}>{customerLabel.km} / {customerLabel.en}:</Text>
+        )}
+      </View>
+      <View style={[styles.metaGridValueCell, { width: META_COL.customerValue }]}>
+        {customerValue && <Text style={styles.metaGridValue}>{customerValue}</Text>}
+      </View>
+      <View style={[styles.metaGridLabelCell, { width: META_COL.invoiceLabel }]}>
+        {invoiceLabel && (
+          <Text style={styles.metaGridLabel}>{invoiceLabel.km} / {invoiceLabel.en}:</Text>
+        )}
+      </View>
+      <View style={{ width: META_COL.invoiceValue }}>
+        {invoiceValue && <Text style={styles.metaGridValue}>{invoiceValue}</Text>}
+      </View>
+    </View>
   )
 }
 
@@ -122,6 +159,7 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
   const customerName = invoice.client.company || invoice.client.name
   const formatInvoiceDate = (date: string | Date) => formatDateValue(date, dateFormat, timezone)
   const invoiceDate = formatInvoiceDate(invoice.createdAt)
+  const dueDate = formatInvoiceDate(invoice.dueDate)
 
   return (
     <Document>
@@ -144,17 +182,29 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
         <Text style={styles.titleKh}>វិក្កយបត្រ</Text>
         <Text style={styles.titleEn}>INVOICE</Text>
 
-        <View style={styles.metaRow}>
-          <View style={styles.metaColCustomer}>
-            <BilingualLabel km="អតិថិជន" en="Customer" value={customerName} />
-            {invoice.client.address && <BilingualLabel km="អាសយដ្ឋាន" en="Address" value={invoice.client.address} />}
-            {invoice.client.phone && <BilingualLabel km="ទូរស័ព្ទលេខ" en="Telephone" value={invoice.client.phone} />}
-            {invoice.client.vatTin && <BilingualLabel km="លេខអត្តសញ្ញាណកម្ម (អតប)" en="VAT TIN" value={invoice.client.vatTin} />}
-          </View>
-          <View style={styles.metaColInvoice}>
-            <BilingualLabel km="លេខវិក្កយបត្រ" en="Invoice No." value={invoice.invoiceNo} alignRight />
-            <BilingualLabel km="កាលបរិច្ឆេទ" en="Invoice Date" value={invoiceDate} alignRight />
-          </View>
+        <View style={styles.metaGrid}>
+          <MetaGridRow
+            customerLabel={{ km: 'អតិថិជន', en: 'Customer' }}
+            customerValue={customerName}
+            invoiceLabel={{ km: 'លេខវិក្កយបត្រ', en: 'Invoice No.' }}
+            invoiceValue={invoice.invoiceNo}
+          />
+          <MetaGridRow
+             customerLabel={{ km: 'ទូរស័ព្ទលេខ', en: 'Telephone' }}
+             customerValue={invoice.client.phone ?? undefined}
+            invoiceLabel={{ km: 'កាលបរិច្ឆេទ', en: 'Invoice Date' }}
+            invoiceValue={invoiceDate}
+          />
+          <MetaGridRow
+            customerLabel={{ km: 'អាសយដ្ឋាន', en: 'Address' }}
+            customerValue={invoice.client.address ?? undefined}
+            invoiceLabel={{ km: 'ផុតកំណត់បង់', en: 'Due Date' }}
+            invoiceValue={dueDate}
+          />
+          <MetaGridRow
+            customerLabel={{ km: 'លេខអត្តសញ្ញាណកម្ម', en: 'TIN' }}
+            customerValue={invoice.client.vatTin ?? undefined}
+          />
         </View>
 
         {/* Items table + total row (same column grid) */}
@@ -243,8 +293,8 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
           <View style={styles.signCol}>
             <View style={styles.signTopArea} />
             <View style={styles.signLine}>
-              <Text>ហត្ថលេខា និងឈ្មោះអ្នកទិញ</Text>
-              <Text>Customer&apos;s Signature & Name</Text>
+              <Text style={styles.signCaption}>ហត្ថលេខា និងឈ្មោះអ្នកទិញ</Text>
+              <Text style={styles.signCaption}>Customer&apos;s Signature & Name</Text>
             </View>
           </View>
           <View style={styles.signCol}>
@@ -252,8 +302,8 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
               {stampSrc && <Image src={stampSrc} style={styles.stamp} />}
             </View>
             <View style={styles.signLine}>
-              <Text>ហត្ថលេខា និងឈ្មោះអ្នកលក់</Text>
-              <Text>Seller&apos;s Signature & Name</Text>
+              <Text style={styles.signCaption}>ហត្ថលេខា និងឈ្មោះអ្នកលក់</Text>
+              <Text style={styles.signCaption}>Seller&apos;s Signature & Name</Text>
             </View>
           </View>
         </View>

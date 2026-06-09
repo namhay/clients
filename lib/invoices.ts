@@ -316,7 +316,16 @@ export async function enrichInvoiceItemsWithPeriods(
   })
 }
 
-export function buildServiceInvoiceItems(service: ServiceForInvoice) {
+export type ServiceInvoiceOptions = {
+  /** Renewal invoices should not re-bill setup fees. Default true for manual invoices. */
+  includeSetupFee?: boolean
+}
+
+export function buildServiceInvoiceItems(
+  service: ServiceForInvoice,
+  options: ServiceInvoiceOptions = {},
+) {
+  const includeSetupFee = options.includeSetupFee !== false
   const label = buildServiceInvoiceLabel(
     service.typeName,
     service.name,
@@ -336,7 +345,7 @@ export function buildServiceInvoiceItems(service: ServiceForInvoice) {
     })
   }
 
-  if (service.setupFee > 0) {
+  if (includeSetupFee && service.setupFee > 0) {
     items.push({
       description: `Setup fee — ${service.name}`,
       quantity: 1,
@@ -353,8 +362,12 @@ export function buildServiceInvoiceItems(service: ServiceForInvoice) {
   return items
 }
 
-export async function createInvoiceForService(service: ServiceForInvoice, tax = 0) {
-  return createInvoiceForServices([service], service.clientId, tax)
+export async function createInvoiceForService(
+  service: ServiceForInvoice,
+  tax = 0,
+  options?: ServiceInvoiceOptions,
+) {
+  return createInvoiceForServices([service], service.clientId, tax, undefined, options)
 }
 
 export async function createInvoiceForServices(
@@ -362,10 +375,11 @@ export async function createInvoiceForServices(
   clientId: string,
   tax = 0,
   dueDate?: Date,
+  options?: ServiceInvoiceOptions,
 ) {
   if (!services.length) throw new Error('No services to invoice')
 
-  const items = services.flatMap(s => buildServiceInvoiceItems(s))
+  const items = services.flatMap(s => buildServiceInvoiceItems(s, options))
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
   const invoiceNo = await getNextInvoiceNo()
