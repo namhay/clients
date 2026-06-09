@@ -16,8 +16,11 @@ export async function PUT(req: NextRequest) {
   try {
     const existing = await getAppSettings()
     const data = parseSettingsInput(await req.json(), existing)
-    const settings = await saveAppSettings(data)
-    return NextResponse.json({ ...toPublicSettings(settings), savedTo: ['database', 'env'] })
+    const { settings, envFileUpdated } = await saveAppSettings(data)
+    return NextResponse.json({
+      ...toPublicSettings(settings),
+      savedTo: envFileUpdated ? ['database', 'env'] : ['database'],
+    })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Invalid settings'
     return NextResponse.json({ error: message }, { status: 400 })

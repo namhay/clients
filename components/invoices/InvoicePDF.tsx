@@ -112,14 +112,15 @@ interface Props {
   }
   company: InvoiceCompanyProfile
   dateFormat?: DateFormatId
+  timezone?: string
   paymentQrSrc?: string
   logoSrc?: string
   stampSrc?: string
 }
 
-export default function InvoicePDF({ invoice, company, dateFormat, paymentQrSrc, logoSrc, stampSrc }: Props) {
+export default function InvoicePDF({ invoice, company, dateFormat, timezone, paymentQrSrc, logoSrc, stampSrc }: Props) {
   const customerName = invoice.client.company || invoice.client.name
-  const formatInvoiceDate = (date: string | Date) => formatDateValue(date, dateFormat)
+  const formatInvoiceDate = (date: string | Date) => formatDateValue(date, dateFormat, timezone)
   const invoiceDate = formatInvoiceDate(invoice.createdAt)
 
   return (

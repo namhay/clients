@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
+import { useState } from 'react'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 
 const navItems = [
@@ -21,7 +22,18 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const { data: session } = useSession()
+  const [signingOut, setSigningOut] = useState(false)
   const initials = session?.user?.name?.split(' ').map((n:string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
+
+  const handleSignOut = async () => {
+    if (signingOut) return
+    setSigningOut(true)
+    try {
+      await signOut({ redirect: false })
+    } finally {
+      window.location.href = '/login'
+    }
+  }
   return (
     <aside className="w-[220px] min-w-[220px] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-screen sticky top-0">
       <div className="p-4 border-b border-gray-200 dark:border-gray-800">
@@ -48,7 +60,14 @@ export default function Sidebar() {
         <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
           <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-semibold flex-shrink-0">{initials}</div>
           <div className="flex-1 min-w-0"><div className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">{session?.user?.name}</div><div className="text-xs text-gray-500 dark:text-gray-400">{(session?.user as any)?.role}</div></div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300" title="Sign out">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            className="p-1.5 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
+            title="Sign out"
+            aria-label="Sign out"
+          >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
           </button>
         </div>

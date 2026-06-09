@@ -16,7 +16,7 @@ const invoiceStatusColors: Record<string, string> = {
 }
 
 export default function ClientProfilePage() {
-  const { formatDate } = useAppSettings()
+  const { formatDate, formatDateTime } = useAppSettings()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [client, setClient] = useState<any>(null)
@@ -360,7 +360,9 @@ export default function ClientProfilePage() {
                   <span className="text-gray-400 dark:text-gray-500 mx-2">via</span>
                   <span className="text-gray-600 dark:text-gray-300">{log.channel}</span>
                 </div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(log.createdAt)}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {log.createdAtDisplay || formatDateTime(log.createdAt)}
+                </div>
               </div>
             ))}
           </div>

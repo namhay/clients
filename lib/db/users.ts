@@ -29,6 +29,25 @@ export async function getUserByEmail(email: string): Promise<UserRow | null> {
   return row ? mapUser(row) : null
 }
 
+export async function getUserById(id: string): Promise<UserRow | null> {
+  const sql = getSql()
+  const rows = await sql`SELECT * FROM "User" WHERE id = ${id} LIMIT 1`
+  const row = rows[0] as Record<string, unknown> | undefined
+  return row ? mapUser(row) : null
+}
+
+export async function updateUserPassword(id: string, passwordHash: string): Promise<void> {
+  const sql = getSql()
+  const now = new Date()
+  const rows = await sql`
+    UPDATE "User"
+    SET password = ${passwordHash}, "updatedAt" = ${now}
+    WHERE id = ${id}
+    RETURNING id
+  `
+  if (!rows[0]) throw new Error('User not found')
+}
+
 export async function upsertUser(data: {
   name: string
   email: string

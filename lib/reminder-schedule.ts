@@ -1,3 +1,5 @@
+import { readZonedParts } from '@/lib/date-format'
+
 const COMMON_TIMEZONES = [
   'Asia/Phnom_Penh',
   'Asia/Bangkok',
@@ -13,6 +15,7 @@ const COMMON_TIMEZONES = [
 export type ReminderTimezone = (typeof COMMON_TIMEZONES)[number]
 
 export const REMINDER_TIMEZONES = COMMON_TIMEZONES
+export const APP_TIMEZONES = REMINDER_TIMEZONES
 
 export function parseReminderTime(value: unknown, fallback = '09:00'): string {
   const text = String(value || fallback).trim()
@@ -30,22 +33,19 @@ export function parseReminderTimezone(value: unknown, fallback = 'Asia/Phnom_Pen
 }
 
 export function getZonedParts(date: Date, timezone: string) {
-  const formatter = new Intl.DateTimeFormat('en-GB', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
-  const parts = formatter.formatToParts(date)
-  const get = (type: string) => parts.find(p => p.type === type)?.value || '00'
-  return {
-    date: `${get('year')}-${get('month')}-${get('day')}`,
-    hour: Number(get('hour')),
-    minute: Number(get('minute')),
+  const zoned = readZonedParts(date, timezone)
+  if (!zoned) {
+    return { date: '', hour: 0, minute: 0 }
   }
+  return {
+    date: `${zoned.year}-${pad(zoned.month)}-${pad(zoned.day)}`,
+    hour: zoned.hour,
+    minute: zoned.minute,
+  }
+}
+
+function pad(n: number) {
+  return String(n).padStart(2, '0')
 }
 
 /** Vercel cron expression (UTC) to run once daily at reminderTime in the given timezone. */

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { DATE_FORMAT_OPTIONS } from '@/lib/date-format'
-import { REMINDER_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
+import { APP_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
 
 const emptyForm = () => ({
   companyName: '',
@@ -31,7 +31,7 @@ export default function SettingsPage() {
   const [form, setForm] = useState(emptyForm())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [savedMessage, setSavedMessage] = useState('')
   const [error, setError] = useState('')
   const [webhookStatus, setWebhookStatus] = useState<{
     webhookUrl: string | null
@@ -46,6 +46,14 @@ export default function SettingsPage() {
   } | null>(null)
   const [webhookLoading, setWebhookLoading] = useState(false)
   const [webhookMessage, setWebhookMessage] = useState('')
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordMessage, setPasswordMessage] = useState('')
+  const [passwordError, setPasswordError] = useState('')
 
   const applySettings = (data: Record<string, unknown>) => {
     setForm({
@@ -112,11 +120,42 @@ export default function SettingsPage() {
     }
   }
 
+  const changePassword = async () => {
+    if (!passwordForm.currentPassword || !passwordForm.newPassword) {
+      return alert('Enter your current and new password')
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      return alert('New passwords do not match')
+    }
+    setPasswordSaving(true)
+    setPasswordError('')
+    setPasswordMessage('')
+    try {
+      const res = await fetch('/api/account/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordForm),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setPasswordError(result.error || 'Failed to update password')
+        return
+      }
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setPasswordMessage('Password updated successfully')
+      setTimeout(() => setPasswordMessage(''), 3000)
+    } catch {
+      setPasswordError('Failed to update password')
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
+
   const save = async () => {
     if (!form.companyName.trim()) return alert('Company name is required')
     setSaving(true)
     setError('')
-    setSaved(false)
+    setSavedMessage('')
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
@@ -134,8 +173,12 @@ export default function SettingsPage() {
       }
       applySettings(result)
       await reloadSettings()
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      const savedTo = Array.isArray(result.savedTo) ? result.savedTo : ['database']
+      const message = savedTo.includes('env')
+        ? '✓ Saved to database and .env!'
+        : '✓ Saved to database!'
+      setSavedMessage(message)
+      setTimeout(() => setSavedMessage(''), 3000)
     } catch {
       setError('Failed to save settings')
     } finally {
@@ -153,7 +196,7 @@ export default function SettingsPage() {
       <div className="grid grid-cols-2 gap-6">
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Company Information</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database (local dev also updates .env)</p>
           <div className="space-y-3">
             <div>
               <label className="label">Company Name *</label>
@@ -189,24 +232,38 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 50 → first invoice is INV-0050</p>
               </div>
             </div>
-            <div>
-              <label className="label">Date format</label>
-              <select
-                className="input"
-                value={form.dateFormat}
-                onChange={e => setForm(f => ({ ...f, dateFormat: e.target.value }))}
-              >
-                {DATE_FORMAT_OPTIONS.map(opt => (
-                  <option key={opt.id} value={opt.id}>{opt.label}</option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Used across the app, PDFs, emails, and Telegram</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Date format</label>
+                <select
+                  className="input"
+                  value={form.dateFormat}
+                  onChange={e => setForm(f => ({ ...f, dateFormat: e.target.value }))}
+                >
+                  {DATE_FORMAT_OPTIONS.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Global time zone</label>
+                <select
+                  className="input"
+                  value={form.reminderTimezone}
+                  onChange={e => setForm(f => ({ ...f, reminderTimezone: e.target.value }))}
+                >
+                  {APP_TIMEZONES.map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
             </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500">Used for dates, times, reminders, PDFs, emails, and Telegram. Default: Cambodia (Asia/Phnom_Penh).</p>
           </div>
         </div>
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">SMTP Email (cPanel)</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database (local dev also updates .env)</p>
           <div className="space-y-3">
             <div>
               <label className="label">SMTP Host</label>
@@ -241,7 +298,7 @@ export default function SettingsPage() {
         </div>
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Telegram Bot</h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database and your .env file. Get a token from @BotFather.</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database (local dev also updates .env). Get a token from @BotFather.</p>
           <div className="space-y-3">
             <div>
               <label className="label">Bot Token</label>
@@ -299,29 +356,17 @@ export default function SettingsPage() {
             Alerts are sent once per day at your reminder time. On Vercel Hobby, the cron job may only run once daily — update <span className="font-mono">vercel.json</span> if you change the time below.
           </p>
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Reminder time</label>
-                <input
-                  type="time"
-                  className="input"
-                  value={form.reminderTime}
-                  onChange={e => setForm(f => ({ ...f, reminderTime: e.target.value }))}
-                />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 12:30 for 12:30 PM</p>
-              </div>
-              <div>
-                <label className="label">Timezone</label>
-                <select
-                  className="input"
-                  value={form.reminderTimezone}
-                  onChange={e => setForm(f => ({ ...f, reminderTimezone: e.target.value }))}
-                >
-                  {REMINDER_TIMEZONES.map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="label">Reminder time</label>
+              <input
+                type="time"
+                className="input max-w-xs"
+                value={form.reminderTime}
+                onChange={e => setForm(f => ({ ...f, reminderTime: e.target.value }))}
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                Daily at this time in your global time zone ({form.reminderTimezone}). e.g. 12:30 for 12:30 PM.
+              </p>
             </div>
             <div>
               <label className="label">Default reminder days (new product types)</label>
@@ -336,6 +381,53 @@ export default function SettingsPage() {
                 <div>Last auto-run: <span className="font-medium">{form.lastReminderRunDate}</span></div>
               )}
             </div>
+          </div>
+        </div>
+        <div className="card p-5">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Account Security</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Change your admin login password</p>
+          <div className="space-y-3">
+            <div>
+              <label className="label">Current password</label>
+              <input
+                type="password"
+                className="input"
+                value={passwordForm.currentPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                autoComplete="current-password"
+              />
+            </div>
+            <div>
+              <label className="label">New password</label>
+              <input
+                type="password"
+                className="input"
+                value={passwordForm.newPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                autoComplete="new-password"
+                placeholder="At least 6 characters"
+              />
+            </div>
+            <div>
+              <label className="label">Confirm new password</label>
+              <input
+                type="password"
+                className="input"
+                value={passwordForm.confirmPassword}
+                onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <button type="button" className="btn-secondary" onClick={changePassword} disabled={passwordSaving}>
+                {passwordSaving ? 'Updating...' : 'Change Password'}
+              </button>
+              {passwordMessage && <span className="text-green-600 dark:text-green-400 text-sm">{passwordMessage}</span>}
+              {passwordError && <span className="text-red-600 dark:text-red-400 text-sm">{passwordError}</span>}
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">
+              Forgot your password? Run <span className="font-mono">npm run db:seed-admin</span> with <span className="font-mono">ADMIN_EMAIL</span> and <span className="font-mono">ADMIN_PASSWORD</span> set to reset the admin account.
+            </p>
           </div>
         </div>
         <div className="card p-5">
@@ -360,7 +452,7 @@ export default function SettingsPage() {
         <button className="btn-primary" onClick={save} disabled={saving}>
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
-        {saved && <span className="text-green-600 dark:text-green-400 text-sm">✓ Saved to database and .env!</span>}
+        {savedMessage && <span className="text-green-600 dark:text-green-400 text-sm">{savedMessage}</span>}
         {error && <span className="text-red-600 dark:text-red-400 text-sm">{error}</span>}
       </div>
     </div>

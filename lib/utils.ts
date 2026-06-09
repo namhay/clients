@@ -1,12 +1,17 @@
-import { DEFAULT_DATE_FORMAT, formatDateTimeValue, formatDateValue } from '@/lib/date-format'
+import {
+  DEFAULT_DATE_FORMAT,
+  DEFAULT_TIMEZONE,
+  formatDateTimeValue,
+  formatDateValue,
+} from '@/lib/date-format'
 
 /** @deprecated Prefer useAppSettings().formatDate in client components */
 export function formatDate(date: Date | string) {
-  return formatDateValue(date, DEFAULT_DATE_FORMAT)
+  return formatDateValue(date, DEFAULT_DATE_FORMAT, DEFAULT_TIMEZONE)
 }
 
 export function formatDateTime(date: Date | string) {
-  return formatDateTimeValue(date, DEFAULT_DATE_FORMAT)
+  return formatDateTimeValue(date, DEFAULT_DATE_FORMAT, DEFAULT_TIMEZONE)
 }
 
 export function formatCurrency(amount: number) {

@@ -103,7 +103,7 @@ export function parseSettingsInput(
     dateFormat: parseDateFormat(body.dateFormat, parseDateFormat(base.dateFormat)),
     reminderDays: Math.max(1, parseInt(String(body.reminderDays)) || 7),
     reminderTime: parseReminderTime(body.reminderTime, base.reminderTime),
-    reminderTimezone: parseReminderTimezone(body.reminderTimezone, base.reminderTimezone),
+    reminderTimezone: parseReminderTimezone(body.timezone ?? body.reminderTimezone, base.reminderTimezone),
     lastReminderRunDate: base.lastReminderRunDate ?? null,
     smtpHost: String(body.smtpHost || '').trim(),
     smtpPort: parseInt(String(body.smtpPort)) || 465,
@@ -148,16 +148,12 @@ export async function getAppSettings(): Promise<AppSettingsData> {
   return defaults
 }
 
-export async function saveAppSettings(data: AppSettingsData): Promise<AppSettingsData> {
-  updateEnvFile(toEnvUpdates(data))
-
-  try {
-    await upsertSettings(data)
-  } catch {
-    // .env saved successfully
-  }
-
-  return data
+export async function saveAppSettings(
+  data: AppSettingsData,
+): Promise<{ settings: AppSettingsData; envFileUpdated: boolean }> {
+  const settings = await upsertSettings(data)
+  const envFileUpdated = updateEnvFile(toEnvUpdates(data))
+  return { settings, envFileUpdated }
 }
 
 export function toPublicSettings(data: AppSettingsData) {

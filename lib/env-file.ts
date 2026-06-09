@@ -3,6 +3,27 @@ import path from 'path'
 
 const ENV_PATH = path.join(process.cwd(), '.env')
 
+/** Local dev can write .env; Vercel/serverless filesystems are read-only. */
+export function canWriteEnvFile(): boolean {
+  if (process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME) return false
+  try {
+    const dir = path.dirname(ENV_PATH)
+    fs.accessSync(dir, fs.constants.W_OK)
+    if (fs.existsSync(ENV_PATH)) {
+      fs.accessSync(ENV_PATH, fs.constants.W_OK)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function applyEnvUpdates(updates: Record<string, string>) {
+  for (const [key, value] of Object.entries(updates)) {
+    process.env[key] = value
+  }
+}
+
 export function readEnvDefaults(): Record<string, string> {
   return {
     COMPANY_NAME: process.env.COMPANY_NAME || '',
@@ -32,11 +53,15 @@ export function readEnvDefaults(): Record<string, string> {
   }
 }
 
-export function updateEnvFile(updates: Record<string, string>) {
+/** Apply updates to process.env and, when allowed, persist them to .env. */
+export function updateEnvFile(updates: Record<string, string>): boolean {
+  applyEnvUpdates(updates)
+  if (!canWriteEnvFile()) return false
+
   if (!fs.existsSync(ENV_PATH)) {
     const lines = Object.entries(updates).map(([k, v]) => `${k}="${escapeEnvValue(v)}"`)
     fs.writeFileSync(ENV_PATH, lines.join('\n') + '\n', 'utf8')
-    return
+    return true
   }
 
   let content = fs.readFileSync(ENV_PATH, 'utf8')
@@ -48,9 +73,9 @@ export function updateEnvFile(updates: Record<string, string>) {
     } else {
       content = content.trimEnd() + `\n${line}\n`
     }
-    process.env[key] = value
   }
   fs.writeFileSync(ENV_PATH, content, 'utf8')
+  return true
 }
 
 function escapeEnvValue(value: string) {
