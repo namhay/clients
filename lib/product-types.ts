@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client'
-
 const COLORS = ['blue', 'green', 'orange', 'pink', 'purple', 'gray', 'yellow', 'red', 'indigo'] as const
 
 export type ProductTypeInput = {
@@ -9,6 +7,8 @@ export type ProductTypeInput = {
   hasHostingSpecs: boolean
   active: boolean
   sortOrder: number
+  reminderDaysBeforeExpiry: number
+  autoInvoiceDaysBeforeExpiry: number
 }
 
 export function slugify(name: string): string {
@@ -39,12 +39,12 @@ export function parseProductTypeInput(body: Record<string, unknown>): ProductTyp
     hasHostingSpecs: Boolean(body.hasHostingSpecs),
     active: body.active !== false,
     sortOrder: parseInt(String(body.sortOrder)) || 0,
+    reminderDaysBeforeExpiry: Math.max(1, parseInt(String(body.reminderDaysBeforeExpiry)) || 14),
+    autoInvoiceDaysBeforeExpiry: Math.max(1, parseInt(String(body.autoInvoiceDaysBeforeExpiry)) || 14),
   }
 }
 
-export function toPrismaProductTypeData(
-  data: ProductTypeInput,
-): Prisma.ProductTypeUncheckedCreateInput {
+export function productTypeFields(data: ProductTypeInput): ProductTypeInput {
   return data
 }
 

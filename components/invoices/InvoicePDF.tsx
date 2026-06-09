@@ -5,10 +5,10 @@ import { formatInvoiceItemDescription } from '@/lib/invoices'
 // Column widths — Unit Price & Amount equal; Total row uses same grid
 const COL = {
   no: '7%',
-  desc: '44%',
+  desc: '48%',
   qty: '12%',
-  price: '18.5%',
-  amount: '18.5%',
+  price: '16.5%',
+  amount: '16.5%',
 } as const
 
 const styles = StyleSheet.create({
@@ -16,6 +16,7 @@ const styles = StyleSheet.create({
   logoWrap: { alignItems: 'center', marginBottom: 8 },
   logo: { width: 200, height: 56, objectFit: 'contain' },
   centered: { textAlign: 'center', lineHeight: 1.45 },
+  companyTin: { fontSize: 11, fontWeight: 700, textAlign: 'center', lineHeight: 1.45 },
   titleKh: { fontSize: 20, textAlign: 'center', marginTop: 8 },
   titleEn: { fontSize: 18, fontWeight: 700, textAlign: 'center', marginTop: 2, marginBottom: 14 },
   metaRow: { flexDirection: 'row', marginBottom: 12 },
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
   metaColInvoice: { width: '30%', alignItems: 'flex-end' },
   metaLineRight: { marginBottom: 3, lineHeight: 1.4, textAlign: 'right' },
   metaLine: { marginBottom: 3, lineHeight: 1.4 },
-  label: { fontWeight: 700 },
+  valueBold: { fontSize: 10, fontWeight: 700 },
   table: { border: '0.5pt solid #000' },
   tableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000', alignItems: 'stretch' },
   tableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 28, alignItems: 'stretch' },
@@ -38,8 +39,24 @@ const styles = StyleSheet.create({
   colAmount: { width: COL.amount },
   colTextCenter: { textAlign: 'center' },
   lastCol: { borderRight: 0 },
-  totalLabel: { fontSize: 8, textAlign: 'left' },
-  totalValue: { textAlign: 'center', fontWeight: 700, fontSize: 11 },
+  colTotalLeftMerged: { width: '83.5%' },
+  totalLabelCell: {
+    padding: 6,
+    borderRight: '0.5pt solid #000',
+    borderBottom: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  totalAmountCell: {
+    padding: 6,
+    borderLeft: 0,
+    borderBottom: 0,
+    borderRight: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  totalMergedLabel: { fontSize: 8, textAlign: 'right' },
+  totalMergedAmount: { fontWeight: 700, fontSize: 14, textAlign: 'center' },
   paymentSection: { marginTop: 10, textAlign: 'center' },
   paymentRow: { flexDirection: 'row', marginBottom: 6 },
   paymentColLeft: { width: '50%' },
@@ -48,11 +65,11 @@ const styles = StyleSheet.create({
   paymentNotes: { fontSize: 8, lineHeight: 1.4 },
   qrCenter: { alignItems: 'center', marginBottom: 4 },
   paymentQr: { width: 70, height: 70 },
-  footer: { flexDirection: 'row', marginTop: -50, justifyContent: 'space-between' },
+  footer: { flexDirection: 'row', marginTop: -75, justifyContent: 'space-between', alignItems: 'flex-end' },
   signCol: { width: '42%', textAlign: 'center' },
-  signTopArea: { height: 50, alignItems: 'center', justifyContent: 'flex-start' },
+  signTopArea: { minHeight: 5, alignItems: 'center', justifyContent: 'flex-end' },
   signLine: { borderTop: '0.5pt dotted #000', paddingTop: 6, fontSize: 8 },
-  stamp: { width: 378, height: 230, marginTop: -20, marginBottom: 10, objectFit: 'contain' },
+  stamp: { width: 180, marginBottom: 5,height: 90, objectFit: 'contain' },
 })
 
 function formatInvoiceDate(date: string | Date) {
@@ -66,8 +83,8 @@ function formatInvoiceDate(date: string | Date) {
 function BilingualLabel({ km, en, value, alignRight }: { km: string; en: string; value?: string; alignRight?: boolean }) {
   return (
     <Text style={alignRight ? styles.metaLineRight : styles.metaLine}>
-      <Text style={styles.label}>{km} / {en}</Text>
-      {value !== undefined ? `: ${value}` : ':'}
+      <Text>{km} / {en}: </Text>
+      {value !== undefined && <Text style={styles.valueBold}>{value}</Text>}
     </Text>
   )
 }
@@ -120,7 +137,7 @@ export default function InvoicePDF({ invoice, company, paymentQrSrc, logoSrc, st
         )}
 
         <View style={styles.centered}>
-          <Text>លេខអត្តសញ្ញាណកម្ម (TIN): {company.tin}</Text>
+          <Text style={styles.companyTin}>លេខអត្តសញ្ញាណកម្ម (TIN): {company.tin}</Text>
           <Text>អាសយដ្ឋាន៖ {company.addressKhmer}</Text>
           <Text>Address: {company.address}</Text>
           <Text>ទូរស័ព្ទលេខ/Telephone: {company.phone}</Text>
@@ -186,14 +203,11 @@ export default function InvoicePDF({ invoice, company, paymentQrSrc, logoSrc, st
             </View>
           ))}
           <View style={[styles.tableRow, { borderBottom: 0, minHeight: 32 }]}>
-            <View style={[styles.cell, styles.colNo]}><Text> </Text></View>
-            <View style={[styles.cell, styles.colDesc]}><Text> </Text></View>
-            <View style={[styles.cell, styles.colQty]}><Text> </Text></View>
-            <View style={[styles.cell, styles.colPrice]}>
-              <Text style={styles.totalLabel}>សរុប(បញ្ចូលទាំងអាករ) / TOTAL (VAT Included)</Text>
+            <View style={[styles.totalLabelCell, styles.colTotalLeftMerged]}>
+              <Text style={styles.totalMergedLabel}>សរុប(បញ្ចូលទាំងអាករ) / TOTAL (VAT Included)</Text>
             </View>
-            <View style={[styles.cell, styles.colAmount, styles.lastCol, styles.cellCenter]}>
-              <Text style={styles.totalValue}>$ {invoice.total.toFixed(2)}</Text>
+            <View style={[styles.totalAmountCell, styles.colAmount]}>
+              <Text style={styles.totalMergedAmount}>$ {invoice.total.toFixed(2)}</Text>
             </View>
           </View>
         </View>
@@ -203,9 +217,9 @@ export default function InvoicePDF({ invoice, company, paymentQrSrc, logoSrc, st
           <View style={styles.paymentRow}>
             <View style={invoice.notes ? styles.paymentColLeft : { width: '100%' }}>
               <Text style={styles.paymentBankLine}>
-                Bank: <Text style={styles.label}>{company.bankName}</Text>
-                {' | Account No.: '}<Text style={styles.label}>{company.bankAccountNo}</Text>
-                {' | Account Name: '}<Text style={styles.label}>{company.bankAccountName}</Text>
+                Bank: <Text style={styles.valueBold}>{company.bankName}</Text>
+                {' | Account No.: '}<Text style={styles.valueBold}>{company.bankAccountNo}</Text>
+                {' | Account Name: '}<Text style={styles.valueBold}>{company.bankAccountName}</Text>
               </Text>
             </View>
             {invoice.notes && (

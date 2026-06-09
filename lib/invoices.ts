@@ -1,4 +1,12 @@
-import { prisma } from '@/lib/prisma'
+import { getClientById } from '@/lib/db/clients'
+import {
+  countInvoices,
+  createInvoice,
+  findInvoiceByInvoiceNo,
+  getInvoiceById,
+  updateInvoiceRecord,
+} from '@/lib/db/invoices'
+import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
@@ -82,46 +90,17 @@ export function parseInvoiceInput(body: Record<string, unknown>): InvoiceInput {
 }
 
 export async function updateInvoice(id: string, data: InvoiceInput) {
-  const duplicate = await prisma.invoice.findFirst({
-    where: { invoiceNo: data.invoiceNo, id: { not: id } },
-  })
+  const duplicate = await findInvoiceByInvoiceNo(data.invoiceNo, id)
   if (duplicate) throw new Error('Invoice number already exists')
 
-  const existing = await prisma.invoice.findUnique({ where: { id } })
+  const existing = await getInvoiceById(id)
   if (!existing) throw new Error('Invoice not found')
 
   const paidAt = data.status === 'PAID'
     ? (existing.paidAt || new Date())
     : null
 
-  return prisma.$transaction(async tx => {
-    await tx.invoiceItem.deleteMany({ where: { invoiceId: id } })
-    return tx.invoice.update({
-      where: { id },
-      data: {
-        invoiceNo: data.invoiceNo,
-        clientId: data.clientId,
-        dueDate: data.dueDate,
-        notes: data.notes || null,
-        tax: data.tax,
-        status: data.status as 'UNPAID' | 'PAID' | 'OVERDUE' | 'CANCELLED',
-        subtotal: data.subtotal,
-        total: data.total,
-        paidAt,
-        items: {
-          create: data.items.map(item => ({
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-            periodStart: item.periodStart ?? null,
-            periodEnd: item.periodEnd ?? null,
-          })),
-        },
-      },
-      include: { client: true, items: true },
-    })
-  })
+  return updateInvoiceRecord(id, data, paidAt)
 }
 
 const BILLING_CYCLE = '(?:Monthly|Quarterly|Semi-Annual|Annually|One-time)'
@@ -233,42 +212,29 @@ export async function createInvoiceForService(service: ServiceForInvoice, tax = 
   const items = buildServiceInvoiceItems(service)
   const subtotal = items.reduce((s, i) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
-  const count = await prisma.invoice.count()
+  const count = await countInvoices()
   const { invoicePrefix: prefix } = await getAppSettings()
   const invoiceNo = `${prefix}${String(count + 1).padStart(4, '0')}`
   const dueDate = service.nextDueDate || service.expiryDate
 
-  return prisma.invoice.create({
-    data: {
-      clientId: service.clientId,
-      invoiceNo,
-      subtotal,
-      tax,
-      total,
-      dueDate,
-      items: {
-        create: items.map(i => ({
-          description: i.description,
-          quantity: i.quantity,
-          unitPrice: i.unitPrice,
-          periodStart: i.periodStart ?? null,
-          periodEnd: i.periodEnd ?? null,
-          total: i.total,
-        })),
-      },
-    },
-    include: { client: true, items: true },
+  return createInvoice({
+    clientId: service.clientId,
+    invoiceNo,
+    subtotal,
+    tax,
+    total,
+    dueDate,
+    notes: '',
+    status: 'UNPAID',
+    items,
   })
 }
 
 export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
-  const client = await prisma.client.findUnique({ where: { id: clientId } })
+  const client = await getClientById(clientId)
   if (!client) throw new Error('Client not found')
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    include: { items: true },
-  })
+  const invoice = await getInvoiceById(invoiceId)
   if (!invoice) throw new Error('Invoice not found')
 
   const settings = await getAppSettings()
@@ -288,8 +254,11 @@ export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
         notes: invoice.notes || '',
       }),
     })
-    await prisma.reminderLog.create({
-      data: { clientId, type: `Invoice ${invoice.invoiceNo}`, channel: 'Email', status: 'sent' },
+    await createReminderLog({
+      clientId,
+      type: `Invoice ${invoice.invoiceNo}`,
+      channel: 'Email',
+      status: 'sent',
     })
     result.email = true
   } catch (e) {
@@ -310,7 +279,7 @@ export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
 }
 
 export async function sendInvoiceTelegram(invoiceId: string, clientId: string, chatId?: string) {
-  const client = await prisma.client.findUnique({ where: { id: clientId } })
+  const client = await getClientById(clientId)
   if (!client) throw new Error('Client not found')
 
   const settings = await getAppSettings()
@@ -338,12 +307,10 @@ export async function sendInvoiceTelegram(invoiceId: string, clientId: string, c
     caption,
   )
 
-  await prisma.reminderLog.create({
-    data: {
-      clientId,
-      type: `Invoice ${invoice.invoiceNo} (PDF)`,
-      channel: 'Telegram',
-      status: 'sent',
-    },
+  await createReminderLog({
+    clientId,
+    type: `Invoice ${invoice.invoiceNo} (PDF)`,
+    channel: 'Telegram',
+    status: 'sent',
   })
 }

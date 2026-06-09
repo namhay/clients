@@ -1,6 +1,6 @@
-import { Prisma } from '@prisma/client'
 import { calculateBillingDates } from '@/lib/billing'
-import { prisma } from '@/lib/prisma'
+import { getProductTypeById, getProductTypeBySlug } from '@/lib/db/product-types'
+import { getProductPackageById } from '@/lib/db/product-packages'
 
 const PERIODS = ['MONTHLY', 'QUARTERLY', 'SEMI_ANNUAL', 'YEARLY'] as const
 const STATUSES = ['ACTIVE', 'EXPIRED', 'CANCELLED'] as const
@@ -28,16 +28,14 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
 
   let productTypeId = body.productTypeId ? String(body.productTypeId) : ''
   if (!productTypeId && body.type) {
-    const bySlug = await prisma.productType.findUnique({
-      where: { slug: String(body.type).toUpperCase() },
-    })
+    const bySlug = await getProductTypeBySlug(String(body.type))
     if (bySlug) productTypeId = bySlug.id
   }
   if (!productTypeId) {
     throw new Error('Product type is required')
   }
 
-  const productType = await prisma.productType.findUnique({ where: { id: productTypeId } })
+  const productType = await getProductTypeById(productTypeId)
   if (!productType) throw new Error('Invalid product type')
   if (!productType.active) throw new Error('Selected product type is inactive')
 
@@ -80,10 +78,7 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
     throw new Error('Product package is required')
   }
 
-  const productPackage = await prisma.productPackage.findUnique({
-    where: { id: productPackageId },
-    include: { productType: true },
-  })
+  const productPackage = await getProductPackageById(productPackageId)
   if (!productPackage) throw new Error('Invalid product package')
   if (productPackage.productTypeId !== productTypeId) {
     throw new Error('Package does not belong to the selected product type')
@@ -107,44 +102,6 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
   }
 }
 
-export function toPrismaCreateData(data: ServiceInput): Prisma.ServiceUncheckedCreateInput {
-  return {
-    clientId: data.clientId,
-    productTypeId: data.productTypeId,
-    productPackageId: data.productPackageId,
-    name: data.name,
-    startDate: data.startDate,
-    expiryDate: data.expiryDate,
-    nextDueDate: data.nextDueDate,
-    price: data.price,
-    setupFee: data.setupFee,
-    recurring: data.recurring,
-    period: data.period as Prisma.ServiceCreateInput['period'],
-    status: data.status as Prisma.ServiceCreateInput['status'],
-    notes: data.notes,
-  }
+export function serviceFields(data: ServiceInput): ServiceInput {
+  return data
 }
-
-export function toPrismaUpdateData(data: ServiceInput): Prisma.ServiceUncheckedUpdateInput {
-  return {
-    clientId: data.clientId,
-    productTypeId: data.productTypeId,
-    productPackageId: data.productPackageId,
-    name: data.name,
-    startDate: data.startDate,
-    expiryDate: data.expiryDate,
-    nextDueDate: data.nextDueDate,
-    price: data.price,
-    setupFee: data.setupFee,
-    recurring: data.recurring,
-    period: data.period as Prisma.ServiceUncheckedUpdateInput['period'],
-    status: data.status as Prisma.ServiceUncheckedUpdateInput['status'],
-    notes: data.notes,
-  }
-}
-
-export const serviceInclude = {
-  client: true,
-  productType: true,
-  productPackage: true,
-} as const

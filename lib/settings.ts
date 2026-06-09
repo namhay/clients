@@ -1,5 +1,6 @@
-import { prisma } from '@/lib/prisma'
+import { createSettings, getSettings, upsertSettings } from '@/lib/db/settings'
 import { readEnvDefaults, updateEnvFile } from '@/lib/env-file'
+import { parseReminderTime, parseReminderTimezone } from '@/lib/reminder-schedule'
 
 export type AppSettingsData = {
   companyName: string
@@ -8,6 +9,9 @@ export type AppSettingsData = {
   companyPhone: string
   invoicePrefix: string
   reminderDays: number
+  reminderTime: string
+  reminderTimezone: string
+  lastReminderRunDate: string | null
   smtpHost: string
   smtpPort: number
   smtpSecure: boolean
@@ -20,10 +24,6 @@ export type AppSettingsData = {
 
 const MASK = '••••••••'
 
-function canUseDb() {
-  return typeof (prisma as { appSettings?: { findUnique: unknown } }).appSettings?.findUnique === 'function'
-}
-
 function envDefaults(): AppSettingsData {
   const env = readEnvDefaults()
   return {
@@ -33,6 +33,9 @@ function envDefaults(): AppSettingsData {
     companyPhone: env.COMPANY_PHONE || '',
     invoicePrefix: env.INVOICE_PREFIX || 'INV-',
     reminderDays: 7,
+    reminderTime: '09:00',
+    reminderTimezone: 'Asia/Phnom_Penh',
+    lastReminderRunDate: null,
     smtpHost: env.SMTP_HOST || '',
     smtpPort: parseInt(env.SMTP_PORT) || 465,
     smtpSecure: env.SMTP_SECURE !== 'false',
@@ -53,6 +56,9 @@ function mergeFromEnv(data: AppSettingsData): AppSettingsData {
     companyPhone: data.companyPhone || env.companyPhone,
     invoicePrefix: data.invoicePrefix || env.invoicePrefix,
     reminderDays: data.reminderDays || env.reminderDays,
+    reminderTime: data.reminderTime || env.reminderTime,
+    reminderTimezone: data.reminderTimezone || env.reminderTimezone,
+    lastReminderRunDate: data.lastReminderRunDate ?? env.lastReminderRunDate,
     smtpHost: data.smtpHost || env.smtpHost,
     smtpPort: data.smtpPort || env.smtpPort,
     smtpSecure: data.smtpHost ? data.smtpSecure : env.smtpSecure,
@@ -87,6 +93,9 @@ export function parseSettingsInput(
     companyPhone: String(body.companyPhone || '').trim(),
     invoicePrefix,
     reminderDays: Math.max(1, parseInt(String(body.reminderDays)) || 7),
+    reminderTime: parseReminderTime(body.reminderTime, base.reminderTime),
+    reminderTimezone: parseReminderTimezone(body.reminderTimezone, base.reminderTimezone),
+    lastReminderRunDate: base.lastReminderRunDate ?? null,
     smtpHost: String(body.smtpHost || '').trim(),
     smtpPort: parseInt(String(body.smtpPort)) || 465,
     smtpSecure: body.smtpSecure !== false && body.smtpSecure !== 'false',
@@ -118,12 +127,11 @@ function toEnvUpdates(data: AppSettingsData) {
 
 export async function getAppSettings(): Promise<AppSettingsData> {
   const defaults = envDefaults()
-  if (!canUseDb()) return defaults
 
   try {
-    const settings = await prisma.appSettings.findUnique({ where: { id: 'default' } })
-    if (settings) return mergeFromEnv(settings as AppSettingsData)
-    await prisma.appSettings.create({ data: { id: 'default', ...defaults } })
+    const settings = await getSettings()
+    if (settings) return mergeFromEnv(settings)
+    await createSettings(defaults)
   } catch {
     // use env defaults
   }
@@ -133,16 +141,10 @@ export async function getAppSettings(): Promise<AppSettingsData> {
 export async function saveAppSettings(data: AppSettingsData): Promise<AppSettingsData> {
   updateEnvFile(toEnvUpdates(data))
 
-  if (canUseDb()) {
-    try {
-      await prisma.appSettings.upsert({
-        where: { id: 'default' },
-        create: { id: 'default', ...data },
-        update: data,
-      })
-    } catch {
-      // .env saved successfully
-    }
+  try {
+    await upsertSettings(data)
+  } catch {
+    // .env saved successfully
   }
 
   return data

@@ -5,5 +5,5 @@ export default withAuth({
 })
 
 export const config = {
-  matcher: ['/((?!login|api/auth|api/telegram/webhook|api/invoices/[^/]+/pdf|_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!login|api/auth|api/cron|api/telegram/webhook|api/invoices/[^/]+/pdf|_next/static|_next/image|favicon.ico).*)'],
 }

@@ -1,4 +1,5 @@
-import { prisma } from '@/lib/prisma'
+import { getClientById, linkClientTelegram } from '@/lib/db/clients'
+import { createReminderLog } from '@/lib/db/reminder-logs'
 import { getAppSettings } from '@/lib/settings'
 
 export type TelegramUpdate = {
@@ -89,22 +90,11 @@ export function parseStartPayload(text: string): string | null {
 }
 
 export async function linkClientTelegramChat(clientId: string, chatId: string | number) {
-  const client = await prisma.client.findUnique({ where: { id: clientId } })
+  const client = await getClientById(clientId)
   if (!client) throw new Error('Client not found')
 
   const chatIdStr = String(chatId)
-  await prisma.$transaction([
-    prisma.client.updateMany({
-      where: { telegramId: chatIdStr, id: { not: clientId } },
-      data: { telegramId: null },
-    }),
-    prisma.client.update({
-      where: { id: clientId },
-      data: { telegramId: chatIdStr },
-    }),
-  ])
-
-  return prisma.client.findUnique({ where: { id: clientId } })
+  return linkClientTelegram(clientId, chatIdStr)
 }
 
 export async function sendBotMessage(chatId: string | number, text: string) {
@@ -147,14 +137,12 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
       chatId,
       `✅ Connected to ${companyName}!\n\nHello ${client?.name}, you will now receive invoices and payment reminders here on Telegram.`,
     )
-    await prisma.reminderLog.create({
-      data: {
-        clientId: payload,
-        type: 'Telegram connected',
-        channel: 'Telegram',
-        message: `Chat ID ${chatId} linked via /start`,
-        status: 'sent',
-      },
+    await createReminderLog({
+      clientId: payload,
+      type: 'Telegram connected',
+      channel: 'Telegram',
+      message: `Chat ID ${chatId} linked via /start`,
+      status: 'sent',
     })
   } catch {
     await sendBotMessage(

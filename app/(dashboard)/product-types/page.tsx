@@ -10,6 +10,8 @@ const emptyForm = () => ({
   hasHostingSpecs: false,
   active: true,
   sortOrder: '0',
+  reminderDaysBeforeExpiry: '14',
+  autoInvoiceDaysBeforeExpiry: '14',
 })
 
 export default function ProductTypesPage() {
@@ -37,9 +39,18 @@ export default function ProductTypesPage() {
   }
   useEffect(() => { load() }, [])
 
-  const openAdd = () => {
+  const openAdd = async () => {
     setEditId(null)
-    setForm(emptyForm())
+    let nextForm = emptyForm()
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        const days = String(data.reminderDays ?? 14)
+        nextForm = { ...nextForm, reminderDaysBeforeExpiry: days, autoInvoiceDaysBeforeExpiry: days }
+      }
+    } catch { /* use defaults */ }
+    setForm(nextForm)
     setShowModal(true)
   }
 
@@ -52,6 +63,8 @@ export default function ProductTypesPage() {
       hasHostingSpecs: t.hasHostingSpecs,
       active: t.active,
       sortOrder: String(t.sortOrder),
+      reminderDaysBeforeExpiry: String(t.reminderDaysBeforeExpiry ?? 14),
+      autoInvoiceDaysBeforeExpiry: String(t.autoInvoiceDaysBeforeExpiry ?? 14),
     })
     setShowModal(true)
   }
@@ -68,6 +81,8 @@ export default function ProductTypesPage() {
         body: JSON.stringify({
           ...form,
           sortOrder: parseInt(form.sortOrder) || 0,
+          reminderDaysBeforeExpiry: parseInt(form.reminderDaysBeforeExpiry) || 14,
+          autoInvoiceDaysBeforeExpiry: parseInt(form.autoInvoiceDaysBeforeExpiry) || 14,
         }),
       })
       const result = await res.json().catch(() => ({}))
@@ -112,14 +127,16 @@ export default function ProductTypesPage() {
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Hosting Specs</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Packages</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Reminder</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Auto Invoice</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {loading && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && types.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No product types yet</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No product types yet</td></tr>
             )}
             {types.map(t => (
               <tr key={t.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
@@ -130,6 +147,8 @@ export default function ProductTypesPage() {
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.hasHostingSpecs ? 'Yes' : '—'}</td>
                 <td className="px-4 py-3">{t._count?.packages || 0}</td>
                 <td className="px-4 py-3">{t._count?.services || 0}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.reminderDaysBeforeExpiry ?? 14}d</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{t.autoInvoiceDaysBeforeExpiry ?? 14}d</td>
                 <td className="px-4 py-3">
                   <span className={`badge ${t.active ? 'badge-active' : 'badge-expired'}`}>
                     {t.active ? 'Active' : 'Inactive'}
@@ -187,6 +206,33 @@ export default function ProductTypesPage() {
                 <input type="checkbox" className="rounded border-gray-300" checked={form.hasHostingSpecs} onChange={e => setForm(f => ({ ...f, hasHostingSpecs: e.target.checked }))} />
                 <span className="text-sm text-gray-700 dark:text-gray-300">Include hosting resource fields on packages (disk, bandwidth, etc.)</span>
               </label>
+              <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Renewal Timing</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Reminder alert (days before expiry)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="input"
+                      value={form.reminderDaysBeforeExpiry}
+                      onChange={e => setForm(f => ({ ...f, reminderDaysBeforeExpiry: e.target.value }))}
+                    />
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 14 for Domain/Hosting, 1 for WiFi</p>
+                  </div>
+                  <div>
+                    <label className="label">Auto-generate invoice (days before expiry)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="input"
+                      value={form.autoInvoiceDaysBeforeExpiry}
+                      onChange={e => setForm(f => ({ ...f, autoInvoiceDaysBeforeExpiry: e.target.value }))}
+                    />
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">When renewal invoice should be created</p>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>

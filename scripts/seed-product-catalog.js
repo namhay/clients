@@ -1,11 +1,13 @@
-const { PrismaClient } = require('@prisma/client')
-const prisma = new PrismaClient()
+const { neon } = require('@neondatabase/serverless')
+const { randomUUID } = require('crypto')
+
+const sql = neon(process.env.DATABASE_URL)
 
 const PRODUCT_TYPES = [
-  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1 },
-  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2 },
-  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3 },
-  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4 },
+  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4, reminderDaysBeforeExpiry: 14, autoInvoiceDaysBeforeExpiry: 14 },
 ]
 
 const PACKAGES_BY_SLUG = {
@@ -44,29 +46,125 @@ const PACKAGES_BY_SLUG = {
   ],
 }
 
-async function main() {
-  await prisma.appSettings.upsert({
-    where: { id: 'default' },
-    update: {},
-    create: {
-      id: 'default',
-      companyName: process.env.COMPANY_NAME || 'Your Company Ltd.',
-      companyAddress: process.env.COMPANY_ADDRESS || 'Phnom Penh, Cambodia',
-      companyEmail: process.env.COMPANY_EMAIL || 'info@yourdomain.com',
-      companyPhone: process.env.COMPANY_PHONE || '+855 12 345 678',
-      invoicePrefix: process.env.INVOICE_PREFIX || 'INV-',
-    },
-  })
+async function upsertAppSettings() {
+  const now = new Date()
+  await sql`
+    INSERT INTO "AppSettings" (
+      id, "companyName", "companyAddress", "companyEmail", "companyPhone",
+      "invoicePrefix", "reminderDays", "smtpHost", "smtpPort", "smtpSecure",
+      "smtpUser", "smtpPass", "smtpFrom", "telegramBotToken", "telegramDefaultChatId",
+      "updatedAt"
+    ) VALUES (
+      'default',
+      ${process.env.COMPANY_NAME || 'Your Company Ltd.'},
+      ${process.env.COMPANY_ADDRESS || 'Phnom Penh, Cambodia'},
+      ${process.env.COMPANY_EMAIL || 'info@yourdomain.com'},
+      ${process.env.COMPANY_PHONE || '+855 12 345 678'},
+      ${process.env.INVOICE_PREFIX || 'INV-'},
+      7, '', 465, true, '', '', '', '', '',
+      ${now}
+    )
+    ON CONFLICT (id) DO NOTHING
+  `
   console.log('✓ App settings')
+}
+
+async function upsertProductType(t) {
+  const now = new Date()
+  const existing = await sql`SELECT id FROM "ProductType" WHERE slug = ${t.slug} LIMIT 1`
+  if (existing[0]) {
+    await sql`
+      UPDATE "ProductType" SET
+        name = ${t.name},
+        color = ${t.color},
+        "hasHostingSpecs" = ${t.hasHostingSpecs},
+        "sortOrder" = ${t.sortOrder},
+        "reminderDaysBeforeExpiry" = ${t.reminderDaysBeforeExpiry},
+        "autoInvoiceDaysBeforeExpiry" = ${t.autoInvoiceDaysBeforeExpiry},
+        "updatedAt" = ${now}
+      WHERE slug = ${t.slug}
+    `
+    return { id: existing[0].id, name: t.name }
+  }
+  const id = randomUUID()
+  await sql`
+    INSERT INTO "ProductType" (
+      id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
+      "reminderDaysBeforeExpiry", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+    ) VALUES (
+      ${id}, ${t.name}, ${t.slug}, ${t.color}, ${t.hasHostingSpecs}, true,
+      ${t.sortOrder}, ${t.reminderDaysBeforeExpiry}, ${t.autoInvoiceDaysBeforeExpiry},
+      ${now}, ${now}
+    )
+  `
+  return { id, name: t.name }
+}
+
+async function upsertProductPackage(productTypeId, pkg) {
+  const now = new Date()
+  const existing = await sql`
+    SELECT id FROM "ProductPackage"
+    WHERE "productTypeId" = ${productTypeId} AND name = ${pkg.name}
+    LIMIT 1
+  `
+  const values = {
+    description: pkg.description ?? null,
+    diskSpaceGb: pkg.diskSpaceGb ?? null,
+    bandwidthGb: pkg.bandwidthGb ?? null,
+    emailAccounts: pkg.emailAccounts ?? null,
+    databases: pkg.databases ?? null,
+    addonDomains: pkg.addonDomains ?? null,
+    priceMonthly: pkg.priceMonthly ?? 0,
+    priceQuarterly: pkg.priceQuarterly ?? 0,
+    priceSemiAnnual: pkg.priceSemiAnnual ?? 0,
+    priceYearly: pkg.priceYearly ?? 0,
+    setupFee: pkg.setupFee ?? 0,
+    sortOrder: pkg.sortOrder ?? 0,
+  }
+  if (existing[0]) {
+    await sql`
+      UPDATE "ProductPackage" SET
+        description = ${values.description},
+        "diskSpaceGb" = ${values.diskSpaceGb},
+        "bandwidthGb" = ${values.bandwidthGb},
+        "emailAccounts" = ${values.emailAccounts},
+        databases = ${values.databases},
+        "addonDomains" = ${values.addonDomains},
+        "priceMonthly" = ${values.priceMonthly},
+        "priceQuarterly" = ${values.priceQuarterly},
+        "priceSemiAnnual" = ${values.priceSemiAnnual},
+        "priceYearly" = ${values.priceYearly},
+        "setupFee" = ${values.setupFee},
+        "sortOrder" = ${values.sortOrder},
+        "updatedAt" = ${now}
+      WHERE id = ${existing[0].id}
+    `
+    return
+  }
+  await sql`
+    INSERT INTO "ProductPackage" (
+      id, "productTypeId", name, description,
+      "diskSpaceGb", "bandwidthGb", "emailAccounts", databases, "addonDomains",
+      "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
+      "setupFee", active, "sortOrder", "createdAt", "updatedAt"
+    ) VALUES (
+      ${randomUUID()}, ${productTypeId}, ${pkg.name}, ${values.description},
+      ${values.diskSpaceGb}, ${values.bandwidthGb}, ${values.emailAccounts}, ${values.databases}, ${values.addonDomains},
+      ${values.priceMonthly}, ${values.priceQuarterly}, ${values.priceSemiAnnual}, ${values.priceYearly},
+      ${values.setupFee}, true, ${values.sortOrder}, ${now}, ${now}
+    )
+  `
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set')
+
+  await upsertAppSettings()
 
   console.log('Seeding product types...')
   const typeBySlug = {}
   for (const t of PRODUCT_TYPES) {
-    const row = await prisma.productType.upsert({
-      where: { slug: t.slug },
-      update: { name: t.name, color: t.color, hasHostingSpecs: t.hasHostingSpecs, sortOrder: t.sortOrder },
-      create: t,
-    })
+    const row = await upsertProductType(t)
     typeBySlug[t.slug] = row
     console.log(`  ✓ ${row.name}`)
   }
@@ -75,11 +173,7 @@ async function main() {
   for (const [slug, packages] of Object.entries(PACKAGES_BY_SLUG)) {
     const productType = typeBySlug[slug]
     for (const pkg of packages) {
-      await prisma.productPackage.upsert({
-        where: { productTypeId_name: { productTypeId: productType.id, name: pkg.name } },
-        update: pkg,
-        create: { productTypeId: productType.id, ...pkg },
-      })
+      await upsertProductPackage(productType.id, pkg)
       console.log(`  ✓ ${slug} — ${pkg.name}`)
     }
   }
@@ -87,4 +181,7 @@ async function main() {
   console.log('✅ Product catalog ready')
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect())
+main().catch(err => {
+  console.error(err)
+  process.exit(1)
+})

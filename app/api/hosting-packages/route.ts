@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { listProductPackages } from '@/lib/db/product-packages'
 
 /** @deprecated Use /api/product-packages?type=HOSTING */
 export async function GET(req: NextRequest) {
@@ -9,13 +9,9 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const activeOnly = new URL(req.url).searchParams.get('active') === 'true'
-  const packages = await prisma.productPackage.findMany({
-    where: {
-      productType: { slug: 'HOSTING' },
-      ...(activeOnly ? { active: true } : {}),
-    },
-    include: { productType: true, _count: { select: { services: true } } },
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  const packages = await listProductPackages({
+    productTypeSlug: 'HOSTING',
+    activeOnly,
   })
   return NextResponse.json(packages)
 }

@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { createService, listServices } from '@/lib/db/services'
 import { createInvoiceForService, sendInvoiceToClient, serviceRecordToInvoiceInput } from '@/lib/invoices'
-import { parseServiceInput, serviceInclude, toPrismaCreateData } from '@/lib/services'
+import { parseServiceInput, serviceFields } from '@/lib/services'
+import {
+  expiryWithinDays,
+  filterServicesDueForAutoInvoice,
+  filterServicesDueForReminder,
+  getMaxExpiryWindowDays,
+} from '@/lib/reminders'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -13,23 +19,33 @@ export async function GET(req: NextRequest) {
   const productTypeId = searchParams.get('productTypeId')
   const clientId = searchParams.get('clientId')
   const expiringSoon = searchParams.get('expiringSoon')
-  const where: Record<string, unknown> = {}
+  const dueForReminder = searchParams.get('dueForReminder')
+  const dueForAutoInvoice = searchParams.get('dueForAutoInvoice')
+
+  const usePerTypeFilter = Boolean(dueForReminder || dueForAutoInvoice || expiringSoon)
+  const filters: Parameters<typeof listServices>[0] = {}
+
   if (productTypeId) {
-    where.productTypeId = productTypeId
+    filters.productTypeId = productTypeId
   } else if (type) {
-    where.productType = { slug: type.toUpperCase() }
+    filters.productTypeSlug = type
   }
-  if (clientId) where.clientId = clientId
-  if (expiringSoon) {
-    const d = new Date(); d.setDate(d.getDate() + 30)
-    where.expiryDate = { lte: d }
-    where.status = 'ACTIVE'
+  if (clientId) filters.clientId = clientId
+
+  if (usePerTypeFilter) {
+    const maxDays = await getMaxExpiryWindowDays()
+    filters.expiryDateLte = expiryWithinDays(maxDays)
+    filters.status = 'ACTIVE'
   }
-  const services = await prisma.service.findMany({
-    where,
-    include: serviceInclude,
-    orderBy: { expiryDate: 'asc' },
-  })
+
+  let services = await listServices(filters)
+
+  if (dueForReminder || expiringSoon) {
+    services = filterServicesDueForReminder(services)
+  } else if (dueForAutoInvoice) {
+    services = filterServicesDueForAutoInvoice(services)
+  }
+
   return NextResponse.json(services)
 }
 
@@ -41,10 +57,7 @@ export async function POST(req: NextRequest) {
     const generateInvoice = Boolean(body.generateInvoice)
     const sendInvoice = Boolean(body.sendInvoice)
     const data = await parseServiceInput(body)
-    const service = await prisma.service.create({
-      data: toPrismaCreateData(data),
-      include: serviceInclude,
-    })
+    const service = await createService(serviceFields(data))
 
     let invoice = null
     let invoiceSent = null

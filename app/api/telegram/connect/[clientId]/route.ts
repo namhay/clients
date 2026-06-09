@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getClientById } from '@/lib/db/clients'
 import { buildClientConnectLink, getTelegramBotUsername } from '@/lib/telegram-bot'
 
 export async function GET(_: NextRequest, { params }: { params: { clientId: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const client = await prisma.client.findUnique({ where: { id: params.clientId } })
+  const client = await getClientById(params.clientId)
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
 
   try {

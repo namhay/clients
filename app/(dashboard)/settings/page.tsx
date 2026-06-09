@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { REMINDER_TIMEZONES } from '@/lib/reminder-schedule'
 
 const emptyForm = () => ({
   companyName: '',
@@ -8,6 +9,9 @@ const emptyForm = () => ({
   companyPhone: '',
   invoicePrefix: 'INV-',
   reminderDays: '7',
+  reminderTime: '09:00',
+  reminderTimezone: 'Asia/Phnom_Penh',
+  lastReminderRunDate: '',
   smtpHost: '',
   smtpPort: '465',
   smtpSecure: true,
@@ -46,6 +50,9 @@ export default function SettingsPage() {
       companyPhone: String(data.companyPhone || ''),
       invoicePrefix: String(data.invoicePrefix || 'INV-'),
       reminderDays: String(data.reminderDays ?? 7),
+      reminderTime: String(data.reminderTime || '09:00'),
+      reminderTimezone: String(data.reminderTimezone || 'Asia/Phnom_Penh'),
+      lastReminderRunDate: String(data.lastReminderRunDate || ''),
       smtpHost: String(data.smtpHost || ''),
       smtpPort: String(data.smtpPort ?? 465),
       smtpSecure: data.smtpSecure !== false,
@@ -208,10 +215,6 @@ export default function SettingsPage() {
               <label className="label">Default Chat ID</label>
               <input className="input" value={form.telegramDefaultChatId} onChange={e => setForm(f => ({ ...f, telegramDefaultChatId: e.target.value }))} placeholder="-100123456789" />
             </div>
-            <div>
-              <label className="label">Reminder days before expiry</label>
-              <input type="number" min="1" className="input" value={form.reminderDays} onChange={e => setForm(f => ({ ...f, reminderDays: e.target.value }))} />
-            </div>
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
               <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Client connect links</p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
@@ -255,16 +258,60 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="card p-5">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Automated Reminders</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Cron checks every 15 minutes and sends alerts when the clock matches your reminder time (once per day).
+          </p>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Reminder time</label>
+                <input
+                  type="time"
+                  className="input"
+                  value={form.reminderTime}
+                  onChange={e => setForm(f => ({ ...f, reminderTime: e.target.value }))}
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 12:30 for 12:30 PM</p>
+              </div>
+              <div>
+                <label className="label">Timezone</label>
+                <select
+                  className="input"
+                  value={form.reminderTimezone}
+                  onChange={e => setForm(f => ({ ...f, reminderTimezone: e.target.value }))}
+                >
+                  {REMINDER_TIMEZONES.map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="label">Default reminder days (new product types)</label>
+              <input type="number" min="1" className="input max-w-xs" value={form.reminderDays} onChange={e => setForm(f => ({ ...f, reminderDays: e.target.value }))} />
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Per-type timing is set under Product Types → Edit (e.g. Domain 14 days, WiFi 1 day).</p>
+            </div>
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+              <div>Cron endpoint: <span className="font-mono">GET /api/cron/reminders</span></div>
+              <div>Set <span className="font-mono">CRON_SECRET</span> in .env / Vercel (Vercel Cron sends it automatically).</div>
+              {form.lastReminderRunDate && (
+                <div>Last auto-run: <span className="font-medium">{form.lastReminderRunDate}</span></div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Database & Deployment</h2>
           <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
             <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=postgresql://...@neon.tech/neondb</div>
-            <p className="text-gray-500 dark:text-gray-400">Neon PostgreSQL — set DATABASE_URL and DIRECT_URL in .env (local) or Vercel env vars (production).</p>
+            <p className="text-gray-500 dark:text-gray-400">Neon PostgreSQL — set DATABASE_URL in .env (local) or Vercel env vars (production).</p>
             <div className="pt-2 space-y-1">
               <p className="font-medium text-gray-700 dark:text-gray-300">Quick commands:</p>
               <div className="bg-gray-900 text-green-400 rounded-lg p-3 font-mono space-y-1">
                 <div>npm install</div>
-                <div>npx prisma db push</div>
-                <div>node scripts/seed.js</div>
+                <div>npm run db:migrate</div>
+                <div>npm run db:setup</div>
                 <div>npm run build</div>
                 <div>pm2 start npm --name clientdesk -- start</div>
               </div>

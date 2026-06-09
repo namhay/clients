@@ -6,18 +6,9 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import InvoicePDF from '@/components/invoices/InvoicePDF'
 import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
 import { registerInvoiceFonts } from '@/lib/invoice-fonts'
-import { prisma } from '@/lib/prisma'
+import { getInvoiceForPdf } from '@/lib/db/invoices'
 
-type InvoiceWithRelations = Awaited<ReturnType<typeof fetchInvoiceForPdf>>
-
-async function fetchInvoiceForPdf(invoiceId: string) {
-  const invoice = await prisma.invoice.findUnique({
-    where: { id: invoiceId },
-    include: { client: true, items: { orderBy: { id: 'asc' } } },
-  })
-  if (!invoice) throw new Error('Invoice not found')
-  return invoice
-}
+type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForPdf>>>
 
 /** Absolute file:// URL for @react-pdf/renderer on Node (data URIs are unreliable server-side). */
 export function getInvoiceAssetSrc(filename: string): string | undefined {
@@ -54,7 +45,7 @@ export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
       phone: invoice.client.phone,
       company: invoice.client.company,
       address: invoice.client.address,
-      vatTin: (invoice.client as { vatTin?: string | null }).vatTin,
+      vatTin: invoice.client.vatTin,
     },
   }
 }
@@ -62,7 +53,8 @@ export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
 export async function generateInvoicePdfBuffer(invoiceId: string) {
   registerInvoiceFonts()
 
-  const invoice = await fetchInvoiceForPdf(invoiceId)
+  const invoice = await getInvoiceForPdf(invoiceId)
+  if (!invoice) throw new Error('Invoice not found')
   const company = await getInvoiceCompanyProfile()
   const pdfInvoice = toPdfInvoicePayload(invoice)
 

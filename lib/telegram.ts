@@ -59,7 +59,7 @@ export function invoiceTelegramMessage(params: {
   const contact = params.contactUsername || process.env.TELEGRAM_CONTACT_USERNAME || 'itsmart099'
   const dueDate = formatTelegramDate(params.dueDate)
 
-  return `Dear Value Customer,
+  return `Dear Customer,
 
 Greetings from ${params.companyName}. You have one ${status} invoice:
 

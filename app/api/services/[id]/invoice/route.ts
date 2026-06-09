@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getServiceById } from '@/lib/db/services'
 import { createInvoiceForService, sendInvoiceToClient, serviceRecordToInvoiceInput } from '@/lib/invoices'
-import { serviceInclude } from '@/lib/services'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
@@ -13,10 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const body = await req.json().catch(() => ({}))
     const sendInvoice = Boolean(body.sendInvoice)
 
-    const service = await prisma.service.findUnique({
-      where: { id: params.id },
-      include: serviceInclude,
-    })
+    const service = await getServiceById(params.id)
     if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 })
 
     const invoice = await createInvoiceForService(serviceRecordToInvoiceInput(service))

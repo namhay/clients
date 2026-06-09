@@ -1,5 +1,3 @@
-import { Prisma } from '@prisma/client'
-
 export type ProductPackageInput = {
   productTypeId: string
   name: string
@@ -53,8 +51,6 @@ export function parseProductPackageInput(
   }
 }
 
-export function toPrismaProductPackageData(
-  data: ProductPackageInput,
-): Prisma.ProductPackageUncheckedCreateInput {
+export function productPackageFields(data: ProductPackageInput): ProductPackageInput {
   return data
 }

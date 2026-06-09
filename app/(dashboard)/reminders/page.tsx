@@ -12,7 +12,7 @@ export default function RemindersPage() {
     setLoading(true)
     const [invs, svcs] = await Promise.all([
       fetch('/api/invoices?status=UNPAID').then(r=>r.json()),
-      fetch('/api/services?expiringSoon=true').then(r=>r.json()),
+      fetch('/api/services?dueForReminder=true').then(r=>r.json()),
     ])
     setUnpaid(invs); setExpiring(svcs); setLoading(false)
   }
@@ -55,19 +55,22 @@ export default function RemindersPage() {
         </div>
 
         <div>
-          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Expiring Services ({expiring.length})</h2>
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Due for Reminder ({expiring.length})</h2>
           <div className="space-y-2">
-            {expiring.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No expiring services within 30 days.</div>}
+            {expiring.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No services due for reminder based on each product type&apos;s settings.</div>}
             {expiring.map(svc => {
               const d = daysUntil(svc.expiryDate)
+              const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
               return (
                 <div key={svc.id} className="card p-3">
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <div className="font-medium text-sm">{svc.client?.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">{svc.name} · Expires {formatDate(svc.expiryDate)}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        {svc.productType?.name} · {svc.name} · Expires {formatDate(svc.expiryDate)}
+                      </div>
                       <div className={`text-xs font-medium mt-0.5 ${d<0?'text-red-600 dark:text-red-400':d<7?'text-orange-600 dark:text-orange-400':'text-yellow-600 dark:text-yellow-400'}`}>
-                        {d<0 ? `${Math.abs(d)} days overdue` : `${d} days left`}
+                        {d<0 ? `${Math.abs(d)} days overdue` : `${d} days left · remind ${remindDays}d before`}
                       </div>
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
