@@ -290,6 +290,22 @@ export async function getServiceById(id: string): Promise<ServiceWithRelations |
   return row ? mapServiceWithRelations(row) : null
 }
 
+export async function getServicesForInvoice(invoiceId: string): Promise<ServiceWithRelations[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT ${sql.unsafe(SERVICE_SELECT)}
+    FROM "Order" o
+    JOIN "OrderItem" oi ON oi."orderId" = o.id
+    JOIN "Service" s ON s.id = oi."serviceId"
+    JOIN "Client" c ON c.id = s."clientId"
+    JOIN "ProductType" pt ON pt.id = s."productTypeId"
+    LEFT JOIN "ProductPackage" pp ON pp.id = s."productPackageId"
+    WHERE o."invoiceId" = ${invoiceId}
+    ORDER BY oi."sortOrder" ASC, oi."createdAt" ASC
+  `
+  return rows.map(r => mapServiceWithRelations(r as Record<string, unknown>))
+}
+
 export async function getServiceNameById(id: string): Promise<string | null> {
   const sql = getSql()
   const rows = await sql`SELECT name FROM "Service" WHERE id = ${id} LIMIT 1`

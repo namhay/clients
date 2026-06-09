@@ -6,13 +6,16 @@ import {
   getInvoiceById,
   listUnpaidInvoicesByClient,
   updateInvoiceRecord,
+  type InvoiceItemRow,
   type InvoiceWithRelations,
 } from '@/lib/db/invoices'
+import { getServicesForInvoice, listServices } from '@/lib/db/services'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
+import { addMonths, getBillingMonths } from '@/lib/billing'
 import { getAppSettings } from '@/lib/settings'
 
 const INVOICE_STATUSES = ['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'] as const
@@ -190,13 +193,72 @@ export function serviceRecordToInvoiceInput(service: {
   }
 }
 
+export function getServiceInvoicePeriod(service: Pick<ServiceForInvoice, 'recurring' | 'period' | 'startDate' | 'expiryDate'>) {
+  const periodEnd = service.expiryDate
+  if (service.recurring && service.period) {
+    const months = getBillingMonths(service.period)
+    if (months) {
+      return { periodStart: addMonths(periodEnd, -months), periodEnd }
+    }
+  }
+  return { periodStart: service.startDate, periodEnd }
+}
+
+function expandServicesForInvoiceItems(services: ServiceForInvoice[]): ServiceForInvoice[] {
+  const result: ServiceForInvoice[] = []
+  for (const service of services) {
+    if (service.price > 0) result.push(service)
+    if (service.setupFee > 0) result.push(service)
+    if (service.price <= 0 && service.setupFee <= 0) result.push(service)
+  }
+  return result
+}
+
+export function findServiceForInvoiceItem(
+  description: string,
+  services: ServiceForInvoice[],
+): ServiceForInvoice | undefined {
+  const setup = description.match(/^Setup fee — (.+)$/i)
+  if (setup) {
+    return services.find(s => s.name === setup[1].trim())
+  }
+  return services.find(s => {
+    const label = buildServiceInvoiceLabel(s.typeName, s.name, s.productPackage?.name)
+    return description === label || description.includes(`— ${s.name}`)
+  })
+}
+
+/** Fill missing item periods from linked order services or matching client services. */
+export async function enrichInvoiceItemsWithPeriods(
+  invoice: InvoiceWithRelations,
+): Promise<InvoiceItemRow[]> {
+  const linked = await getServicesForInvoice(invoice.id)
+  const services = (linked.length
+    ? linked
+    : await listServices({ clientId: invoice.clientId })
+  ).map(serviceRecordToInvoiceInput)
+
+  const servicesByItemIndex = linked.length ? expandServicesForInvoiceItems(services) : []
+
+  return invoice.items.map((item, index) => {
+    if (item.periodStart && item.periodEnd) return item
+
+    const service = servicesByItemIndex[index]
+      || findServiceForInvoiceItem(item.description, services)
+    if (!service) return item
+
+    const period = getServiceInvoicePeriod(service)
+    return { ...item, periodStart: period.periodStart, periodEnd: period.periodEnd }
+  })
+}
+
 export function buildServiceInvoiceItems(service: ServiceForInvoice) {
   const label = buildServiceInvoiceLabel(
     service.typeName,
     service.name,
     service.productPackage?.name,
   )
-  const period = { periodStart: service.startDate, periodEnd: service.expiryDate }
+  const period = getServiceInvoicePeriod(service)
 
   const items: InvoiceItemInput[] = []
 

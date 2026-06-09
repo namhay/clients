@@ -80,6 +80,17 @@ async function main() {
   `
 
   console.log('✓ ProductPackage billingType column ready')
+
+  await sql`
+    ALTER TABLE "InvoiceItem"
+    ADD COLUMN IF NOT EXISTS "periodStart" TIMESTAMPTZ
+  `
+  await sql`
+    ALTER TABLE "InvoiceItem"
+    ADD COLUMN IF NOT EXISTS "periodEnd" TIMESTAMPTZ
+  `
+
+  console.log('✓ InvoiceItem period columns ready')
 }
 
 main().catch(e => {

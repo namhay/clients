@@ -18,7 +18,7 @@ const emptyForm = () => ({
   notes: '',
   tax: '0',
   status: 'UNPAID',
-  items: [{ description: '', quantity: 1, unitPrice: '', total: 0 }],
+  items: [{ description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }],
 })
 
 export default function InvoicesPage() {
@@ -80,8 +80,10 @@ export default function InvoicesPage() {
             quantity: item.quantity,
             unitPrice: String(item.unitPrice),
             total: item.total,
+            periodStart: item.periodStart ? new Date(item.periodStart).toISOString().split('T')[0] : '',
+            periodEnd: item.periodEnd ? new Date(item.periodEnd).toISOString().split('T')[0] : '',
           }))
-        : [{ description: '', quantity: 1, unitPrice: '', total: 0 }],
+        : [{ description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }],
     })
     setShowModal(true)
   }
@@ -96,6 +98,8 @@ export default function InvoicesPage() {
         quantity: Number(i.quantity) || 1,
         unitPrice: Number(i.unitPrice) || 0,
         total: Number(i.total) || 0,
+        ...(i.periodStart ? { periodStart: i.periodStart } : {}),
+        ...(i.periodEnd ? { periodEnd: i.periodEnd } : {}),
       }))
     if (!items.length) return alert('Add at least one item')
 
@@ -135,23 +139,8 @@ export default function InvoicesPage() {
     load()
   }
 
-  const downloadPDF = async (inv: any) => {
-    try {
-      const res = await fetch(`/api/invoices/${inv.id}/pdf`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        return alert(err.error || 'Failed to generate PDF')
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${inv.invoiceNo}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      alert('Failed to download PDF')
-    }
+  const viewPDF = (inv: any) => {
+    window.open(`/api/invoices/${inv.id}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
   }
 
   const sendEmail = async (inv: any) => {
@@ -213,7 +202,7 @@ export default function InvoicesPage() {
                   <div className="flex gap-1 flex-wrap">
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(inv)}>Edit</button>
                     {inv.status !== 'PAID' && <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>}
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => downloadPDF(inv)}>PDF</button>
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>View</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendEmail(inv)}>📧</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendTelegram(inv)}>✈</button>
                   </div>
@@ -274,7 +263,7 @@ export default function InvoicesPage() {
                       <div className="input text-xs flex items-center text-gray-500 dark:text-gray-400">${(item.total || 0).toFixed(2)}</div>
                     </div>
                   ))}
-                  <button className="btn-secondary text-xs py-1" onClick={() => setForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unitPrice: '', total: 0 }] }))}>+ Add Item</button>
+                  <button className="btn-secondary text-xs py-1" onClick={() => setForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }] }))}>+ Add Item</button>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

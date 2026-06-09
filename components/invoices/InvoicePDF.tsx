@@ -182,8 +182,12 @@ export default function InvoicePDF({ invoice, company, dateFormat, paymentQrSrc,
               <View style={[styles.cell, styles.colDesc]}>
                 <Text style={styles.td}>
                   {formatInvoiceItemDescription(item.description)}
-                  {'\n'}
-                  ({formatInvoiceDate(item.periodStart ?? invoice.createdAt)} - {formatInvoiceDate(item.periodEnd ?? invoice.dueDate)})
+                  {item.periodStart && item.periodEnd && (
+                    <>
+                      {'\n'}
+                      ({formatInvoiceDate(item.periodStart)} - {formatInvoiceDate(item.periodEnd)})
+                    </>
+                  )}
                 </Text>
               </View>
               <View style={[styles.cell, styles.colQty, styles.cellCenter]}>

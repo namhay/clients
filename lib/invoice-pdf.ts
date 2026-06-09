@@ -8,6 +8,7 @@ import { getAppDateFormat } from '@/lib/app-date'
 import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
 import { registerInvoiceFonts } from '@/lib/invoice-fonts'
 import { getInvoiceForPdf } from '@/lib/db/invoices'
+import { enrichInvoiceItemsWithPeriods } from '@/lib/invoices'
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForPdf>>>
 
@@ -56,11 +57,12 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
 
   const invoice = await getInvoiceForPdf(invoiceId)
   if (!invoice) throw new Error('Invoice not found')
-  const [company, dateFormat] = await Promise.all([
+  const [company, dateFormat, items] = await Promise.all([
     getInvoiceCompanyProfile(),
     getAppDateFormat(),
+    enrichInvoiceItemsWithPeriods(invoice),
   ])
-  const pdfInvoice = toPdfInvoicePayload(invoice)
+  const pdfInvoice = toPdfInvoicePayload({ ...invoice, items })
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,

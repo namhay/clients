@@ -15,10 +15,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   try {
     const { buffer, invoice } = await generateInvoicePdfBuffer(params.id)
+    const inline = new URL(req.url).searchParams.get('inline') === '1'
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${invoice.invoiceNo}.pdf"`,
+        'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${invoice.invoiceNo}.pdf"`,
         'Cache-Control': 'private, no-cache',
       },
     })
