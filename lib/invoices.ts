@@ -9,14 +9,20 @@ import {
   type InvoiceItemRow,
   type InvoiceWithRelations,
 } from '@/lib/db/invoices'
-import { getServicesForInvoice, listServices } from '@/lib/db/services'
+import {
+  getServicesForInvoice,
+  listServices,
+  updateService,
+  type ServiceWithRelations,
+} from '@/lib/db/services'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
-import { addMonths, getBillingMonths } from '@/lib/billing'
+import { addMonths, extendServiceByBillingCycle, getBillingMonths } from '@/lib/billing'
 import { getAppSettings } from '@/lib/settings'
+import { serviceFields } from '@/lib/services'
 
 const INVOICE_STATUSES = ['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'] as const
 
@@ -122,7 +128,11 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
     ? (existing.paidAt || new Date())
     : null
 
-  return updateInvoiceRecord(id, data, paidAt)
+  const invoice = await updateInvoiceRecord(id, data, paidAt)
+  if (data.status === 'PAID' && existing.status !== 'PAID') {
+    await renewServicesForPaidInvoice(id)
+  }
+  return invoice
 }
 
 const BILLING_CYCLE = '(?:Monthly|Quarterly|Semi-Annual|Annually|One-time)'
@@ -226,6 +236,60 @@ export function findServiceForInvoiceItem(
     const label = buildServiceInvoiceLabel(s.typeName, s.name, s.productPackage?.name)
     return description === label || description.includes(`— ${s.name}`)
   })
+}
+
+function isSetupFeeInvoiceItem(description: string): boolean {
+  return /^Setup fee — /i.test(description)
+}
+
+/** Resolve unique services billed on an invoice (order link or description match). */
+export async function getInvoiceServices(invoice: InvoiceWithRelations): Promise<ServiceWithRelations[]> {
+  const linked = await getServicesForInvoice(invoice.id)
+  if (linked.length) return linked
+
+  const clientServices = await listServices({ clientId: invoice.clientId })
+  const serviceInputs = clientServices.map(serviceRecordToInvoiceInput)
+  const found = new Map<string, ServiceWithRelations>()
+
+  for (const item of invoice.items) {
+    if (isSetupFeeInvoiceItem(item.description)) continue
+    const match = findServiceForInvoiceItem(item.description, serviceInputs)
+    if (!match) continue
+    const service = clientServices.find(s => (
+      s.name === match.name && s.productType.name === match.typeName
+    ))
+    if (service) found.set(service.id, service)
+  }
+
+  return Array.from(found.values())
+}
+
+/** Extend recurring services on a paid invoice by one billing cycle. */
+export async function renewServicesForPaidInvoice(invoiceId: string) {
+  const invoice = await getInvoiceById(invoiceId)
+  if (!invoice) return
+
+  const services = await getInvoiceServices(invoice)
+  for (const service of services) {
+    const extension = extendServiceByBillingCycle(service)
+    if (!extension) continue
+
+    await updateService(service.id, serviceFields({
+      clientId: service.clientId,
+      productTypeId: service.productTypeId,
+      productPackageId: service.productPackageId,
+      name: service.name,
+      startDate: service.startDate,
+      expiryDate: extension.expiryDate,
+      nextDueDate: extension.nextDueDate,
+      price: service.price,
+      setupFee: service.setupFee,
+      recurring: service.recurring,
+      period: service.period,
+      status: service.status === 'CANCELLED' ? 'CANCELLED' : 'ACTIVE',
+      notes: service.notes,
+    }))
+  }
 }
 
 /** Fill missing item periods from linked order services or matching client services. */

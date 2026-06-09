@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
+import { subtractDays } from '@/lib/billing'
 import { formatDateValue, type DateFormatId } from '@/lib/date-format'
 import type { InvoiceCompanyProfile } from '@/lib/invoice-company'
 import { formatInvoiceItemDescription } from '@/lib/invoices'
@@ -185,7 +186,7 @@ export default function InvoicePDF({ invoice, company, dateFormat, paymentQrSrc,
                   {item.periodStart && item.periodEnd && (
                     <>
                       {'\n'}
-                      ({formatInvoiceDate(item.periodStart)} - {formatInvoiceDate(item.periodEnd)})
+                      ({formatInvoiceDate(item.periodStart)} - {formatInvoiceDate(subtractDays(item.periodEnd, 1))})
                     </>
                   )}
                 </Text>
