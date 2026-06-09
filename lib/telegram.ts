@@ -1,3 +1,5 @@
+import { formatAppDate } from '@/lib/app-date'
+
 export async function sendTelegram(chatId: string, message: string) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set')
@@ -14,12 +16,8 @@ export async function sendTelegram(chatId: string, message: string) {
   return res.json()
 }
 
-export function formatTelegramDate(date: Date | string) {
-  const d = new Date(date)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  return `${day}-${month}-${year}`
+export async function formatTelegramDate(date: Date | string) {
+  return formatAppDate(date)
 }
 
 export async function sendTelegramDocument(
@@ -46,7 +44,7 @@ export async function sendTelegramDocument(
   return res.json()
 }
 
-export function invoiceTelegramMessage(params: {
+export async function invoiceTelegramMessage(params: {
   clientName: string
   invoiceNo: string
   amount: number
@@ -57,7 +55,7 @@ export function invoiceTelegramMessage(params: {
 }) {
   const status = (params.status || 'UNPAID').toUpperCase()
   const contact = params.contactUsername || process.env.TELEGRAM_CONTACT_USERNAME || 'itsmart099'
-  const dueDate = formatTelegramDate(params.dueDate)
+  const dueDate = await formatTelegramDate(params.dueDate)
 
   return `Dear Customer,
 
@@ -75,18 +73,19 @@ Any questions please contact @${contact.replace(/^@/, '')}
 Thank you!`
 }
 
-export function reminderTelegramMessage(params: {
+export async function reminderTelegramMessage(params: {
   clientName: string
   details: string
   dueDate: string | Date
   companyName: string
 }) {
+  const dueDate = await formatTelegramDate(params.dueDate)
   return `⚠️ <b>Reminder from ${params.companyName}</b>
 
 Hello <b>${params.clientName}</b>,
 
 This is a reminder: <b>${params.details}</b>
-Expiry/Due: ${params.dueDate}
+Expiry/Due: ${dueDate}
 
 Please take action before the due date.`
 }

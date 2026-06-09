@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { formatCurrency, formatDate, daysUntil } from '@/lib/utils'
+import { formatCurrency, daysUntil } from '@/lib/utils'
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null)

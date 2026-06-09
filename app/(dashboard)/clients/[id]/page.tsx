@@ -3,7 +3,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
-import { formatDate, formatCurrency, daysUntil } from '@/lib/utils'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { formatCurrency, daysUntil } from '@/lib/utils'
 import ServiceFormModal from '@/components/services/ServiceFormModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 
@@ -15,6 +16,7 @@ const invoiceStatusColors: Record<string, string> = {
 }
 
 export default function ClientProfilePage() {
+  const { formatDate } = useAppSettings()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [client, setClient] = useState<any>(null)
@@ -350,15 +352,15 @@ export default function ClientProfilePage() {
           <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Recent Communications</h2>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
             {client.reminderLogs.map((log: any) => (
               <div key={log.id} className="px-5 py-3 flex items-center justify-between text-sm">
                 <div>
-                  <span className="font-medium text-gray-800">{log.type}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-100">{log.type}</span>
                   <span className="text-gray-400 dark:text-gray-500 mx-2">via</span>
                   <span className="text-gray-600 dark:text-gray-300">{log.channel}</span>
                 </div>
-                <div className="text-xs text-gray-400 dark:text-gray-500">{formatDate(log.createdAt)}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{formatDate(log.createdAt)}</div>
               </div>
             ))}
           </div>

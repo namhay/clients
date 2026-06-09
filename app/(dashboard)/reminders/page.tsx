@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { formatReminderRule } from '@/lib/product-types'
-import { formatDate, daysUntil } from '@/lib/utils'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { daysUntil } from '@/lib/utils'
 
 export default function RemindersPage() {
+  const { formatDate } = useAppSettings()
   const [unpaid, setUnpaid] = useState<any[]>([])
   const [expiring, setExpiring] = useState<any[]>([])
   const [logs, setLogs] = useState<any[]>([])
@@ -25,7 +27,7 @@ export default function RemindersPage() {
       const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clientId, type:'reminder', invoiceId, serviceId }) })
       if (!res.ok) throw new Error((await res.json()).error)
       alert(`${channel === 'email' ? 'Email' : 'Telegram'} reminder sent!`)
-      setLogs(l => [{ date: new Date().toLocaleDateString(), client: 'Sent', type, channel, status:'Sent' }, ...l])
+      setLogs(l => [{ date: formatDate(new Date()), client: 'Sent', type, channel, status:'Sent' }, ...l])
     } catch(e:any) { alert('Error: ' + e.message) }
   }
 

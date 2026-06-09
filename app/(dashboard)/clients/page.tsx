@@ -1,10 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { formatDate } from '@/lib/utils'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import ServiceFormModal from '@/components/services/ServiceFormModal'
 
 export default function ClientsPage() {
+  const { formatDate } = useAppSettings()
   const [clients, setClients] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)

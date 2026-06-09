@@ -1,5 +1,6 @@
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { listServices } from '@/lib/db/services'
+import { formatAppDate } from '@/lib/app-date'
 import { sendEmail, reminderEmailTemplate } from '@/lib/email'
 import { filterServicesDueForReminder, getReminderExpiryBounds } from '@/lib/reminders'
 import { getAppSettings } from '@/lib/settings'
@@ -31,7 +32,7 @@ export async function runServiceExpiryReminders(): Promise<ReminderRunResult> {
 
   for (const svc of services) {
     const details = `${svc.productType.name} — ${svc.name}`
-    const dueDate = svc.expiryDate.toISOString().split('T')[0]
+    const dueDate = await formatAppDate(svc.expiryDate)
 
     try {
       await sendEmail({
@@ -64,7 +65,7 @@ export async function runServiceExpiryReminders(): Promise<ReminderRunResult> {
 
     if (chatId) {
       try {
-        const message = reminderTelegramMessage({
+        const message = await reminderTelegramMessage({
           clientName: svc.client.name,
           details,
           dueDate: svc.expiryDate,

@@ -31,10 +31,15 @@ async function main() {
     ALTER TABLE "AppSettings"
     ADD COLUMN IF NOT EXISTS "invoiceStartNumber" INTEGER NOT NULL DEFAULT 1
   `
+  await sql`
+    ALTER TABLE "AppSettings"
+    ADD COLUMN IF NOT EXISTS "dateFormat" TEXT NOT NULL DEFAULT 'DD_MMM_YYYY'
+  `
 
   console.log('✓ AppSettings reminder schedule columns ready')
   console.log('✓ ProductType reminderTiming column ready')
   console.log('✓ AppSettings invoiceStartNumber column ready')
+  console.log('✓ AppSettings dateFormat column ready')
 }
 
 main().catch(e => {

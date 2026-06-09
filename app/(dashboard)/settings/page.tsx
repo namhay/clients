@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { DATE_FORMAT_OPTIONS } from '@/lib/date-format'
 import { REMINDER_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
 
 const emptyForm = () => ({
@@ -9,6 +11,7 @@ const emptyForm = () => ({
   companyPhone: '',
   invoicePrefix: 'INV-',
   invoiceStartNumber: '1',
+  dateFormat: 'DD_MMM_YYYY',
   reminderDays: '7',
   reminderTime: '09:00',
   reminderTimezone: 'Asia/Phnom_Penh',
@@ -24,6 +27,7 @@ const emptyForm = () => ({
 })
 
 export default function SettingsPage() {
+  const { reloadSettings } = useAppSettings()
   const [form, setForm] = useState(emptyForm())
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -51,6 +55,7 @@ export default function SettingsPage() {
       companyPhone: String(data.companyPhone || ''),
       invoicePrefix: String(data.invoicePrefix || 'INV-'),
       invoiceStartNumber: String(data.invoiceStartNumber ?? 1),
+      dateFormat: String(data.dateFormat || 'DD_MMM_YYYY'),
       reminderDays: String(data.reminderDays ?? 7),
       reminderTime: String(data.reminderTime || '09:00'),
       reminderTimezone: String(data.reminderTimezone || 'Asia/Phnom_Penh'),
@@ -128,6 +133,7 @@ export default function SettingsPage() {
         return
       }
       applySettings(result)
+      await reloadSettings()
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {
@@ -182,6 +188,19 @@ export default function SettingsPage() {
                 />
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">e.g. 50 → first invoice is INV-0050</p>
               </div>
+            </div>
+            <div>
+              <label className="label">Date format</label>
+              <select
+                className="input"
+                value={form.dateFormat}
+                onChange={e => setForm(f => ({ ...f, dateFormat: e.target.value }))}
+              >
+                {DATE_FORMAT_OPTIONS.map(opt => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Used across the app, PDFs, emails, and Telegram</p>
             </div>
           </div>
         </div>

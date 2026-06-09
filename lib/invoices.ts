@@ -12,6 +12,7 @@ import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
+import { formatAppDate } from '@/lib/app-date'
 import { getAppSettings } from '@/lib/settings'
 
 const INVOICE_STATUSES = ['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'] as const
@@ -264,7 +265,7 @@ export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
         clientName: client.name,
         invoiceNo: invoice.invoiceNo,
         amount: invoice.total,
-        dueDate: invoice.dueDate.toISOString().split('T')[0],
+        dueDate: await formatAppDate(invoice.dueDate),
         items: invoice.items.map(i => ({ description: i.description, total: i.total })),
         companyName: settings.companyName,
         notes: invoice.notes || '',
@@ -329,7 +330,7 @@ export async function sendInvoiceTelegram(invoiceId: string, clientId: string, c
   if (!resolvedChatId) throw new Error('No Telegram chat ID')
 
   const { buffer, invoice } = await generateInvoicePdfBuffer(invoiceId)
-  const caption = invoiceTelegramMessage({
+  const caption = await invoiceTelegramMessage({
     clientName: client.name,
     invoiceNo: invoice.invoiceNo,
     amount: invoice.total,

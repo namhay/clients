@@ -1,5 +1,6 @@
 import { createSettings, getSettings, upsertSettings } from '@/lib/db/settings'
 import { readEnvDefaults, updateEnvFile } from '@/lib/env-file'
+import { parseDateFormat } from '@/lib/date-format'
 import { parseReminderTime, parseReminderTimezone } from '@/lib/reminder-schedule'
 
 export type AppSettingsData = {
@@ -9,6 +10,7 @@ export type AppSettingsData = {
   companyPhone: string
   invoicePrefix: string
   invoiceStartNumber: number
+  dateFormat: string
   reminderDays: number
   reminderTime: string
   reminderTimezone: string
@@ -34,6 +36,7 @@ function envDefaults(): AppSettingsData {
     companyPhone: env.COMPANY_PHONE || '',
     invoicePrefix: env.INVOICE_PREFIX || 'INV-',
     invoiceStartNumber: parseInt(env.INVOICE_START_NUMBER) || 1,
+    dateFormat: 'DD_MMM_YYYY',
     reminderDays: 7,
     reminderTime: '09:00',
     reminderTimezone: 'Asia/Phnom_Penh',
@@ -58,6 +61,7 @@ function mergeFromEnv(data: AppSettingsData): AppSettingsData {
     companyPhone: data.companyPhone || env.companyPhone,
     invoicePrefix: data.invoicePrefix || env.invoicePrefix,
     invoiceStartNumber: data.invoiceStartNumber || env.invoiceStartNumber,
+    dateFormat: data.dateFormat || env.dateFormat,
     reminderDays: data.reminderDays || env.reminderDays,
     reminderTime: data.reminderTime || env.reminderTime,
     reminderTimezone: data.reminderTimezone || env.reminderTimezone,
@@ -96,6 +100,7 @@ export function parseSettingsInput(
     companyPhone: String(body.companyPhone || '').trim(),
     invoicePrefix,
     invoiceStartNumber: Math.max(1, parseInt(String(body.invoiceStartNumber)) || base.invoiceStartNumber || 1),
+    dateFormat: parseDateFormat(body.dateFormat, parseDateFormat(base.dateFormat)),
     reminderDays: Math.max(1, parseInt(String(body.reminderDays)) || 7),
     reminderTime: parseReminderTime(body.reminderTime, base.reminderTime),
     reminderTimezone: parseReminderTimezone(body.reminderTimezone, base.reminderTimezone),

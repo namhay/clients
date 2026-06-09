@@ -4,6 +4,7 @@ import { pathToFileURL } from 'url'
 import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import InvoicePDF from '@/components/invoices/InvoicePDF'
+import { getAppDateFormat } from '@/lib/app-date'
 import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
 import { registerInvoiceFonts } from '@/lib/invoice-fonts'
 import { getInvoiceForPdf } from '@/lib/db/invoices'
@@ -55,12 +56,16 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
 
   const invoice = await getInvoiceForPdf(invoiceId)
   if (!invoice) throw new Error('Invoice not found')
-  const company = await getInvoiceCompanyProfile()
+  const [company, dateFormat] = await Promise.all([
+    getInvoiceCompanyProfile(),
+    getAppDateFormat(),
+  ])
   const pdfInvoice = toPdfInvoicePayload(invoice)
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,
     company,
+    dateFormat,
     paymentQrSrc: getPaymentQrSrc(),
     logoSrc: getInvoiceAssetSrc('invoice-logo.png'),
     stampSrc: getInvoiceAssetSrc('invoice-stamp.png'),

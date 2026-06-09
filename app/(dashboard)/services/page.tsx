@@ -1,11 +1,13 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { formatBillingCycle } from '@/lib/billing'
-import { formatDate, daysUntil, formatCurrency } from '@/lib/utils'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { daysUntil, formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import ServiceFormModal from '@/components/services/ServiceFormModal'
 
 export default function ServicesPage() {
+  const { formatDate } = useAppSettings()
   const [services, setServices] = useState<any[]>([])
   const [productTypes, setProductTypes] = useState<any[]>([])
   const [typeFilter, setTypeFilter] = useState('')

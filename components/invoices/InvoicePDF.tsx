@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
+import { formatDateValue, type DateFormatId } from '@/lib/date-format'
 import type { InvoiceCompanyProfile } from '@/lib/invoice-company'
 import { formatInvoiceItemDescription } from '@/lib/invoices'
 
@@ -72,14 +73,6 @@ const styles = StyleSheet.create({
   stamp: { width: 180, marginBottom: 5,height: 90, objectFit: 'contain' },
 })
 
-function formatInvoiceDate(date: string | Date) {
-  const d = new Date(date)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  return `${day}/${month}/${year}`
-}
-
 function BilingualLabel({ km, en, value, alignRight }: { km: string; en: string; value?: string; alignRight?: boolean }) {
   return (
     <Text style={alignRight ? styles.metaLineRight : styles.metaLine}>
@@ -117,13 +110,15 @@ interface Props {
     }
   }
   company: InvoiceCompanyProfile
+  dateFormat?: DateFormatId
   paymentQrSrc?: string
   logoSrc?: string
   stampSrc?: string
 }
 
-export default function InvoicePDF({ invoice, company, paymentQrSrc, logoSrc, stampSrc }: Props) {
+export default function InvoicePDF({ invoice, company, dateFormat, paymentQrSrc, logoSrc, stampSrc }: Props) {
   const customerName = invoice.client.company || invoice.client.name
+  const formatInvoiceDate = (date: string | Date) => formatDateValue(date, dateFormat)
   const invoiceDate = formatInvoiceDate(invoice.createdAt)
 
   return (

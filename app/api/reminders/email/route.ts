@@ -5,6 +5,7 @@ import { getClientById } from '@/lib/db/clients'
 import { getInvoiceById } from '@/lib/db/invoices'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { getServiceNameById } from '@/lib/db/services'
+import { formatAppDate } from '@/lib/app-date'
 import { sendEmail, invoiceEmailTemplate, reminderEmailTemplate } from '@/lib/email'
 import { getAppSettings } from '@/lib/settings'
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
     subject = `Invoice ${invoice.invoiceNo} — $${invoice.total.toFixed(2)} USD`
     html = invoiceEmailTemplate({
       clientName: client.name, invoiceNo: invoice.invoiceNo,
-      amount: invoice.total, dueDate: invoice.dueDate.toISOString().split('T')[0],
+      amount: invoice.total, dueDate: await formatAppDate(invoice.dueDate),
       items: invoice.items.map(i => ({ description: i.description, total: i.total })),
       companyName, notes: invoice.notes || '',
     })
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
     subject = `Reminder: Action required — ${details}`
     html = reminderEmailTemplate({
       clientName: client.name, type: serviceId ? 'service' : 'invoice',
-      details, dueDate: new Date().toISOString().split('T')[0], companyName,
+      details, dueDate: await formatAppDate(new Date()), companyName,
       companyEmail: settings.companyEmail,
     })
   }

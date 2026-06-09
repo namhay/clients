@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { formatCurrency } from '@/lib/utils'
 
 const statusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -21,6 +22,7 @@ const emptyForm = () => ({
 })
 
 export default function InvoicesPage() {
+  const { formatDate } = useAppSettings()
   const [invoices, setInvoices] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState('')

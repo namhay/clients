@@ -26,8 +26,8 @@ export async function POST(req: NextRequest) {
     const details = serviceId
       ? (await getServiceNameById(serviceId)) || 'Service'
       : 'Payment reminder'
-    message = reminderTelegramMessage({
-      clientName: client.name, details, dueDate: new Date().toISOString().split('T')[0], companyName,
+    message = await reminderTelegramMessage({
+      clientName: client.name, details, dueDate: new Date(), companyName,
     })
   }
   await sendTelegram(chatId, message)

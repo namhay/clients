@@ -200,6 +200,17 @@ export async function getPaidInvoices(): Promise<InvoiceRow[]> {
   return rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
 }
 
+export async function listTransactions(): Promise<InvoiceWithRelations[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT * FROM "Invoice"
+    WHERE status = 'PAID'
+    ORDER BY COALESCE("paidAt", "updatedAt") DESC
+  `
+  const invoices = rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
+  return attachItems(invoices)
+}
+
 export async function findInvoiceByInvoiceNo(invoiceNo: string, excludeId?: string): Promise<InvoiceRow | null> {
   const sql = getSql()
   const rows = excludeId
