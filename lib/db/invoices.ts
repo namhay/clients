@@ -175,6 +175,17 @@ export async function countInvoices(): Promise<number> {
   return Number((rows[0] as { count: number }).count)
 }
 
+export async function listUnpaidInvoicesByClient(clientId: string): Promise<InvoiceWithRelations[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT * FROM "Invoice"
+    WHERE "clientId" = ${clientId} AND status IN ('UNPAID', 'OVERDUE')
+    ORDER BY "createdAt" ASC
+  `
+  const invoices = rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
+  return attachItems(invoices)
+}
+
 export async function countUnpaidInvoices(): Promise<number> {
   const sql = getSql()
   const rows = await sql`
@@ -206,12 +217,13 @@ export async function createInvoice(
   const sql = getSql()
   const id = newId()
   const now = new Date()
+  const createdAt = data.invoiceDate ?? now
   await sql`
     INSERT INTO "Invoice" (
       id, "clientId", "invoiceNo", subtotal, tax, total, status, "dueDate", "paidAt", notes, "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.clientId}, ${data.invoiceNo}, ${data.subtotal}, ${data.tax}, ${data.total},
-      ${data.status}, ${data.dueDate}, ${null}, ${data.notes || null}, ${now}, ${now}
+      ${data.status}, ${data.dueDate}, ${null}, ${data.notes || null}, ${createdAt}, ${now}
     )
   `
   for (const item of data.items) {
@@ -236,20 +248,38 @@ export async function updateInvoiceRecord(
 ): Promise<InvoiceWithRelations> {
   const sql = getSql()
   const now = new Date()
-  await sql`
-    UPDATE "Invoice" SET
-      "invoiceNo" = ${data.invoiceNo},
-      "clientId" = ${data.clientId},
-      "dueDate" = ${data.dueDate},
-      notes = ${data.notes || null},
-      tax = ${data.tax},
-      status = ${data.status},
-      subtotal = ${data.subtotal},
-      total = ${data.total},
-      "paidAt" = ${paidAt},
-      "updatedAt" = ${now}
-    WHERE id = ${id}
-  `
+  if (data.invoiceDate) {
+    await sql`
+      UPDATE "Invoice" SET
+        "invoiceNo" = ${data.invoiceNo},
+        "clientId" = ${data.clientId},
+        "dueDate" = ${data.dueDate},
+        notes = ${data.notes || null},
+        tax = ${data.tax},
+        status = ${data.status},
+        subtotal = ${data.subtotal},
+        total = ${data.total},
+        "paidAt" = ${paidAt},
+        "createdAt" = ${data.invoiceDate},
+        "updatedAt" = ${now}
+      WHERE id = ${id}
+    `
+  } else {
+    await sql`
+      UPDATE "Invoice" SET
+        "invoiceNo" = ${data.invoiceNo},
+        "clientId" = ${data.clientId},
+        "dueDate" = ${data.dueDate},
+        notes = ${data.notes || null},
+        tax = ${data.tax},
+        status = ${data.status},
+        subtotal = ${data.subtotal},
+        total = ${data.total},
+        "paidAt" = ${paidAt},
+        "updatedAt" = ${now}
+      WHERE id = ${id}
+    `
+  }
   await sql`DELETE FROM "InvoiceItem" WHERE "invoiceId" = ${id}`
   for (const item of data.items) {
     await sql`

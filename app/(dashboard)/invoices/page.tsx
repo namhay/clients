@@ -12,6 +12,7 @@ const statusColors: Record<string, string> = {
 const emptyForm = () => ({
   invoiceNo: '',
   clientId: '',
+  invoiceDate: '',
   dueDate: '',
   notes: '',
   tax: '0',
@@ -54,9 +55,10 @@ export default function InvoicesPage() {
 
   const openCreate = () => {
     setEditId(null)
+    const today = new Date().toISOString().split('T')[0]
     const d = new Date()
     d.setDate(d.getDate() + 30)
-    setForm({ ...emptyForm(), dueDate: d.toISOString().split('T')[0] })
+    setForm({ ...emptyForm(), invoiceDate: today, dueDate: d.toISOString().split('T')[0] })
     setShowModal(true)
   }
 
@@ -65,6 +67,7 @@ export default function InvoicesPage() {
     setForm({
       invoiceNo: inv.invoiceNo,
       clientId: inv.clientId,
+      invoiceDate: new Date(inv.createdAt).toISOString().split('T')[0],
       dueDate: new Date(inv.dueDate).toISOString().split('T')[0],
       notes: inv.notes || '',
       tax: String(inv.tax ?? 0),
@@ -82,7 +85,7 @@ export default function InvoicesPage() {
   }
 
   const save = async () => {
-    if (!form.clientId || !form.dueDate) return alert('Select client and due date')
+    if (!form.clientId || !form.invoiceDate || !form.dueDate) return alert('Select client, invoice date, and due date')
     if (editId && !form.invoiceNo.trim()) return alert('Invoice number is required')
     const items = form.items
       .filter(i => i.description)
@@ -233,13 +236,17 @@ export default function InvoicesPage() {
                   <input className="input" value={form.invoiceNo} onChange={e => setForm(f => ({ ...f, invoiceNo: e.target.value }))} placeholder="e.g. 26-043 or INV-0001" />
                 </div>
               )}
+              <div>
+                <label className="label">Client *</label>
+                <select className="input" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
+                  <option value="">Select...</option>
+                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">Client *</label>
-                  <select className="input" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
-                    <option value="">Select...</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <label className="label">Invoice Date *</label>
+                  <input type="date" className="input" value={form.invoiceDate} onChange={e => setForm(f => ({ ...f, invoiceDate: e.target.value }))} />
                 </div>
                 <div>
                   <label className="label">Due Date *</label>

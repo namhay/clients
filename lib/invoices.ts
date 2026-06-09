@@ -4,7 +4,9 @@ import {
   createInvoice,
   findInvoiceByInvoiceNo,
   getInvoiceById,
+  listUnpaidInvoicesByClient,
   updateInvoiceRecord,
+  type InvoiceWithRelations,
 } from '@/lib/db/invoices'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
@@ -34,6 +36,7 @@ export type InvoiceInput = {
   invoiceNo: string
   clientId: string
   dueDate: Date
+  invoiceDate?: Date | null
   notes: string
   tax: number
   status: string
@@ -53,6 +56,13 @@ export function parseInvoiceInput(body: Record<string, unknown>): InvoiceInput {
   if (!dueDateRaw) throw new Error('Due date is required')
   const dueDate = new Date(dueDateRaw)
   if (Number.isNaN(dueDate.getTime())) throw new Error('Invalid due date')
+
+  const invoiceDateRaw = String(body.invoiceDate || '').trim()
+  let invoiceDate: Date | null = null
+  if (invoiceDateRaw) {
+    invoiceDate = new Date(invoiceDateRaw)
+    if (Number.isNaN(invoiceDate.getTime())) throw new Error('Invalid invoice date')
+  }
 
   const rawItems = Array.isArray(body.items) ? body.items : []
   const items: InvoiceItemInput[] = rawItems
@@ -87,6 +97,7 @@ export function parseInvoiceInput(body: Record<string, unknown>): InvoiceInput {
     invoiceNo,
     clientId,
     dueDate,
+    invoiceDate,
     notes: String(body.notes || '').trim(),
     tax,
     status,
@@ -277,6 +288,28 @@ export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
       result.telegram = true
     } catch (e) {
       result.errors.push(e instanceof Error ? e.message : 'Telegram send failed')
+    }
+  }
+
+  return result
+}
+
+export async function sendUnpaidInvoicesViaTelegram(
+  clientId: string,
+  chatId: string,
+  invoices?: InvoiceWithRelations[],
+) {
+  const list = invoices ?? await listUnpaidInvoicesByClient(clientId)
+  const result = { sent: 0, total: list.length, errors: [] as string[] }
+
+  for (const invoice of list) {
+    try {
+      await sendInvoiceTelegram(invoice.id, clientId, chatId)
+      result.sent++
+    } catch (e) {
+      result.errors.push(
+        `${invoice.invoiceNo}: ${e instanceof Error ? e.message : 'send failed'}`,
+      )
     }
   }
 

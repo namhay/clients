@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  const { clientId, items, dueDate, notes, tax = 0 } = body
+  const { clientId, items, dueDate, invoiceDate, notes, tax = 0 } = body
   const subtotal = items.reduce((s: number, i: { total: number }) => s + i.total, 0)
   const total = subtotal + (subtotal * tax / 100)
   const invoiceNo = await getNextInvoiceNo()
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
     tax,
     total,
     dueDate: new Date(dueDate),
+    invoiceDate: invoiceDate ? new Date(invoiceDate) : null,
     notes: notes || '',
     status: 'UNPAID',
     items: items.map((i: {

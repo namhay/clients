@@ -1,5 +1,7 @@
 import { getClientById, linkClientTelegram } from '@/lib/db/clients'
 import { createReminderLog } from '@/lib/db/reminder-logs'
+import { listUnpaidInvoicesByClient } from '@/lib/db/invoices'
+import { sendUnpaidInvoicesViaTelegram } from '@/lib/invoices'
 import { getAppSettings } from '@/lib/settings'
 
 export type TelegramUpdate = {
@@ -133,15 +135,38 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
   try {
     const client = await linkClientTelegramChat(payload, chatId)
-    await sendBotMessage(
-      chatId,
-      `✅ Connected to ${companyName}!\n\nHello ${client?.name}, you will now receive invoices and payment reminders here on Telegram.`,
-    )
+    const chatIdStr = String(chatId)
+    const unpaidInvoices = await listUnpaidInvoicesByClient(payload)
+
+    let welcomeText =
+      `✅ Connected to ${companyName}!\n\n`
+      + `Hello ${client?.name}, you will now receive invoices and payment reminders here on Telegram.`
+
+    if (unpaidInvoices.length > 0) {
+      const label = unpaidInvoices.length === 1 ? 'invoice' : 'invoices'
+      welcomeText += `\n\n📄 Sending your ${unpaidInvoices.length} unpaid ${label} now...`
+    }
+
+    await sendBotMessage(chatId, welcomeText)
+
+    const unpaidResult = unpaidInvoices.length > 0
+      ? await sendUnpaidInvoicesViaTelegram(payload, chatIdStr, unpaidInvoices)
+      : { sent: 0, total: 0, errors: [] as string[] }
+
+    if (unpaidResult.total > 0 && unpaidResult.sent < unpaidResult.total) {
+      await sendBotMessage(
+        chatId,
+        `⚠️ ${unpaidResult.sent} of ${unpaidResult.total} invoice PDFs were sent. Please contact ${companyName} if any are missing.`,
+      )
+    }
+
     await createReminderLog({
       clientId: payload,
       type: 'Telegram connected',
       channel: 'Telegram',
-      message: `Chat ID ${chatId} linked via /start`,
+      message: unpaidResult.total > 0
+        ? `Chat ID ${chatIdStr} linked; sent ${unpaidResult.sent}/${unpaidResult.total} unpaid invoice(s)`
+        : `Chat ID ${chatIdStr} linked via /start`,
       status: 'sent',
     })
   } catch {
