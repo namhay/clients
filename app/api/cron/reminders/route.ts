@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { updateLastReminderRunDate } from '@/lib/db/settings'
-import { isReminderTimeNow, getZonedParts, parseReminderTimezone } from '@/lib/reminder-schedule'
+import { getZonedParts, parseReminderTimezone } from '@/lib/reminder-schedule'
 import { runServiceExpiryReminders } from '@/lib/run-service-reminders'
 import { getAppSettings } from '@/lib/settings'
 
@@ -24,14 +24,6 @@ export async function GET(req: NextRequest) {
   const today = getZonedParts(new Date(), timezone).date
 
   if (!force) {
-    if (!isReminderTimeNow(settings.reminderTime, timezone)) {
-      return NextResponse.json({
-        skipped: true,
-        reason: 'Not reminder time yet',
-        reminderTime: settings.reminderTime,
-        reminderTimezone: timezone,
-      })
-    }
     if (settings.lastReminderRunDate === today) {
       return NextResponse.json({
         skipped: true,

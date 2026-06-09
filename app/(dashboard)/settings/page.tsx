@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { REMINDER_TIMEZONES } from '@/lib/reminder-schedule'
+import { REMINDER_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
 
 const emptyForm = () => ({
   companyName: '',
@@ -260,7 +260,7 @@ export default function SettingsPage() {
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Automated Reminders</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            Cron checks every 15 minutes and sends alerts when the clock matches your reminder time (once per day).
+            Alerts are sent once per day at your reminder time. On Vercel Hobby, the cron job may only run once daily — update <span className="font-mono">vercel.json</span> if you change the time below.
           </p>
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -293,6 +293,7 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Per-type timing is set under Product Types → Edit (e.g. Domain 14 days, WiFi 1 day).</p>
             </div>
             <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+              <div>Vercel cron (UTC): <span className="font-mono font-medium">{reminderTimeToUtcCron(form.reminderTime, form.reminderTimezone)}</span></div>
               <div>Cron endpoint: <span className="font-mono">GET /api/cron/reminders</span></div>
               <div>Set <span className="font-mono">CRON_SECRET</span> in .env / Vercel (Vercel Cron sends it automatically).</div>
               {form.lastReminderRunDate && (

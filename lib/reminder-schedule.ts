@@ -48,18 +48,21 @@ export function getZonedParts(date: Date, timezone: string) {
   }
 }
 
-/** True when current zoned time is within tolerance minutes of reminderTime (HH:mm). */
-export function isReminderTimeNow(
-  reminderTime: string,
-  timezone: string,
-  toleranceMinutes = 10,
-  now = new Date(),
-): boolean {
+/** Vercel cron expression (UTC) to run once daily at reminderTime in the given timezone. */
+export function reminderTimeToUtcCron(reminderTime: string, timezone: string): string {
   const [targetHour, targetMinute] = parseReminderTime(reminderTime).split(':').map(Number)
-  const zoned = getZonedParts(now, parseReminderTimezone(timezone))
-  const nowMinutes = zoned.hour * 60 + zoned.minute
-  const targetMinutes = targetHour * 60 + targetMinute
-  return Math.abs(nowMinutes - targetMinutes) <= toleranceMinutes
+  const tz = parseReminderTimezone(timezone)
+  const base = new Date()
+  base.setUTCHours(0, 0, 0, 0)
+
+  for (let offset = 0; offset < 24 * 60; offset++) {
+    const probe = new Date(base.getTime() + offset * 60_000)
+    const zoned = getZonedParts(probe, tz)
+    if (zoned.hour === targetHour && zoned.minute === targetMinute) {
+      return `${probe.getUTCMinutes()} ${probe.getUTCHours()} * * *`
+    }
+  }
+  return '0 2 * * *'
 }
 
 export function formatReminderTimeLabel(reminderTime: string, timezone: string) {
