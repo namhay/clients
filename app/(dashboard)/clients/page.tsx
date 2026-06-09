@@ -1,8 +1,10 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import OrderFormModal from '@/components/orders/OrderFormModal'
 import { toast } from '@/lib/toast'
+
+const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<any[]>([])
@@ -46,8 +48,8 @@ export default function ClientsPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="page-content">
+      <div className="page-header">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Clients</h1>
         <button className="btn-primary" onClick={() => { setShowModal(true); setEditId(null); setForm({ name:'',email:'',phone:'',company:'',address:'',vatTin:'',telegramId:'',notes:'' }) }}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>

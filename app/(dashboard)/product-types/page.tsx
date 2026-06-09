@@ -109,8 +109,8 @@ export default function ProductTypesPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="page-content">
+      <div className="page-header">
         <div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Product Types</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage service categories — Domain, Hosting, SSL, Design, or custom types</p>

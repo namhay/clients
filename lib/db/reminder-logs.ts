@@ -55,3 +55,25 @@ export async function listReminderLogsByClient(clientId: string, limit = 20): Pr
   `
   return rows.map(r => mapReminderLog(r as Record<string, unknown>))
 }
+
+export type ReminderLogWithClient = ReminderLogRow & {
+  clientName: string
+}
+
+export async function listRecentReminderLogs(limit = 15): Promise<ReminderLogWithClient[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT rl.*, c.name AS client_name
+    FROM "ReminderLog" rl
+    INNER JOIN "Client" c ON c.id = rl."clientId"
+    ORDER BY rl."createdAt" DESC
+    LIMIT ${limit}
+  `
+  return rows.map(r => {
+    const row = r as Record<string, unknown>
+    return {
+      ...mapReminderLog(row),
+      clientName: String(row.client_name),
+    }
+  })
+}

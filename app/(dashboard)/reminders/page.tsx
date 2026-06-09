@@ -1,96 +1,247 @@
-'use client'
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import ReminderSendButtons from '@/components/reminders/ReminderSendButtons'
+import StatCard from '@/components/dashboard/StatCard'
+import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
+import { formatDateValue, formatDateTimeValue } from '@/lib/date-format'
+import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatReminderRule } from '@/lib/product-types'
-import { useAppSettings } from '@/components/providers/AppSettingsProvider'
-import { daysUntil } from '@/lib/utils'
-import { toast } from '@/lib/toast'
+import { getRemindersPageData } from '@/lib/reminders-page'
+import { daysUntil, formatCurrency } from '@/lib/utils'
 
-export default function RemindersPage() {
-  const { formatDate } = useAppSettings()
-  const [unpaid, setUnpaid] = useState<any[]>([])
-  const [expiring, setExpiring] = useState<any[]>([])
-  const [logs, setLogs] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+const statusColor: Record<string, string> = {
+  PAID: 'badge-paid',
+  UNPAID: 'badge-unpaid',
+  OVERDUE: 'badge-overdue',
+}
 
-  const load = async () => {
-    setLoading(true)
-    const [invs, svcs] = await Promise.all([
-      fetch('/api/invoices?status=UNPAID').then(r=>r.json()),
-      fetch('/api/services?dueForReminder=true').then(r=>r.json()),
-    ])
-    setUnpaid(invs); setExpiring(svcs); setLoading(false)
-  }
-  useEffect(() => { load() }, [])
+export default async function RemindersPage() {
+  const [data, dateFormat, timezone] = await Promise.all([
+    getRemindersPageData(),
+    getAppDateFormat(),
+    getAppTimezone(),
+  ])
+  const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
+  const formatDateTime = (date: Date | string) => formatDateTimeValue(date, dateFormat, timezone)
 
-  const send = async (clientId: string, channel: 'email'|'telegram', type: string, invoiceId?: string, serviceId?: string) => {
-    const endpoint = channel === 'email' ? '/api/reminders/email' : '/api/reminders/telegram'
-    try {
-      const res = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ clientId, type:'reminder', invoiceId, serviceId }) })
-      if (!res.ok) throw new Error((await res.json()).error)
-      toast.success(`${channel === 'email' ? 'Email' : 'Telegram'} reminder sent!`)
-      setLogs(l => [{ date: formatDate(new Date()), client: 'Sent', type, channel, status:'Sent' }, ...l])
-    } catch(e:any) { toast.error('Error: ' + e.message) }
-  }
+  const { openInvoices, expiringServices, recentLogs, summary, schedule } = data
 
   return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Reminders</h1>
-
-      <div className="grid grid-cols-2 gap-6">
+    <div className="page-content">
+      <div className="page-header">
         <div>
-          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Unpaid Invoices ({unpaid.length})</h2>
-          <div className="space-y-2">
-            {unpaid.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No unpaid invoices.</div>}
-            {unpaid.map(inv => (
-              <div key={inv.id} className="card p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <div className="font-medium text-sm">{inv.client?.name}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">{inv.invoiceNo} · ${inv.total.toFixed(2)} · Due {formatDate(inv.dueDate)}</div>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => send(inv.clientId,'email','Invoice',inv.id)}>📧 Email</button>
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => send(inv.clientId,'telegram','Invoice',inv.id)}>✈ TG</button>
-                  </div>
-                </div>
-              </div>
+          <h1 className="page-title">Reminders</h1>
+          <p className="page-subtitle">
+            Follow up on open invoices and service renewals before they expire.
+          </p>
+        </div>
+        <Link href="/settings" className="btn-secondary">
+          Reminder settings
+        </Link>
+      </div>
+
+      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+        <div className="text-sm font-medium text-blue-900 dark:text-blue-200">Automatic reminders</div>
+        <p className="mt-1 text-sm text-blue-800 dark:text-blue-300">
+          Service expiry reminders run daily at {schedule.timeLabel} via cron.
+          {schedule.lastRunDate
+            ? ` Last auto-run: ${schedule.lastRunDate}.`
+            : ' No automatic run recorded yet.'}
+        </p>
+      </div>
+
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard
+          label="Open Invoices"
+          value={summary.openCount}
+          sub={`${formatCurrency(summary.outstandingAmount)} outstanding`}
+          valueClassName="text-yellow-600 dark:text-yellow-400"
+          href="/invoices"
+        />
+        <StatCard
+          label="Overdue"
+          value={summary.overdueCount}
+          sub={summary.overdueCount === 0 ? 'all clear' : summary.overdueCount === 1 ? 'needs immediate follow-up' : 'need immediate follow-up'}
+          valueClassName="text-red-600 dark:text-red-400"
+          href="/invoices"
+        />
+        <StatCard
+          label="Services Due"
+          value={summary.expiringCount}
+          sub="based on product type rules"
+          valueClassName="text-orange-600 dark:text-orange-400"
+          href="/services"
+        />
+        <StatCard
+          label="Telegram Ready"
+          value={summary.telegramReady}
+          sub="clients with Telegram connected"
+          href="/clients"
+        />
+      </div>
+
+      <div className="mb-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="card card-compact min-w-0">
+          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
+            <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Open Invoices ({openInvoices.length})
+            </h2>
+            <Link href="/invoices" className="text-xs font-medium text-blue-700 hover:underline dark:text-blue-300">
+              View all
+            </Link>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <tr>
+                <th className="w-[28%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+                <th className="w-[22%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Invoice</th>
+                <th className="w-[20%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Due</th>
+                <th className="w-[30%] text-right text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openInvoices.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
+                    No open invoices
+                  </td>
+                </tr>
+              )}
+              {openInvoices.map(inv => (
+                <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <td className="truncate font-medium" title={inv.client?.name}>
+                    <Link href={`/clients/${inv.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                      {inv.client?.name}
+                    </Link>
+                  </td>
+                  <td>
+                    <div className="font-medium">{inv.invoiceNo}</div>
+                    <div className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                      {formatCurrency(inv.total)}
+                    </div>
+                    <span className={`badge ${statusColor[inv.status] || 'badge-unpaid'}`}>{inv.status}</span>
+                  </td>
+                  <td className="whitespace-nowrap text-xs">{formatDate(inv.dueDate)}</td>
+                  <td>
+                    <ReminderSendButtons
+                      clientId={inv.clientId}
+                      invoiceId={inv.id}
+                      variant="invoice"
+                      hasTelegram={Boolean(inv.client?.telegramId)}
+                      clientEmail={inv.client?.email}
+                      clientName={inv.client?.name}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="card card-compact min-w-0">
+          <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
+            <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              Services Due for Reminder ({expiringServices.length})
+            </h2>
+            <Link href="/services" className="text-xs font-medium text-blue-700 hover:underline dark:text-blue-300">
+              View all
+            </Link>
+          </div>
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-800/50">
+              <tr>
+                <th className="w-[26%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+                <th className="w-[34%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Service</th>
+                <th className="w-[16%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Expires</th>
+                <th className="w-[24%] text-right text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {expiringServices.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
+                    No services due for reminder based on each product type&apos;s settings
+                  </td>
+                </tr>
+              )}
+              {expiringServices.map(svc => {
+                const d = daysUntil(svc.expiryDate)
+                const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
+                const remindTiming = svc.productType?.reminderTiming ?? 'BEFORE'
+                const remindRule = formatReminderRule(remindDays, remindTiming)
+                return (
+                  <tr key={svc.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td className="truncate font-medium" title={svc.client?.name}>
+                      <Link href={`/clients/${svc.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                        {svc.client?.name}
+                      </Link>
+                    </td>
+                    <td>
+                      <div className="truncate font-medium" title={svc.name}>{svc.name}</div>
+                      <span className={`badge ${productTypeBadgeClass(svc.productType?.color)}`}>
+                        {svc.productType?.name}
+                      </span>
+                      <div className={`mt-0.5 text-xs font-medium ${d < 0 ? 'text-red-600 dark:text-red-400' : d < 7 ? 'text-orange-600 dark:text-orange-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        {d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`} · {remindRule}
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap text-xs">{formatDate(svc.expiryDate)}</td>
+                    <td>
+                      <ReminderSendButtons
+                        clientId={svc.clientId}
+                        serviceId={svc.id}
+                        variant="service"
+                        hasTelegram={Boolean(svc.client?.telegramId)}
+                        clientEmail={svc.client?.email}
+                        clientName={svc.client?.name}
+                      />
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card card-compact min-w-0">
+        <div className="border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Recent Communications</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 dark:bg-gray-800/50">
+            <tr>
+              <th className="w-[30%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+              <th className="w-[40%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Message</th>
+              <th className="w-[15%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Channel</th>
+              <th className="w-[15%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Sent</th>
+            </tr>
+          </thead>
+          <tbody>
+            {recentLogs.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
+                  No reminders sent yet
+                </td>
+              </tr>
+            )}
+            {recentLogs.map(log => (
+              <tr key={log.id} className="border-t border-gray-100 dark:border-gray-800">
+                <td className="truncate font-medium" title={log.clientName}>
+                  <Link href={`/clients/${log.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                    {log.clientName}
+                  </Link>
+                </td>
+                <td className="truncate text-gray-600 dark:text-gray-300" title={log.type}>{log.type}</td>
+                <td>
+                  <span className="badge badge-gray">{log.channel}</span>
+                </td>
+                <td className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                  {formatDateTime(log.createdAt)}
+                </td>
+              </tr>
             ))}
-          </div>
-        </div>
-
-        <div>
-          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Due for Reminder ({expiring.length})</h2>
-          <div className="space-y-2">
-            {expiring.length === 0 && <div className="text-sm text-gray-400 dark:text-gray-500 py-4">No services due for reminder based on each product type&apos;s settings.</div>}
-            {expiring.map(svc => {
-              const d = daysUntil(svc.expiryDate)
-              const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
-              const remindTiming = svc.productType?.reminderTiming ?? 'BEFORE'
-              const remindRule = formatReminderRule(remindDays, remindTiming)
-              return (
-                <div key={svc.id} className="card p-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-medium text-sm">{svc.client?.name}</div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {svc.productType?.name} · {svc.name} · Expires {formatDate(svc.expiryDate)}
-                      </div>
-                      <div className={`text-xs font-medium mt-0.5 ${d<0?'text-red-600 dark:text-red-400':d<7?'text-orange-600 dark:text-orange-400':'text-yellow-600 dark:text-yellow-400'}`}>
-                        {d < 0
-                          ? `${Math.abs(d)} days overdue · remind ${remindRule}`
-                          : `${d} days left · remind ${remindRule}`}
-                      </div>
-                    </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => send(svc.clientId,'email','Service',undefined,svc.id)}>📧 Email</button>
-                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => send(svc.clientId,'telegram','Service',undefined,svc.id)}>✈ TG</button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
   )

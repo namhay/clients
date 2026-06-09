@@ -80,3 +80,25 @@ export function reminderEmailTemplate(params: {
 <div style="background:#f9fafb;padding:16px 32px;font-size:12px;color:#999">Sent by ClientDesk — ${params.companyName}</div>
 </body></html>`
 }
+
+export function passwordResetEmailTemplate(params: {
+  name: string
+  resetUrl: string
+  companyName: string
+}) {
+  return `
+<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333">
+<div style="background:#1d4ed8;padding:24px 32px"><h1 style="color:#fff;margin:0;font-size:24px">${params.companyName}</h1></div>
+<div style="padding:32px">
+  <h2 style="font-size:20px;margin:0 0 16px">Reset your password</h2>
+  <p>Hi <strong>${params.name}</strong>,</p>
+  <p>We received a request to reset your ClientDesk password. Click the button below to choose a new password. This link expires in 1 hour.</p>
+  <p style="margin:28px 0">
+    <a href="${params.resetUrl}" style="display:inline-block;background:#1d4ed8;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600">Reset Password</a>
+  </p>
+  <p style="color:#666;font-size:14px">If you did not request this, you can ignore this email.</p>
+  <p style="color:#999;font-size:12px;word-break:break-all">${params.resetUrl}</p>
+</div>
+<div style="background:#f9fafb;padding:16px 32px;font-size:12px;color:#999">Sent by ClientDesk — ${params.companyName}</div>
+</body></html>`
+}

@@ -193,8 +193,8 @@ export default function InvoicesPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="page-content">
+      <div className="page-header">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Invoices</h1>
         <button className="btn-primary" onClick={openCreate}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
@@ -203,7 +203,7 @@ export default function InvoicesPage() {
       </div>
 
       <div className="card">
-        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex gap-2">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex flex-wrap gap-2">
           {['', 'UNPAID', 'PAID', 'OVERDUE'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{s || 'All'}</button>
           ))}
@@ -224,7 +224,19 @@ export default function InvoicesPage() {
             {invoices.map(inv => (
               <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{inv.invoiceNo}</td>
-                <td className="px-4 py-3 font-medium">{inv.client?.name}<div className="text-xs text-gray-400 dark:text-gray-500">{inv.client?.email}</div></td>
+                <td className="px-4 py-3 font-medium">
+                  <div className="flex items-center gap-1.5">
+                    {inv.client?.name}
+                    {inv.client?.telegramId && (
+                      <span title="Telegram connected" className="text-sky-500 dark:text-sky-400 flex-shrink-0">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500">{inv.client?.email}</div>
+                </td>
                 <td className="px-4 py-3 font-semibold">{formatCurrency(inv.total)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.createdAt)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.dueDate)}</td>

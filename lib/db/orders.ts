@@ -164,6 +164,12 @@ async function attachOrderRelations(orders: OrderRow[]): Promise<OrderWithRelati
   })
 }
 
+export async function countOrders(): Promise<number> {
+  const sql = getSql()
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM "Order"`
+  return Number((rows[0] as { count: number }).count)
+}
+
 export async function listOrders(): Promise<OrderWithRelations[]> {
   const sql = getSql()
   const rows = await sql`SELECT * FROM "Order" ORDER BY "createdAt" DESC`

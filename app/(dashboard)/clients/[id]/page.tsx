@@ -1,14 +1,20 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
-import OrderFormModal from '@/components/orders/OrderFormModal'
-import TransactionEditModal, { type TransactionRow } from '@/components/transactions/TransactionEditModal'
+import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { toast } from '@/lib/toast'
+
+const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
+const TransactionEditModal = dynamic(
+  () => import('@/components/transactions/TransactionEditModal'),
+  { ssr: false },
+)
 
 const invoiceStatusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -126,12 +132,12 @@ export default function ClientProfilePage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-gray-500 dark:text-gray-400">Loading client profile...</div>
+    return <div className="page-content text-gray-500 dark:text-gray-400">Loading client profile...</div>
   }
 
   if (!client) {
     return (
-      <div className="p-6">
+      <div className="page-content">
         <p className="text-gray-500 dark:text-gray-400 mb-4">Client not found.</p>
         <Link href="/clients" className="btn-secondary">← Back to Clients</Link>
       </div>
@@ -152,7 +158,7 @@ export default function ClientProfilePage() {
   })
 
   return (
-    <div className="p-6">
+    <div className="page-content">
       <div className="mb-4">
         <Link href="/clients" className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400">← Clients</Link>
       </div>

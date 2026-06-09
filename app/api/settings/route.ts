@@ -7,7 +7,9 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const settings = await getAppSettings()
-  return NextResponse.json(toPublicSettings(settings))
+  return NextResponse.json(toPublicSettings(settings), {
+    headers: { 'Cache-Control': 'private, max-age=60, stale-while-revalidate=300' },
+  })
 }
 
 export async function PUT(req: NextRequest) {

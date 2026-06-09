@@ -31,7 +31,37 @@
     @apply block text-xs font-medium text-gray-600 mb-1 dark:text-gray-400;
   }
   .card {
-    @apply bg-white rounded-xl border border-gray-200 overflow-hidden dark:bg-gray-900 dark:border-gray-700;
+    @apply bg-white rounded-xl border border-gray-200 overflow-x-auto dark:bg-gray-900 dark:border-gray-700;
+  }
+  .card table {
+    @apply min-w-[640px] w-full;
+  }
+  .card-compact {
+    @apply overflow-hidden;
+  }
+  .card-compact table {
+    @apply min-w-0 w-full table-fixed;
+  }
+  .card-compact th,
+  .card-compact td {
+    @apply px-2 py-2 sm:px-3;
+  }
+  .page-content {
+    @apply p-4 sm:p-6 min-w-0;
+  }
+  .page-header {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4 sm:mb-6;
+  }
+  .page-header .btn-primary,
+  .page-header .btn-secondary,
+  .page-header .btn-danger {
+    @apply w-full justify-center sm:w-auto;
+  }
+  .table-scroll {
+    @apply overflow-x-auto;
+  }
+  .table-scroll table {
+    @apply min-w-[640px] w-full;
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;

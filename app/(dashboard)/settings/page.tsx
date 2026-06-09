@@ -188,13 +188,13 @@ export default function SettingsPage() {
   }
 
   if (loading) {
-    return <div className="p-6 text-gray-500 dark:text-gray-400">Loading settings...</div>
+    return <div className="page-content text-gray-500 dark:text-gray-400">Loading settings...</div>
   }
 
   return (
-    <div className="p-6">
+    <div className="page-content">
       <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Settings</h1>
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Company Information</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database (local dev also updates .env)</p>

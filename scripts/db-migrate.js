@@ -91,6 +91,23 @@ async function main() {
   `
 
   console.log('✓ InvoiceItem period columns ready')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "PasswordResetToken" (
+      id TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+      "tokenHash" TEXT NOT NULL,
+      "expiresAt" TIMESTAMPTZ NOT NULL,
+      "usedAt" TIMESTAMPTZ,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+  await sql`
+    CREATE INDEX IF NOT EXISTS "PasswordResetToken_tokenHash_idx"
+    ON "PasswordResetToken" ("tokenHash")
+  `
+
+  console.log('✓ PasswordResetToken table ready')
 }
 
 main().catch(e => {

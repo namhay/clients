@@ -113,6 +113,61 @@ async function attachItems(invoices: InvoiceRow[]): Promise<InvoiceWithRelations
   }))
 }
 
+const INVOICE_CLIENT_SELECT = `
+  i.*,
+  c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone AS c_phone,
+  c.company AS c_company, c.address AS c_address, c."vatTin" AS c_vatTin,
+  c."telegramId" AS c_telegramId, c.notes AS c_notes,
+  c."createdAt" AS c_createdAt, c."updatedAt" AS c_updatedAt
+`
+
+function mapInvoiceWithClientRow(row: Record<string, unknown>): InvoiceWithRelations {
+  return {
+    ...mapInvoiceRow(row),
+    client: mapClientNested(row),
+    items: [],
+  }
+}
+
+export type InvoiceListMode = 'recent' | 'open' | 'paid'
+
+/** Lightweight invoice rows with client — no line items (dashboard/reports). */
+export async function listInvoiceSummaries(
+  mode: InvoiceListMode,
+  limit: number,
+): Promise<InvoiceWithRelations[]> {
+  const sql = getSql()
+  let rows
+  if (mode === 'open') {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      FROM "Invoice" i
+      INNER JOIN "Client" c ON c.id = i."clientId"
+      WHERE i.status IN ('UNPAID', 'OVERDUE')
+      ORDER BY i."dueDate" ASC
+      LIMIT ${limit}
+    `
+  } else if (mode === 'paid') {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      FROM "Invoice" i
+      INNER JOIN "Client" c ON c.id = i."clientId"
+      WHERE i.status = 'PAID'
+      ORDER BY COALESCE(i."paidAt", i."updatedAt") DESC
+      LIMIT ${limit}
+    `
+  } else {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      FROM "Invoice" i
+      INNER JOIN "Client" c ON c.id = i."clientId"
+      ORDER BY i."createdAt" DESC
+      LIMIT ${limit}
+    `
+  }
+  return rows.map(r => mapInvoiceWithClientRow(r as Record<string, unknown>))
+}
+
 export type InvoiceFilters = {
   status?: string
   clientId?: string
