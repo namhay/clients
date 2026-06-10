@@ -1,4 +1,12 @@
 {
+  "functions": {
+    "app/api/reminders/email/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/invoices/*/pdf/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/invoices",

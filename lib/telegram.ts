@@ -73,6 +73,18 @@ Any questions please contact @${contact.replace(/^@/, '')}
 Thank you!`
 }
 
+export function paymentReceivedTelegramMessage(params: {
+  clientName: string
+  invoiceNo: string
+  companyName: string
+}) {
+  return `Hello <b>${params.clientName}</b>,
+
+We have received your payment for invoice ${params.invoiceNo}. Thank you!
+
+— ${params.companyName}`
+}
+
 export async function reminderTelegramMessage(params: {
   clientName: string
   details: string

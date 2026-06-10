@@ -16,9 +16,9 @@ import {
   type ServiceWithRelations,
 } from '@/lib/db/services'
 import { createReminderLog } from '@/lib/db/reminder-logs'
-import { sendEmail, invoiceEmailTemplate } from '@/lib/email'
+import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
-import { sendTelegramDocument, invoiceTelegramMessage } from '@/lib/telegram'
+import { sendTelegram, sendTelegramDocument, invoiceTelegramMessage, paymentReceivedTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
 import { addMonths, extendServiceByBillingCycle, getBillingMonths, revertServiceByBillingCycle } from '@/lib/billing'
 import { getAppSettings } from '@/lib/settings'
@@ -157,6 +157,7 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
   const invoice = await updateInvoiceRecord(id, data, paidAt)
   if (data.status === 'PAID' && existing.status !== 'PAID') {
     await renewServicesForPaidInvoice(id)
+    await notifyPaymentReceivedTelegram(id)
   } else if (data.status !== 'PAID' && existing.status === 'PAID') {
     await revertServicesForUnpaidInvoice(id)
   }
@@ -320,6 +321,39 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
   }
 }
 
+/** Notify client on Telegram when an invoice is marked paid. Does not throw. */
+export async function notifyPaymentReceivedTelegram(invoiceId: string): Promise<{ sent: boolean; error?: string }> {
+  try {
+    const invoice = await getInvoiceById(invoiceId)
+    if (!invoice) return { sent: false, error: 'Invoice not found' }
+
+    const settings = await getAppSettings()
+    const chatId = invoice.client.telegramId
+      || settings.telegramDefaultChatId
+      || process.env.TELEGRAM_DEFAULT_CHAT_ID
+      || ''
+    if (!chatId) return { sent: false, error: 'No Telegram chat ID' }
+
+    const message = paymentReceivedTelegramMessage({
+      clientName: invoice.client.name,
+      invoiceNo: invoice.invoiceNo,
+      companyName: settings.companyName,
+    })
+
+    await sendTelegram(chatId, message)
+    await createReminderLog({
+      clientId: invoice.clientId,
+      type: `Payment received — ${invoice.invoiceNo}`,
+      channel: 'Telegram',
+      message,
+      status: 'sent',
+    })
+    return { sent: true }
+  } catch (e) {
+    return { sent: false, error: e instanceof Error ? e.message : 'Telegram send failed' }
+  }
+}
+
 /** Roll back recurring services when a paid invoice is reverted to unpaid. */
 export async function revertServicesForUnpaidInvoice(invoiceId: string) {
   const invoice = await getInvoiceById(invoiceId)
@@ -469,18 +503,15 @@ export async function sendInvoiceToClient(invoiceId: string, clientId: string) {
   const result = { email: false, telegram: false, errors: [] as string[] }
 
   try {
-    await sendEmail({
+    await sendInvoiceEmailWithPdf({
+      invoiceId,
       to: client.email,
-      subject: `Invoice ${invoice.invoiceNo} — $${invoice.total.toFixed(2)} USD`,
-      html: invoiceEmailTemplate({
-        clientName: client.name,
-        invoiceNo: invoice.invoiceNo,
-        amount: invoice.total,
-        dueDate: await formatAppDate(invoice.dueDate),
-        items: invoice.items.map(i => ({ description: i.description, total: i.total })),
-        companyName: settings.companyName,
-        notes: invoice.notes || '',
-      }),
+      clientName: client.name,
+      invoiceNo: invoice.invoiceNo,
+      amount: invoice.total,
+      dueDate: await formatAppDate(invoice.dueDate),
+      companyName: settings.companyName,
+      companyEmail: settings.companyEmail,
     })
     await createReminderLog({
       clientId,

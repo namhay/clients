@@ -6,8 +6,11 @@ import { getInvoiceById } from '@/lib/db/invoices'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { getServiceNameById } from '@/lib/db/services'
 import { formatAppDate } from '@/lib/app-date'
-import { sendEmail, invoiceEmailTemplate, reminderEmailTemplate } from '@/lib/email'
+import { sendEmail, reminderEmailTemplate } from '@/lib/email'
+import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
 import { getAppSettings } from '@/lib/settings'
+
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -15,37 +18,56 @@ export async function POST(req: NextRequest) {
   const { clientId, type, invoiceId, serviceId } = await req.json()
   const client = await getClientById(clientId)
   if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 })
-  const settings = await getAppSettings()
-  const companyName = settings.companyName
-  let html = ''
-  let subject = ''
-  if (type === 'invoice' && invoiceId) {
-    const invoice = await getInvoiceById(invoiceId)
-    if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
-    subject = `Invoice ${invoice.invoiceNo} — $${invoice.total.toFixed(2)} USD`
-    html = invoiceEmailTemplate({
-      clientName: client.name, invoiceNo: invoice.invoiceNo,
-      amount: invoice.total, dueDate: await formatAppDate(invoice.dueDate),
-      items: invoice.items.map(i => ({ description: i.description, total: i.total })),
-      companyName, notes: invoice.notes || '',
+  try {
+    const settings = await getAppSettings()
+    const companyName = settings.companyName
+    let subject = ''
+
+    if (type === 'invoice' && invoiceId) {
+      const invoice = await getInvoiceById(invoiceId)
+      if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+      const result = await sendInvoiceEmailWithPdf({
+        invoiceId,
+        to: client.email,
+        clientName: client.name,
+        invoiceNo: invoice.invoiceNo,
+        amount: invoice.total,
+        dueDate: await formatAppDate(invoice.dueDate),
+        companyName,
+        companyEmail: settings.companyEmail,
+      })
+      subject = result.subject
+    } else if (type === 'reminder') {
+      const details = serviceId
+        ? (await getServiceNameById(serviceId)) || 'Service'
+        : 'Payment due'
+      subject = `Reminder: Action required — ${details}`
+      await sendEmail({
+        to: client.email,
+        subject,
+        html: reminderEmailTemplate({
+          clientName: client.name,
+          type: serviceId ? 'service' : 'invoice',
+          details,
+          dueDate: await formatAppDate(new Date()),
+          companyName,
+          companyEmail: settings.companyEmail,
+        }),
+      })
+    } else {
+      return NextResponse.json({ error: 'Invalid email type' }, { status: 400 })
+    }
+
+    await createReminderLog({
+      clientId,
+      type: subject,
+      channel: 'Email',
+      status: 'sent',
     })
-  } else if (type === 'reminder') {
-    const details = serviceId
-      ? (await getServiceNameById(serviceId)) || 'Service'
-      : 'Payment due'
-    subject = `Reminder: Action required — ${details}`
-    html = reminderEmailTemplate({
-      clientName: client.name, type: serviceId ? 'service' : 'invoice',
-      details, dueDate: await formatAppDate(new Date()), companyName,
-      companyEmail: settings.companyEmail,
-    })
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Email send failed'
+    console.error('[reminders/email]', message)
+    return NextResponse.json({ error: message }, { status: 500 })
   }
-  await sendEmail({ to: client.email, subject, html })
-  await createReminderLog({
-    clientId,
-    type: subject,
-    channel: 'Email',
-    status: 'sent',
-  })
-  return NextResponse.json({ success: true })
 }

@@ -173,12 +173,18 @@ export default function InvoicesPage() {
   }
 
   const sendEmail = async (inv: any) => {
-    await fetch('/api/reminders/email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
-    })
-    toast.success(`Invoice email sent to ${inv.client?.email}`)
+    try {
+      const res = await fetch('/api/reminders/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: inv.clientId, type: 'invoice', invoiceId: inv.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Email send failed')
+      toast.success(`Invoice email sent to ${inv.client?.email}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Email send failed')
+    }
   }
 
   const sendTelegram = async (inv: any) => {

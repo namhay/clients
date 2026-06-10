@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { deleteInvoice, getInvoiceById, patchInvoice } from '@/lib/db/invoices'
 import { parsePaidAtDate } from '@/lib/invoice-paid-date'
 import {
+  notifyPaymentReceivedTelegram,
   parseInvoiceInput,
   renewServicesForPaidInvoice,
   revertServicesForUnpaidInvoice,
@@ -51,6 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const invoice = await patchInvoice(params.id, patch as Parameters<typeof patchInvoice>[1])
     if (body.status === 'PAID' && existing.status !== 'PAID') {
       await renewServicesForPaidInvoice(params.id)
+      await notifyPaymentReceivedTelegram(params.id)
     } else if (body.status && body.status !== 'PAID' && existing.status === 'PAID') {
       await revertServicesForUnpaidInvoice(params.id)
     }
