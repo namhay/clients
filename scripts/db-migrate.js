@@ -108,6 +108,13 @@ async function main() {
   `
 
   console.log('✓ PasswordResetToken table ready')
+
+  await sql`
+    ALTER TABLE "Client"
+    ADD COLUMN IF NOT EXISTS "companyKhmer" TEXT
+  `
+
+  console.log('✓ Client companyKhmer column ready')
 }
 
 main().catch(e => {

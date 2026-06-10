@@ -57,16 +57,16 @@ export async function invoiceTelegramMessage(params: {
   const contact = params.contactUsername || process.env.TELEGRAM_CONTACT_USERNAME || 'itsmart099'
   const dueDate = await formatTelegramDate(params.dueDate)
 
-  return `Dear Customer,
+  return `Dear ${params.clientName},
 
-Greetings from ${params.companyName}. You have one ${status} invoice:
+You have one ${status} invoice:
 
 📄 Invoice ${params.invoiceNo}
 👤 Client: ${params.clientName}
 💰 Amount: $${params.amount.toFixed(2)} USD
 📅 Due Date: ${dueDate}
 
-Please arrange payment via bank transfer on the PDF invoice here.
+Please arrange payment via bank transfer before the due date.
 
 Any questions please contact @${contact.replace(/^@/, '')}
 

@@ -31,7 +31,7 @@ export default function ClientProfilePage() {
   const [loading, setLoading] = useState(true)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', address: '', vatTin: '', telegramId: '', notes: '' })
+  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', companyKhmer: '', address: '', vatTin: '', telegramId: '', notes: '' })
   const [telegramConnect, setTelegramConnect] = useState<{
     link: string
     botUsername: string
@@ -57,6 +57,7 @@ export default function ClientProfilePage() {
       email: data.email,
       phone: data.phone || '',
       company: data.company || '',
+      companyKhmer: data.companyKhmer || '',
       address: data.address || '',
       vatTin: data.vatTin || '',
       telegramId: data.telegramId || '',
@@ -171,7 +172,12 @@ export default function ClientProfilePage() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{client.name}</h1>
-              {client.company && <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{client.company}</p>}
+              {(client.companyKhmer || client.company) && (
+                <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  {client.companyKhmer && <p>{client.companyKhmer}</p>}
+                  {client.company && <p>{client.company}</p>}
+                </div>
+              )}
               <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
                 <div><span className="text-gray-400 dark:text-gray-500">Email:</span> {client.email}</div>
                 <div><span className="text-gray-400 dark:text-gray-500">Phone:</span> {client.phone || '—'}</div>
@@ -455,12 +461,38 @@ export default function ClientProfilePage() {
               <button onClick={() => setShowEditModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3">
-              {[['name', 'Full Name *', 'text'], ['email', 'Email *', 'email'], ['phone', 'Phone', 'text'], ['company', 'Company', 'text'], ['address', 'Address', 'text'], ['vatTin', 'VAT TIN', 'text'], ['telegramId', 'Telegram Chat ID (auto-filled via bot link)', 'text']].map(([k, l, t]) => (
-                <div key={k}>
-                  <label className="label">{l}</label>
-                  <input type={t} className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
-                </div>
-              ))}
+              <div>
+                <label className="label">Full Name *</label>
+                <input type="text" className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Phone</label>
+                <input type="text" className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Email *</label>
+                <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Company (KH)</label>
+                <input type="text" className="input" value={form.companyKhmer} onChange={e => setForm(f => ({ ...f, companyKhmer: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Company (EN)</label>
+                <input type="text" className="input" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Address</label>
+                <textarea className="input" rows={2} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">VAT TIN</label>
+                <input type="text" className="input" value={form.vatTin} onChange={e => setForm(f => ({ ...f, vatTin: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Telegram Chat ID (auto-filled via bot link)</label>
+                <input type="text" className="input" value={form.telegramId} onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))} />
+              </div>
               <div className="col-span-2">
                 <label className="label">Notes</label>
                 <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />

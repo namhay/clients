@@ -9,6 +9,7 @@ export type ClientRow = {
   email: string
   phone: string | null
   company: string | null
+  companyKhmer: string | null
   address: string | null
   vatTin: string | null
   telegramId: string | null
@@ -32,6 +33,7 @@ export type ClientInput = {
   email: string
   phone?: string | null
   company?: string | null
+  companyKhmer?: string | null
   address?: string | null
   vatTin?: string | null
   telegramId?: string | null
@@ -45,6 +47,7 @@ function mapClient(row: Record<string, unknown>): ClientRow {
     email: String(row.email),
     phone: row.phone != null ? String(row.phone) : null,
     company: row.company != null ? String(row.company) : null,
+    companyKhmer: row.companyKhmer != null ? String(row.companyKhmer) : null,
     address: row.address != null ? String(row.address) : null,
     vatTin: row.vatTin != null ? String(row.vatTin) : null,
     telegramId: row.telegramId != null ? String(row.telegramId) : null,
@@ -79,7 +82,8 @@ export async function listClients(search = ''): Promise<ClientWithCounts[]> {
           (SELECT COUNT(*)::int FROM "Service" s WHERE s."clientId" = c.id) AS service_count,
           (SELECT COUNT(*)::int FROM "Invoice" i WHERE i."clientId" = c.id) AS invoice_count
         FROM "Client" c
-        WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern} OR COALESCE(c.company, '') ILIKE ${pattern}
+        WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern}
+          OR COALESCE(c.company, '') ILIKE ${pattern} OR COALESCE(c."companyKhmer", '') ILIKE ${pattern}
         ORDER BY c."createdAt" DESC
       `
     : await sql`
@@ -122,10 +126,10 @@ export async function createClient(data: ClientInput): Promise<ClientRow> {
   const now = new Date()
   const rows = await sql`
     INSERT INTO "Client" (
-      id, name, email, phone, company, address, "vatTin", "telegramId", notes, "createdAt", "updatedAt"
+      id, name, email, phone, company, "companyKhmer", address, "vatTin", "telegramId", notes, "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.name}, ${data.email}, ${data.phone ?? null}, ${data.company ?? null},
-      ${data.address ?? null}, ${data.vatTin ?? null}, ${data.telegramId ?? null}, ${data.notes ?? null},
+      ${data.companyKhmer ?? null}, ${data.address ?? null}, ${data.vatTin ?? null}, ${data.telegramId ?? null}, ${data.notes ?? null},
       ${now}, ${now}
     )
     RETURNING *
@@ -144,6 +148,7 @@ export async function updateClient(id: string, data: Partial<ClientInput>): Prom
       email = ${data.email ?? existing.email},
       phone = ${data.phone !== undefined ? data.phone : existing.phone},
       company = ${data.company !== undefined ? data.company : existing.company},
+      "companyKhmer" = ${data.companyKhmer !== undefined ? data.companyKhmer : existing.companyKhmer},
       address = ${data.address !== undefined ? data.address : existing.address},
       "vatTin" = ${data.vatTin !== undefined ? data.vatTin : existing.vatTin},
       "telegramId" = ${data.telegramId !== undefined ? data.telegramId : existing.telegramId},

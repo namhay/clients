@@ -28,7 +28,7 @@ export type InvoiceRow = {
   updatedAt: Date
 }
 
-export type ClientNested = Pick<ClientRow, 'id' | 'name' | 'email' | 'phone' | 'company' | 'address' | 'vatTin' | 'telegramId' | 'notes' | 'createdAt' | 'updatedAt'>
+export type ClientNested = Pick<ClientRow, 'id' | 'name' | 'email' | 'phone' | 'company' | 'companyKhmer' | 'address' | 'vatTin' | 'telegramId' | 'notes' | 'createdAt' | 'updatedAt'>
 
 export type InvoiceWithRelations = InvoiceRow & {
   client: ClientNested
@@ -42,6 +42,7 @@ function mapClientNested(row: Record<string, unknown>): ClientNested {
     email: String(row.c_email ?? row.email),
     phone: row.c_phone != null ? String(row.c_phone) : (row.phone != null ? String(row.phone) : null),
     company: row.c_company != null ? String(row.c_company) : (row.company != null ? String(row.company) : null),
+    companyKhmer: row.c_companyKhmer != null ? String(row.c_companyKhmer) : (row.companyKhmer != null ? String(row.companyKhmer) : null),
     address: row.c_address != null ? String(row.c_address) : (row.address != null ? String(row.address) : null),
     vatTin: row.c_vatTin != null ? String(row.c_vatTin) : (row.vatTin != null ? String(row.vatTin) : null),
     telegramId: row.c_telegramId != null ? String(row.c_telegramId) : (row.telegramId != null ? String(row.telegramId) : null),
@@ -116,7 +117,7 @@ async function attachItems(invoices: InvoiceRow[]): Promise<InvoiceWithRelations
 const INVOICE_CLIENT_SELECT = `
   i.*,
   c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone AS c_phone,
-  c.company AS c_company, c.address AS c_address, c."vatTin" AS c_vatTin,
+  c.company AS c_company, c."companyKhmer" AS c_companyKhmer, c.address AS c_address, c."vatTin" AS c_vatTin,
   c."telegramId" AS c_telegramId, c.notes AS c_notes,
   c."createdAt" AS c_createdAt, c."updatedAt" AS c_updatedAt
 `

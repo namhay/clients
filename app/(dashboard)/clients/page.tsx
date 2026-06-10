@@ -11,7 +11,8 @@ export default function ClientsPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ name:'', email:'', phone:'', company:'', address:'', vatTin:'', telegramId:'', notes:'' })
+  const [form, setForm] = useState({ name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' })
+  const emptyForm = { name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' }
   const [editId, setEditId] = useState<string|null>(null)
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderClient, setOrderClient] = useState<{ id: string; name: string } | null>(null)
@@ -29,7 +30,7 @@ export default function ClientsPage() {
     const method = editId ? 'PUT' : 'POST'
     const url = editId ? `/api/clients/${editId}` : '/api/clients'
     await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(form) })
-    setShowModal(false); setForm({ name:'',email:'',phone:'',company:'',address:'',vatTin:'',telegramId:'',notes:'' }); setEditId(null); load(search)
+    setShowModal(false); setForm(emptyForm); setEditId(null); load(search)
   }
 
   const del = async (id: string) => {
@@ -38,7 +39,7 @@ export default function ClientsPage() {
   }
 
   const edit = (c: any) => {
-    setForm({ name:c.name,email:c.email,phone:c.phone||'',company:c.company||'',address:c.address||'',vatTin:c.vatTin||'',telegramId:c.telegramId||'',notes:c.notes||'' })
+    setForm({ name:c.name,email:c.email,phone:c.phone||'',company:c.company||'',companyKhmer:c.companyKhmer||'',address:c.address||'',vatTin:c.vatTin||'',telegramId:c.telegramId||'',notes:c.notes||'' })
     setEditId(c.id); setShowModal(true)
   }
 
@@ -51,7 +52,7 @@ export default function ClientsPage() {
     <div className="page-content">
       <div className="page-header">
         <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Clients</h1>
-        <button className="btn-primary" onClick={() => { setShowModal(true); setEditId(null); setForm({ name:'',email:'',phone:'',company:'',address:'',vatTin:'',telegramId:'',notes:'' }) }}>
+        <button className="btn-primary" onClick={() => { setShowModal(true); setEditId(null); setForm(emptyForm) }}>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
           Add Client
         </button>
@@ -90,7 +91,12 @@ export default function ClientsPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 dark:text-gray-500">{c.company}</div>
+                      {(c.companyKhmer || c.company) && (
+                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                          {c.companyKhmer && <div>{c.companyKhmer}</div>}
+                          {c.company && <div>{c.company}</div>}
+                        </div>
+                      )}
                     </div>
                   </Link>
                 </td>
@@ -128,12 +134,26 @@ export default function ClientsPage() {
               <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3">
-              {[['name', 'Full Name *', 'text'], ['email', 'Email *', 'email'], ['phone', 'Phone', 'text'], ['company', 'Company', 'text']].map(([k, l, t]) => (
-                <div key={k}>
-                  <label className="label">{l}</label>
-                  <input type={t} className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
-                </div>
-              ))}
+              <div>
+                <label className="label">Full Name *</label>
+                <input type="text" className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">Phone</label>
+                <input type="text" className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Email *</label>
+                <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Company (KH)</label>
+                <input type="text" className="input" value={form.companyKhmer} onChange={e => setForm(f => ({ ...f, companyKhmer: e.target.value }))} />
+              </div>
+              <div className="col-span-2">
+                <label className="label">Company (EN)</label>
+                <input type="text" className="input" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
+              </div>
               <div className="col-span-2">
                 <label className="label">Address</label>
                 <textarea className="input" rows={2} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />

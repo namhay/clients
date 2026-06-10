@@ -50,6 +50,7 @@ export type ClientNested = {
   email: string
   phone: string | null
   company: string | null
+  companyKhmer: string | null
   address: string | null
   vatTin: string | null
   telegramId: string | null
@@ -76,7 +77,7 @@ const SERVICE_SELECT = `
   s."startDate", s."expiryDate", s."nextDueDate", s.price, s."setupFee",
   s.recurring, s.period, s.status, s.notes, s."createdAt", s."updatedAt",
   c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone AS c_phone,
-  c.company AS c_company, c.address AS c_address, c."vatTin" AS c_vatTin,
+  c.company AS c_company, c."companyKhmer" AS c_companyKhmer, c.address AS c_address, c."vatTin" AS c_vatTin,
   c."telegramId" AS c_telegramId, c.notes AS c_notes, c."createdAt" AS c_createdAt, c."updatedAt" AS c_updatedAt,
   pt.id AS pt_id, pt.name AS pt_name, pt.slug AS pt_slug, pt.color AS pt_color,
   pt."hasHostingSpecs" AS pt_hasHostingSpecs, pt.active AS pt_active, pt."sortOrder" AS pt_sortOrder,
@@ -102,6 +103,7 @@ function mapClientNested(row: Record<string, unknown>): ClientNested {
     email: String(row.c_email),
     phone: row.c_phone != null ? String(row.c_phone) : null,
     company: row.c_company != null ? String(row.c_company) : null,
+    companyKhmer: row.c_companyKhmer != null ? String(row.c_companyKhmer) : null,
     address: row.c_address != null ? String(row.c_address) : null,
     vatTin: row.c_vatTin != null ? String(row.c_vatTin) : null,
     telegramId: row.c_telegramId != null ? String(row.c_telegramId) : null,

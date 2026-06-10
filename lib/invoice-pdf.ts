@@ -46,6 +46,7 @@ export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
       email: invoice.client.email,
       phone: invoice.client.phone,
       company: invoice.client.company,
+      companyKhmer: invoice.client.companyKhmer,
       address: invoice.client.address,
       vatTin: invoice.client.vatTin,
     },

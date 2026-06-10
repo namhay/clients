@@ -34,6 +34,7 @@ export interface Client {
   email: string
   phone?: string | null
   company?: string | null
+  companyKhmer?: string | null
   address?: string | null
   telegramId?: string | null
   notes?: string | null
