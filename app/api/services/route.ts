@@ -70,7 +70,11 @@ export async function POST(req: NextRequest) {
     let invoiceSent = null
 
     if (generateInvoice) {
-      invoice = await createInvoiceForService(serviceRecordToInvoiceInput(service))
+      invoice = await createInvoiceForService(
+        serviceRecordToInvoiceInput(service),
+        0,
+        { periodMode: 'form' },
+      )
       if (sendInvoice && invoice) {
         invoiceSent = await sendInvoiceToClient(invoice.id, service.clientId)
       }

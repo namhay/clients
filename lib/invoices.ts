@@ -22,6 +22,7 @@ import { sendTelegram, sendTelegramDocument, invoiceTelegramMessage, paymentRece
 import { formatAppDate } from '@/lib/app-date'
 import {
   extendServiceByBillingCycle,
+  getFormServiceInvoicePeriod,
   getNewServiceInvoicePeriod,
   getRenewalServiceInvoicePeriod,
   revertServiceByBillingCycle,
@@ -419,8 +420,8 @@ export async function enrichInvoiceItemsWithPeriods(
 export type ServiceInvoiceOptions = {
   /** Renewal invoices should not re-bill setup fees. Default true for manual invoices. */
   includeSetupFee?: boolean
-  /** `new` = order / new service (today → +1 cycle). `renewal` = cron / existing service (expiry → +1 cycle). */
-  periodMode?: 'new' | 'renewal'
+  /** `form` = order / new service (modal start → expiry). `new` = today → +1 cycle. `renewal` = cron / manual generate (expiry → +1 cycle). */
+  periodMode?: 'form' | 'new' | 'renewal'
 }
 
 export function buildServiceInvoiceItems(
@@ -435,7 +436,9 @@ export function buildServiceInvoiceItems(
   )
   const period = options.periodMode === 'renewal'
     ? getRenewalServiceInvoicePeriod(service)
-    : getNewServiceInvoicePeriod(service)
+    : options.periodMode === 'form'
+      ? getFormServiceInvoicePeriod(service)
+      : getNewServiceInvoicePeriod(service)
 
   const items: InvoiceItemInput[] = []
 

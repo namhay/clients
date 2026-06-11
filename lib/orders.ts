@@ -104,6 +104,8 @@ export async function fulfillOrder(
       createdServices.map(serviceRecordToInvoiceInput),
       order.clientId,
       tax,
+      undefined,
+      { periodMode: 'form' },
     )
   }
 
