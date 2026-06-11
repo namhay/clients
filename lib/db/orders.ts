@@ -232,3 +232,31 @@ export async function linkOrderInvoice(orderId: string, invoiceId: string) {
     WHERE id = ${orderId}
   `
 }
+
+export async function deleteOrder(id: string) {
+  const order = await getOrderById(id)
+  if (!order) throw new Error('Order not found')
+
+  if (order.invoice?.status === 'PAID') {
+    throw new Error('Cannot delete an order with a paid invoice')
+  }
+
+  const invoiceId = order.invoiceId
+  const serviceIds = order.items
+    .map(item => item.serviceId)
+    .filter((serviceId): serviceId is string => Boolean(serviceId))
+
+  const sql = getSql()
+  await sql.transaction([
+    sql`DELETE FROM "Order" WHERE id = ${id}`,
+    ...(invoiceId
+      ? [
+          sql`DELETE FROM "InvoiceItem" WHERE "invoiceId" = ${invoiceId}`,
+          sql`DELETE FROM "Invoice" WHERE id = ${invoiceId}`,
+        ]
+      : []),
+    ...(serviceIds.length
+      ? [sql`DELETE FROM "Service" WHERE id = ANY(${serviceIds})`]
+      : []),
+  ])
+}

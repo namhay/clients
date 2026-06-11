@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
+import { toast } from '@/lib/toast'
 import { formatCurrency } from '@/lib/utils'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
@@ -33,6 +34,24 @@ export default function OrdersPage() {
 
   const viewPDF = (invoiceId: string) => {
     window.open(`/api/invoices/${invoiceId}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
+  }
+
+  const del = async (order: { id: string; invoice?: { invoiceNo: string; status: string } | null }) => {
+    const invoiceNote = order.invoice
+      ? ` and invoice ${order.invoice.invoiceNo}`
+      : ''
+    if (!await toast.confirm(
+      `Delete this order${invoiceNote}? Services created from this order will also be removed.`,
+    )) return
+
+    const res = await fetch(`/api/orders/${order.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      toast.error(data.error || 'Failed to delete order')
+      return
+    }
+    toast.success('Order deleted')
+    load()
   }
 
   return (
@@ -94,14 +113,22 @@ export default function OrdersPage() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  {order.invoice && (
+                  <div className="flex justify-end gap-2">
+                    {order.invoice && (
+                      <button
+                        className="btn-secondary py-1 px-2 text-xs"
+                        onClick={() => viewPDF(order.invoice.id)}
+                      >
+                        PDF
+                      </button>
+                    )}
                     <button
-                      className="btn-secondary py-1 px-2 text-xs"
-                      onClick={() => viewPDF(order.invoice.id)}
+                      className="btn-danger py-1 px-2 text-xs"
+                      onClick={() => del(order)}
                     >
-                      PDF
+                      Delete
                     </button>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
