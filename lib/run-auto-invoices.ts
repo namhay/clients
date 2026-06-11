@@ -16,29 +16,16 @@ export type AutoInvoiceRunResult = {
   processed: number
   created: number
   skipped: number
+  tooEarly: number
   errors: string[]
+  invoices: { id: string; invoiceNo: string }[]
 }
 
 function groupKey(clientId: string, expiryDate: Date) {
   return `${clientId}:${expiryDate.toISOString().slice(0, 10)}`
 }
 
-export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
-  const maxDays = await getMaxExpiryWindowDays()
-  const candidates = await listServices({
-    expiryDateLte: expiryWithinDays(maxDays),
-    status: 'ACTIVE',
-  })
-
-  const services = filterServicesDueForAutoInvoice(candidates).filter(s => s.recurring)
-
-  const result: AutoInvoiceRunResult = {
-    processed: services.length,
-    created: 0,
-    skipped: 0,
-    errors: [],
-  }
-
+function groupServicesByClientExpiry(services: ServiceWithRelations[]) {
   const groups = new Map<string, ServiceWithRelations[]>()
   for (const svc of services) {
     const key = groupKey(svc.clientId, svc.expiryDate)
@@ -46,8 +33,20 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
     list.push(svc)
     groups.set(key, list)
   }
+  return Array.from(groups.values())
+}
 
-  for (const group of Array.from(groups.values())) {
+async function createInvoicesForServiceGroups(
+  groups: ServiceWithRelations[][],
+): Promise<Pick<AutoInvoiceRunResult, 'created' | 'skipped' | 'errors' | 'invoices'>> {
+  const result = {
+    created: 0,
+    skipped: 0,
+    errors: [] as string[],
+    invoices: [] as { id: string; invoiceNo: string }[],
+  }
+
+  for (const group of groups) {
     const toInvoice = []
 
     for (const svc of group) {
@@ -74,7 +73,7 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
     if (!toInvoice.length) continue
 
     try {
-      await createInvoiceForServices(
+      const invoice = await createInvoiceForServices(
         toInvoice,
         group[0].clientId,
         0,
@@ -82,6 +81,7 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
         { includeSetupFee: false, periodMode: 'renewal' },
       )
       result.created++
+      result.invoices.push({ id: invoice.id, invoiceNo: invoice.invoiceNo })
     } catch (e) {
       result.errors.push(
         `${group[0].client.name}: ${e instanceof Error ? e.message : 'failed'}`,
@@ -90,4 +90,40 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
   }
 
   return result
+}
+
+/** Generate renewal invoices for eligible services of one client (manual fallback for cron). */
+export async function runAutoInvoicesForClient(clientId: string): Promise<AutoInvoiceRunResult> {
+  const candidates = await listServices({ clientId, status: 'ACTIVE' })
+  const recurring = candidates.filter(s => s.recurring)
+  const eligible = filterServicesDueForAutoInvoice(recurring)
+  const tooEarly = recurring.length - eligible.length
+
+  const created = await createInvoicesForServiceGroups(groupServicesByClientExpiry(eligible))
+
+  return {
+    processed: recurring.length,
+    tooEarly,
+    ...created,
+  }
+}
+
+export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
+  const maxDays = await getMaxExpiryWindowDays()
+  const candidates = await listServices({
+    expiryDateLte: expiryWithinDays(maxDays),
+    status: 'ACTIVE',
+  })
+
+  const recurring = candidates.filter(s => s.recurring)
+  const eligible = filterServicesDueForAutoInvoice(recurring)
+  const tooEarly = recurring.length - eligible.length
+
+  const created = await createInvoicesForServiceGroups(groupServicesByClientExpiry(eligible))
+
+  return {
+    processed: recurring.length,
+    tooEarly,
+    ...created,
+  }
 }

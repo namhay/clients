@@ -41,6 +41,7 @@ export default function ClientProfilePage() {
   } | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
+  const [generatingRenewals, setGeneratingRenewals] = useState(false)
   const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
 
   const load = async () => {
@@ -84,6 +85,40 @@ export default function ClientProfilePage() {
     await navigator.clipboard.writeText(telegramConnect.link)
     setLinkCopied(true)
     setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  const generateRenewalInvoices = async () => {
+    setGeneratingRenewals(true)
+    try {
+      const res = await fetch(`/api/clients/${id}/generate-invoices`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate invoices')
+
+      if (data.created > 0) {
+        const numbers = (data.invoices || []).map((i: { invoiceNo: string }) => i.invoiceNo).join(', ')
+        toast.success(
+          data.created === 1
+            ? `Renewal invoice ${numbers} created.`
+            : `${data.created} renewal invoices created: ${numbers}`,
+        )
+        load()
+        return
+      }
+
+      if (data.tooEarly > 0 && data.skipped === 0) {
+        toast.message('No services are in the auto-invoice window yet (expiry is still too far out).')
+      } else if (data.skipped > 0) {
+        toast.message('Eligible services already have open renewal invoices.')
+      } else if (data.processed === 0) {
+        toast.message('No active recurring services to invoice.')
+      } else {
+        toast.message('Nothing to invoice right now.')
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoices')
+    } finally {
+      setGeneratingRenewals(false)
+    }
   }
 
   const generateInvoice = async (s: any) => {
@@ -201,6 +236,13 @@ export default function ClientProfilePage() {
           </div>
           <div className="flex gap-2 flex-wrap">
             <button className="btn-primary" onClick={() => setShowOrderModal(true)}>Add Order</button>
+            <button
+              className="btn-primary"
+              onClick={generateRenewalInvoices}
+              disabled={generatingRenewals}
+            >
+              {generatingRenewals ? 'Generating…' : 'Generate Invoices'}
+            </button>
             <button className="btn-secondary" onClick={() => setShowEditModal(true)}>Edit Client</button>
             <button
               className="btn-danger"

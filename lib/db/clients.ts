@@ -162,7 +162,15 @@ export async function updateClient(id: string, data: Partial<ClientInput>): Prom
 
 export async function deleteClient(id: string) {
   const sql = getSql()
-  await sql`DELETE FROM "Client" WHERE id = ${id}`
+  await sql.transaction([
+    sql`DELETE FROM "ReminderLog" WHERE "clientId" = ${id}`,
+    sql`DELETE FROM "OrderItem" WHERE "orderId" IN (SELECT id FROM "Order" WHERE "clientId" = ${id})`,
+    sql`DELETE FROM "Order" WHERE "clientId" = ${id}`,
+    sql`DELETE FROM "InvoiceItem" WHERE "invoiceId" IN (SELECT id FROM "Invoice" WHERE "clientId" = ${id})`,
+    sql`DELETE FROM "Invoice" WHERE "clientId" = ${id}`,
+    sql`DELETE FROM "Service" WHERE "clientId" = ${id}`,
+    sql`DELETE FROM "Client" WHERE id = ${id}`,
+  ])
 }
 
 export async function linkClientTelegram(clientId: string, chatId: string): Promise<ClientRow> {
