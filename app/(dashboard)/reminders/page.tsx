@@ -5,6 +5,7 @@ import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
 import { formatDateValue, formatDateTimeValue } from '@/lib/date-format'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatReminderRule } from '@/lib/product-types'
+import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { getRemindersPageData } from '@/lib/reminders-page'
 import { daysUntil, formatCurrency } from '@/lib/utils'
 
@@ -247,7 +248,9 @@ export default async function RemindersPage({
                     {log.clientName}
                   </Link>
                 </td>
-                <td className="truncate text-gray-600 dark:text-gray-300" title={log.type}>{log.type}</td>
+                <td className="truncate text-gray-600 dark:text-gray-300" title={formatReminderLogMessage(log)}>
+                  {formatReminderLogMessage(log)}
+                </td>
                 <td>
                   <span className="badge badge-gray">{log.channel}</span>
                 </td>

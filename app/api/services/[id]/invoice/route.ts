@@ -15,7 +15,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const service = await getServiceById(params.id)
     if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 })
 
-    const invoice = await createInvoiceForService(serviceRecordToInvoiceInput(service))
+    const invoice = await createInvoiceForService(
+      serviceRecordToInvoiceInput(service),
+      0,
+      { periodMode: 'renewal', includeSetupFee: false },
+    )
     let invoiceSent = null
     if (sendInvoice) {
       invoiceSent = await sendInvoiceToClient(invoice.id, service.clientId)

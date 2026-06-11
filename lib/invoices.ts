@@ -20,7 +20,12 @@ import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegram, sendTelegramDocument, invoiceTelegramMessage, paymentReceivedTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
-import { addMonths, extendServiceByBillingCycle, getBillingMonths, revertServiceByBillingCycle } from '@/lib/billing'
+import {
+  extendServiceByBillingCycle,
+  getNewServiceInvoicePeriod,
+  getRenewalServiceInvoicePeriod,
+  revertServiceByBillingCycle,
+} from '@/lib/billing'
 import { getAppSettings } from '@/lib/settings'
 import { serviceFields } from '@/lib/services'
 
@@ -232,17 +237,6 @@ export function serviceRecordToInvoiceInput(service: {
   }
 }
 
-export function getServiceInvoicePeriod(service: Pick<ServiceForInvoice, 'recurring' | 'period' | 'startDate' | 'expiryDate'>) {
-  const periodEnd = service.expiryDate
-  if (service.recurring && service.period) {
-    const months = getBillingMonths(service.period)
-    if (months) {
-      return { periodStart: addMonths(periodEnd, -months), periodEnd }
-    }
-  }
-  return { periodStart: service.startDate, periodEnd }
-}
-
 function expandServicesForInvoiceItems(services: ServiceForInvoice[]): ServiceForInvoice[] {
   const result: ServiceForInvoice[] = []
   for (const service of services) {
@@ -293,14 +287,26 @@ export async function getInvoiceServices(invoice: InvoiceWithRelations): Promise
   return Array.from(found.values())
 }
 
-/** Extend recurring services on a paid invoice by one billing cycle. */
+function findMainInvoiceItemForService(
+  invoice: InvoiceWithRelations,
+  service: ServiceForInvoice,
+): InvoiceItemRow | undefined {
+  const label = buildServiceInvoiceLabel(service.typeName, service.name, service.productPackage?.name)
+  return invoice.items.find(item => item.description === label)
+}
+
+/** Extend services on a paid invoice using item period end (or one billing cycle fallback). */
 export async function renewServicesForPaidInvoice(invoiceId: string) {
   const invoice = await getInvoiceById(invoiceId)
   if (!invoice) return
 
   const services = await getInvoiceServices(invoice)
   for (const service of services) {
-    const extension = extendServiceByBillingCycle(service)
+    const input = serviceRecordToInvoiceInput(service)
+    const item = findMainInvoiceItemForService(invoice, input)
+    const extension = item?.periodEnd
+      ? { expiryDate: item.periodEnd, nextDueDate: item.periodEnd }
+      : extendServiceByBillingCycle(service)
     if (!extension) continue
 
     await updateService(service.id, serviceFields({
@@ -361,7 +367,11 @@ export async function revertServicesForUnpaidInvoice(invoiceId: string) {
 
   const services = await getInvoiceServices(invoice)
   for (const service of services) {
-    const reverted = revertServiceByBillingCycle(service)
+    const input = serviceRecordToInvoiceInput(service)
+    const item = findMainInvoiceItemForService(invoice, input)
+    const reverted = item?.periodStart
+      ? { expiryDate: item.periodStart, nextDueDate: item.periodStart }
+      : revertServiceByBillingCycle(service)
     if (!reverted) continue
 
     await updateService(service.id, serviceFields({
@@ -401,7 +411,7 @@ export async function enrichInvoiceItemsWithPeriods(
       || findServiceForInvoiceItem(item.description, services)
     if (!service) return item
 
-    const period = getServiceInvoicePeriod(service)
+    const period = getRenewalServiceInvoicePeriod(service)
     return { ...item, periodStart: period.periodStart, periodEnd: period.periodEnd }
   })
 }
@@ -409,6 +419,8 @@ export async function enrichInvoiceItemsWithPeriods(
 export type ServiceInvoiceOptions = {
   /** Renewal invoices should not re-bill setup fees. Default true for manual invoices. */
   includeSetupFee?: boolean
+  /** `new` = order / new service (today → +1 cycle). `renewal` = cron / existing service (expiry → +1 cycle). */
+  periodMode?: 'new' | 'renewal'
 }
 
 export function buildServiceInvoiceItems(
@@ -421,7 +433,9 @@ export function buildServiceInvoiceItems(
     service.name,
     service.productPackage?.name,
   )
-  const period = getServiceInvoicePeriod(service)
+  const period = options.periodMode === 'renewal'
+    ? getRenewalServiceInvoicePeriod(service)
+    : getNewServiceInvoicePeriod(service)
 
   const items: InvoiceItemInput[] = []
 

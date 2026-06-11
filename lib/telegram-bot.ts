@@ -162,7 +162,7 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     await createReminderLog({
       clientId: payload,
-      type: 'Telegram connected',
+      type: `Telegram ID: ${chatIdStr} is connected.`,
       channel: 'Telegram',
       message: unpaidResult.total > 0
         ? `Chat ID ${chatIdStr} linked; sent ${unpaidResult.sent}/${unpaidResult.total} unpaid invoice(s)`

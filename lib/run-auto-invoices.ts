@@ -1,9 +1,9 @@
 import { hasOpenRenewalInvoice } from '@/lib/db/invoices'
 import { listServices } from '@/lib/db/services'
+import type { ServiceWithRelations } from '@/lib/db/services'
 import {
   buildServiceInvoiceLabel,
-  createInvoiceForService,
-  getServiceInvoicePeriod,
+  createInvoiceForServices,
   serviceRecordToInvoiceInput,
 } from '@/lib/invoices'
 import {
@@ -17,6 +17,10 @@ export type AutoInvoiceRunResult = {
   created: number
   skipped: number
   errors: string[]
+}
+
+function groupKey(clientId: string, expiryDate: Date) {
+  return `${clientId}:${expiryDate.toISOString().slice(0, 10)}`
 }
 
 export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
@@ -35,27 +39,52 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
     errors: [],
   }
 
+  const groups = new Map<string, ServiceWithRelations[]>()
   for (const svc of services) {
-    const input = serviceRecordToInvoiceInput(svc)
-    const label = buildServiceInvoiceLabel(
-      svc.productType.name,
-      svc.name,
-      svc.productPackage?.name,
-    )
-    const { periodEnd } = getServiceInvoicePeriod(input)
+    const key = groupKey(svc.clientId, svc.expiryDate)
+    const list = groups.get(key) || []
+    list.push(svc)
+    groups.set(key, list)
+  }
+
+  for (const group of Array.from(groups.values())) {
+    const toInvoice = []
+
+    for (const svc of group) {
+      const label = buildServiceInvoiceLabel(
+        svc.productType.name,
+        svc.name,
+        svc.productPackage?.name,
+      )
+
+      try {
+        const exists = await hasOpenRenewalInvoice(svc.clientId, label, svc.expiryDate)
+        if (exists) {
+          result.skipped++
+          continue
+        }
+        toInvoice.push(serviceRecordToInvoiceInput(svc))
+      } catch (e) {
+        result.errors.push(
+          `${svc.client.name} — ${svc.name}: ${e instanceof Error ? e.message : 'failed'}`,
+        )
+      }
+    }
+
+    if (!toInvoice.length) continue
 
     try {
-      const exists = await hasOpenRenewalInvoice(svc.clientId, label, periodEnd)
-      if (exists) {
-        result.skipped++
-        continue
-      }
-
-      await createInvoiceForService(input, 0, { includeSetupFee: false })
+      await createInvoiceForServices(
+        toInvoice,
+        group[0].clientId,
+        0,
+        group[0].expiryDate,
+        { includeSetupFee: false, periodMode: 'renewal' },
+      )
       result.created++
     } catch (e) {
       result.errors.push(
-        `${svc.client.name} — ${svc.name}: ${e instanceof Error ? e.message : 'failed'}`,
+        `${group[0].client.name}: ${e instanceof Error ? e.message : 'failed'}`,
       )
     }
   }

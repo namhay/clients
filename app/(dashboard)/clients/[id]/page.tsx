@@ -8,6 +8,7 @@ import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { toast } from '@/lib/toast'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
@@ -425,7 +426,7 @@ export default function ClientProfilePage() {
             {client.reminderLogs.map((log: any) => (
               <div key={log.id} className="px-5 py-3 flex items-center justify-between text-sm">
                 <div>
-                  <span className="font-medium text-gray-800 dark:text-gray-100">{log.type}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-100">{formatReminderLogMessage(log)}</span>
                   <span className="text-gray-400 dark:text-gray-500 mx-2">via</span>
                   <span className="text-gray-600 dark:text-gray-300">{log.channel}</span>
                 </div>

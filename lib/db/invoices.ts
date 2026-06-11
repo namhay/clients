@@ -256,14 +256,14 @@ export async function countUnpaidInvoices(): Promise<number> {
   return Number((rows[0] as { count: number }).count)
 }
 
-/** True when client already has an open invoice for this service renewal period. */
+/** True when client already has an open renewal invoice for this service (matched by period start = current expiry). */
 export async function hasOpenRenewalInvoice(
   clientId: string,
   itemDescription: string,
-  periodEnd: Date,
+  renewalPeriodStart: Date,
 ): Promise<boolean> {
   const sql = getSql()
-  const day = periodEnd.toISOString().slice(0, 10)
+  const day = renewalPeriodStart.toISOString().slice(0, 10)
   const rows = await sql`
     SELECT 1
     FROM "InvoiceItem" ii
@@ -271,7 +271,7 @@ export async function hasOpenRenewalInvoice(
     WHERE i."clientId" = ${clientId}
       AND i.status IN ('UNPAID', 'OVERDUE')
       AND ii.description = ${itemDescription}
-      AND ii."periodEnd"::date = ${day}::date
+      AND ii."periodStart"::date = ${day}::date
     LIMIT 1
   `
   return rows.length > 0

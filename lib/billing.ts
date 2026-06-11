@@ -26,6 +26,37 @@ export function getBillingMonths(period: string | null | undefined): number | nu
   return cycle?.months ?? null
 }
 
+export function startOfDay(date: Date | string): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+/** New order / new service: period starts today (or invoice date), ends after one billing cycle. */
+export function getNewServiceInvoicePeriod(
+  service: { recurring: boolean; period: string | null; expiryDate: Date | string },
+  invoiceDate: Date | string = new Date(),
+): { periodStart: Date; periodEnd: Date } {
+  const periodStart = startOfDay(invoiceDate)
+  if (service.recurring && service.period) {
+    const months = getBillingMonths(service.period)
+    if (months) return { periodStart, periodEnd: addMonths(periodStart, months) }
+  }
+  return { periodStart, periodEnd: new Date(service.expiryDate) }
+}
+
+/** Renewal (cron / existing service): period starts at current expiry, ends after one billing cycle. */
+export function getRenewalServiceInvoicePeriod(
+  service: { recurring: boolean; period: string | null; expiryDate: Date | string },
+): { periodStart: Date; periodEnd: Date } {
+  const periodStart = startOfDay(service.expiryDate)
+  if (service.recurring && service.period) {
+    const months = getBillingMonths(service.period)
+    if (months) return { periodStart, periodEnd: addMonths(periodStart, months) }
+  }
+  return { periodStart, periodEnd: periodStart }
+}
+
 export function formatBillingCycle(period: string | null | undefined, recurring?: boolean): string {
   if (!recurring || !period) return 'One-time'
   return BILLING_CYCLES.find(c => c.value === period)?.label ?? period
