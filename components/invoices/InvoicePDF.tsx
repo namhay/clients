@@ -139,7 +139,7 @@ function TinMetaGridRow({ vatTin }: { vatTin?: string | null }) {
       </View>
       <View style={{ width: rightWidth }}>
         <Text style={styles.metaGridLabel}>
-          (VATTIN) <Text style={styles.metaGridValue}>{vatTin}</Text>
+          (VAT TIN) <Text style={styles.metaGridValue}>{vatTin}</Text>
         </Text>
       </View>
     </View>
@@ -203,7 +203,7 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
         )}
 
         <View style={styles.centered}>
-          <Text style={styles.companyTin}>លេខអត្តសញ្ញាណកម្ម (VATTIN) {company.tin}</Text>
+          <Text style={styles.companyTin}>លេខអត្តសញ្ញាណកម្ម (VAT TIN) {company.tin}</Text>
           <Text>អាសយដ្ឋាន៖ {company.addressKhmer}</Text>
           <Text>Address: {company.address}</Text>
           <Text>ទូរស័ព្ទលេខ/Telephone: {company.phone}</Text>

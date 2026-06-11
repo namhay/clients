@@ -214,9 +214,6 @@ export default function TransactionsPage() {
                     >
                       {tx.client?.name || '—'}
                     </Link>
-                    {tx.client?.email && (
-                      <div className="text-xs text-gray-400 dark:text-gray-500">{tx.client.email}</div>
-                    )}
                   </td>
                   <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.total)}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(tx.createdAt)}</td>

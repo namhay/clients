@@ -1,5 +1,5 @@
 import { listInvoiceSummaries } from '@/lib/db/invoices'
-import { listRecentReminderLogs } from '@/lib/db/reminder-logs'
+import { listRecentReminderLogsPaginated } from '@/lib/db/reminder-logs'
 import { listServices } from '@/lib/db/services'
 import { getAppSettings } from '@/lib/settings'
 import {
@@ -8,17 +8,17 @@ import {
 } from '@/lib/reminders'
 import { formatReminderTimeLabel } from '@/lib/reminder-schedule'
 
-export async function getRemindersPageData() {
+export async function getRemindersPageData(logPage = 1) {
   const bounds = await getReminderExpiryBounds()
 
-  const [openInvoices, candidateServices, recentLogs, settings] = await Promise.all([
+  const [openInvoices, candidateServices, recentLogsResult, settings] = await Promise.all([
     listInvoiceSummaries('open', 200),
     listServices({
       expiryDateGte: bounds.gte,
       expiryDateLte: bounds.lte,
       status: 'ACTIVE',
     }),
-    listRecentReminderLogs(12),
+    listRecentReminderLogsPaginated(logPage),
     getAppSettings(),
   ])
 
@@ -31,7 +31,13 @@ export async function getRemindersPageData() {
   return {
     openInvoices,
     expiringServices,
-    recentLogs,
+    recentLogs: recentLogsResult.logs,
+    recentLogsPagination: {
+      total: recentLogsResult.total,
+      page: recentLogsResult.page,
+      pageSize: recentLogsResult.pageSize,
+      totalPages: recentLogsResult.totalPages,
+    },
     summary: {
       openCount: openInvoices.length,
       outstandingAmount,

@@ -256,9 +256,27 @@ export default function InvoicesPage() {
                     {inv.status === 'PAID' && (
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
                     )}
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>View</button>
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendEmail(inv)}>📧</button>
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => sendTelegram(inv)}>✈</button>
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>PDF</button>
+                    <button
+                      className="btn-secondary inline-flex items-center justify-center p-1.5"
+                      onClick={() => sendEmail(inv)}
+                      title="Send via email"
+                      aria-label="Send via email"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      className="btn-secondary inline-flex items-center justify-center p-1.5 text-sky-600 dark:text-sky-400"
+                      onClick={() => sendTelegram(inv)}
+                      title="Send via Telegram"
+                      aria-label="Send via Telegram"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
+                      </svg>
+                    </button>
                   </div>
                 </td>
               </tr>

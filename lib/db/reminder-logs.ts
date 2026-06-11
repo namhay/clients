@@ -60,20 +60,55 @@ export type ReminderLogWithClient = ReminderLogRow & {
   clientName: string
 }
 
-export async function listRecentReminderLogs(limit = 15): Promise<ReminderLogWithClient[]> {
+export const REMINDER_LOGS_PAGE_SIZE = 20
+export const REMINDER_LOGS_MAX_TOTAL = 100
+
+export type PaginatedReminderLogs = {
+  logs: ReminderLogWithClient[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+function mapReminderLogWithClient(row: Record<string, unknown>): ReminderLogWithClient {
+  return {
+    ...mapReminderLog(row),
+    clientName: String(row.client_name),
+  }
+}
+
+export async function listRecentReminderLogsPaginated(
+  page = 1,
+  pageSize = REMINDER_LOGS_PAGE_SIZE,
+  maxTotal = REMINDER_LOGS_MAX_TOTAL,
+): Promise<PaginatedReminderLogs> {
   const sql = getSql()
+  const countRows = await sql`SELECT COUNT(*)::int AS count FROM "ReminderLog"`
+  const rawTotal = Number((countRows[0] as { count: number }).count)
+  const total = Math.min(rawTotal, maxTotal)
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const safePage = Math.min(Math.max(1, page), totalPages)
+  const offset = (safePage - 1) * pageSize
+
+  if (total === 0) {
+    return { logs: [], total: 0, page: 1, pageSize, totalPages: 1 }
+  }
+
   const rows = await sql`
     SELECT rl.*, c.name AS client_name
     FROM "ReminderLog" rl
     INNER JOIN "Client" c ON c.id = rl."clientId"
     ORDER BY rl."createdAt" DESC
-    LIMIT ${limit}
+    LIMIT ${pageSize}
+    OFFSET ${offset}
   `
-  return rows.map(r => {
-    const row = r as Record<string, unknown>
-    return {
-      ...mapReminderLog(row),
-      clientName: String(row.client_name),
-    }
-  })
+
+  return {
+    logs: rows.map(r => mapReminderLogWithClient(r as Record<string, unknown>)),
+    total,
+    page: safePage,
+    pageSize,
+    totalPages,
+  }
 }

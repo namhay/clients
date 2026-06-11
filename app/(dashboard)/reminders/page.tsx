@@ -14,16 +14,25 @@ const statusColor: Record<string, string> = {
   OVERDUE: 'badge-overdue',
 }
 
-export default async function RemindersPage() {
+export default async function RemindersPage({
+  searchParams,
+}: {
+  searchParams?: { logPage?: string }
+}) {
+  const logPage = Math.max(1, parseInt(searchParams?.logPage || '1', 10) || 1)
+
   const [data, dateFormat, timezone] = await Promise.all([
-    getRemindersPageData(),
+    getRemindersPageData(logPage),
     getAppDateFormat(),
     getAppTimezone(),
   ])
   const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
   const formatDateTime = (date: Date | string) => formatDateTimeValue(date, dateFormat, timezone)
 
-  const { openInvoices, expiringServices, recentLogs, summary, schedule } = data
+  const { openInvoices, expiringServices, recentLogs, recentLogsPagination, summary, schedule } = data
+  const { total: logsTotal, page: logsPage, pageSize: logsPageSize, totalPages: logsTotalPages } = recentLogsPagination
+  const logsRangeStart = logsTotal === 0 ? 0 : (logsPage - 1) * logsPageSize + 1
+  const logsRangeEnd = Math.min(logsPage * logsPageSize, logsTotal)
 
   return (
     <div className="page-content">
@@ -79,7 +88,7 @@ export default async function RemindersPage() {
         />
       </div>
 
-      <div className="mb-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-2">
+      <div className="mb-4 grid min-w-0 grid-cols-1 gap-4">
         <div className="card card-compact min-w-0">
           <div className="flex items-center justify-between border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
             <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -92,16 +101,18 @@ export default async function RemindersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/50">
               <tr>
-                <th className="w-[28%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
-                <th className="w-[22%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Invoice</th>
-                <th className="w-[20%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Due</th>
+                <th className="w-[18%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+                <th className="w-[14%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Invoice No.</th>
+                <th className="w-[12%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Price</th>
+                <th className="w-[12%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Status</th>
+                <th className="w-[14%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Due</th>
                 <th className="w-[30%] text-right text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {openInvoices.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
+                  <td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
                     No open invoices
                   </td>
                 </tr>
@@ -113,11 +124,9 @@ export default async function RemindersPage() {
                       {inv.client?.name}
                     </Link>
                   </td>
+                  <td className="whitespace-nowrap font-medium">{inv.invoiceNo}</td>
+                  <td className="whitespace-nowrap">{formatCurrency(inv.total)}</td>
                   <td>
-                    <div className="font-medium">{inv.invoiceNo}</div>
-                    <div className="whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
-                      {formatCurrency(inv.total)}
-                    </div>
                     <span className={`badge ${statusColor[inv.status] || 'badge-unpaid'}`}>{inv.status}</span>
                   </td>
                   <td className="whitespace-nowrap text-xs">{formatDate(inv.dueDate)}</td>
@@ -149,16 +158,18 @@ export default async function RemindersPage() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-gray-800/50">
               <tr>
-                <th className="w-[26%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
-                <th className="w-[34%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Service</th>
-                <th className="w-[16%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Expires</th>
-                <th className="w-[24%] text-right text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
+                <th className="w-[16%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+                <th className="w-[22%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Service</th>
+                <th className="w-[12%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Type</th>
+                <th className="w-[18%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Remaining</th>
+                <th className="w-[12%] text-left text-xs font-medium text-gray-500 dark:text-gray-400">Expires</th>
+                <th className="w-[20%] text-right text-xs font-medium text-gray-500 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
               {expiringServices.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
+                  <td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
                     No services due for reminder based on each product type&apos;s settings
                   </td>
                 </tr>
@@ -175,14 +186,17 @@ export default async function RemindersPage() {
                         {svc.client?.name}
                       </Link>
                     </td>
+                    <td className="truncate font-medium" title={svc.name}>{svc.name}</td>
                     <td>
-                      <div className="truncate font-medium" title={svc.name}>{svc.name}</div>
                       <span className={`badge ${productTypeBadgeClass(svc.productType?.color)}`}>
                         {svc.productType?.name}
                       </span>
-                      <div className={`mt-0.5 text-xs font-medium ${d < 0 ? 'text-red-600 dark:text-red-400' : d < 7 ? 'text-orange-600 dark:text-orange-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
-                        {d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`} · {remindRule}
+                    </td>
+                    <td>
+                      <div className={`whitespace-nowrap text-xs font-medium ${d < 0 ? 'text-red-600 dark:text-red-400' : d < 7 ? 'text-orange-600 dark:text-orange-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        {d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`}
                       </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{remindRule}</div>
                     </td>
                     <td className="whitespace-nowrap text-xs">{formatDate(svc.expiryDate)}</td>
                     <td>
@@ -205,7 +219,9 @@ export default async function RemindersPage() {
 
       <div className="card card-compact min-w-0">
         <div className="border-b border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
-          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">Recent Communications</h2>
+          <h2 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            Recent Communications{logsTotal > 0 ? ` (${logsTotal})` : ''}
+          </h2>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/50">
@@ -242,6 +258,34 @@ export default async function RemindersPage() {
             ))}
           </tbody>
         </table>
+        {logsTotal > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 px-3 py-3 dark:border-gray-800 sm:px-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              Showing {logsRangeStart}–{logsRangeEnd} of {logsTotal}
+            </p>
+            {logsTotalPages > 1 && (
+              <div className="flex items-center gap-2">
+                {logsPage > 1 ? (
+                  <Link href={`/reminders?logPage=${logsPage - 1}`} className="btn-secondary py-1 px-2 text-xs">
+                    Previous
+                  </Link>
+                ) : (
+                  <span className="btn-secondary py-1 px-2 text-xs opacity-40 pointer-events-none">Previous</span>
+                )}
+                <span className="text-xs text-gray-500 dark:text-gray-400">
+                  Page {logsPage} of {logsTotalPages}
+                </span>
+                {logsPage < logsTotalPages ? (
+                  <Link href={`/reminders?logPage=${logsPage + 1}`} className="btn-secondary py-1 px-2 text-xs">
+                    Next
+                  </Link>
+                ) : (
+                  <span className="btn-secondary py-1 px-2 text-xs opacity-40 pointer-events-none">Next</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

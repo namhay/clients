@@ -17,9 +17,9 @@ export function isDueForReminder(
 ): boolean {
   const d = daysUntil(expiryDate)
   if (timing === 'AFTER') {
-    return d <= -days
+    return d === -days
   }
-  return d <= days && d >= 0
+  return d === days
 }
 
 export function filterServicesDueForReminder<

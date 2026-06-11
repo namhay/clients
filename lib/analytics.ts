@@ -244,7 +244,7 @@ export async function getReportsData() {
     orders,
   ] = await Promise.all([
     getFinancialSummary(),
-    getMonthlyRevenue(6),
+    getMonthlyRevenue(12),
     getServicesByProductType(),
     getServiceStatusCounts(),
     getTopClientsByRevenue(5),

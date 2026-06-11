@@ -1,7 +1,7 @@
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { listServices } from '@/lib/db/services'
 import { formatAppDate } from '@/lib/app-date'
-import { sendEmail, reminderEmailTemplate } from '@/lib/email'
+import { sendEmail, serviceReminderEmailTemplate } from '@/lib/email'
 import { filterServicesDueForReminder, getReminderExpiryBounds } from '@/lib/reminders'
 import { getAppSettings } from '@/lib/settings'
 import { sendTelegram, reminderTelegramMessage } from '@/lib/telegram'
@@ -38,13 +38,10 @@ export async function runServiceExpiryReminders(): Promise<ReminderRunResult> {
       await sendEmail({
         to: svc.client.email,
         subject: `Reminder: ${details} expiring soon`,
-        html: reminderEmailTemplate({
+        text: serviceReminderEmailTemplate({
           clientName: svc.client.name,
-          type: 'service',
           details,
           dueDate,
-          companyName: settings.companyName,
-          companyEmail: settings.companyEmail,
         }),
       })
       await createReminderLog({

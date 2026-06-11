@@ -91,12 +91,6 @@ export default function ClientsPage() {
                           </span>
                         )}
                       </div>
-                      {(c.companyKhmer || c.company) && (
-                        <div className="text-xs text-gray-400 dark:text-gray-500">
-                          {c.companyKhmer && <div>{c.companyKhmer}</div>}
-                          {c.company && <div>{c.company}</div>}
-                        </div>
-                      )}
                     </div>
                   </Link>
                 </td>

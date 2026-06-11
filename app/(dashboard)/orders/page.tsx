@@ -3,9 +3,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
-import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatCurrency } from '@/lib/utils'
-import { toast } from '@/lib/toast'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
@@ -33,23 +31,8 @@ export default function OrdersPage() {
 
   useEffect(() => { load() }, [])
 
-  const downloadPDF = async (invoiceId: string, invoiceNo: string) => {
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}/pdf`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        return toast.error(err.error || 'Failed to generate PDF')
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${invoiceNo}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      toast.error('Failed to download PDF')
-    }
+  const viewPDF = (invoiceId: string) => {
+    window.open(`/api/invoices/${invoiceId}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -73,7 +56,6 @@ export default function OrdersPage() {
             <tr>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Client</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Products</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Total</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice</th>
               <th className="px-4 py-2.5" />
@@ -81,11 +63,11 @@ export default function OrdersPage() {
           </thead>
           <tbody>
             {loading && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>
+              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>
             )}
             {!loading && orders.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   No orders yet. Create an order to add multiple products on one invoice.
                 </td>
               </tr>
@@ -101,23 +83,6 @@ export default function OrdersPage() {
                     <div className="text-xs text-gray-400 dark:text-gray-500">{order.client.email}</div>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="space-y-1.5">
-                    {order.items?.map((item: any) => (
-                      <div key={item.id} className="flex items-start gap-2">
-                        <span className={`badge ${productTypeBadgeClass(item.productType?.color)} flex-shrink-0`}>
-                          {item.productType?.name}
-                        </span>
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {item.name}
-                          {item.productPackage && (
-                            <span className="text-gray-400 dark:text-gray-500"> · {item.productPackage.name}</span>
-                          )}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </td>
                 <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   {formatCurrency(order.totalAmount || 0)}
                 </td>
@@ -132,7 +97,7 @@ export default function OrdersPage() {
                   {order.invoice && (
                     <button
                       className="btn-secondary py-1 px-2 text-xs"
-                      onClick={() => downloadPDF(order.invoice.id, order.invoice.invoiceNo)}
+                      onClick={() => viewPDF(order.invoice.id)}
                     >
                       PDF
                     </button>

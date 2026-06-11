@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import StatCard from '@/components/dashboard/StatCard'
 import BarChartRow from '@/components/dashboard/BarChartRow'
+import MonthlyRevenueChart from '@/components/dashboard/MonthlyRevenueChart'
 import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
 import { getReportsData } from '@/lib/analytics'
 import { formatDateValue } from '@/lib/date-format'
@@ -28,7 +29,6 @@ export default async function ReportsPage() {
   const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
 
   const { financial, monthlyRevenue, servicesByType, serviceStatus, topClients, recentTransactions, totalClients, totalOrders } = data
-  const maxMonthly = Math.max(...monthlyRevenue.map(m => m.revenue), 1)
   const maxServiceType = Math.max(...servicesByType.map(s => s.total), 1)
 
   return (
@@ -71,21 +71,10 @@ export default async function ReportsPage() {
       </div>
 
       <div className="card mb-4 p-4 sm:p-5">
-        <h2 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Revenue (last 6 months)</h2>
-        <div className="space-y-3">
-          {monthlyRevenue.map(month => (
-            <BarChartRow
-              key={month.month}
-              label={month.label}
-              value={month.revenue}
-              max={maxMonthly}
-              displayValue={formatCurrency(month.revenue)}
-              barClassName="bg-green-600"
-            />
-          ))}
-        </div>
+        <h2 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">Monthly Revenue (last 12 months)</h2>
+        <MonthlyRevenueChart data={monthlyRevenue} formatValue={formatCurrency} />
         {monthlyRevenue.every(m => m.revenue === 0) && (
-          <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">No paid invoices in the last 6 months.</p>
+          <p className="mt-3 text-center text-xs text-gray-400 dark:text-gray-500">No paid invoices in the last 12 months.</p>
         )}
       </div>
 

@@ -4,9 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { getClientById } from '@/lib/db/clients'
 import { getInvoiceById } from '@/lib/db/invoices'
 import { createReminderLog } from '@/lib/db/reminder-logs'
-import { getServiceNameById } from '@/lib/db/services'
+import { getServiceById } from '@/lib/db/services'
 import { formatAppDate } from '@/lib/app-date'
-import { sendEmail, reminderEmailTemplate } from '@/lib/email'
+import { sendEmail, serviceReminderEmailTemplate } from '@/lib/email'
 import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
 import { getAppSettings } from '@/lib/settings'
 
@@ -38,20 +38,24 @@ export async function POST(req: NextRequest) {
       })
       subject = result.subject
     } else if (type === 'reminder') {
-      const details = serviceId
-        ? (await getServiceNameById(serviceId)) || 'Service'
-        : 'Payment due'
-      subject = `Reminder: Action required — ${details}`
+      let details = 'Payment due'
+      let dueDate = await formatAppDate(new Date())
+
+      if (serviceId) {
+        const service = await getServiceById(serviceId)
+        if (!service) return NextResponse.json({ error: 'Service not found' }, { status: 404 })
+        details = `${service.productType.name} — ${service.name}`
+        dueDate = await formatAppDate(service.expiryDate)
+      }
+
+      subject = `Reminder: ${details} expiring soon`
       await sendEmail({
         to: client.email,
         subject,
-        html: reminderEmailTemplate({
+        text: serviceReminderEmailTemplate({
           clientName: client.name,
-          type: serviceId ? 'service' : 'invoice',
           details,
-          dueDate: await formatAppDate(new Date()),
-          companyName,
-          companyEmail: settings.companyEmail,
+          dueDate,
         }),
       })
     } else {

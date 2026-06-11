@@ -76,6 +76,15 @@ export async function sendEmail({
   }
 }
 
+function emailSignoff() {
+  return `If you have any questions, please contact us at https://t.me/itsmart099
+
+Best Regards,
+
+IT-SMART.BIZ
+`
+}
+
 function emailFooter(brand: string) {
   return `<div style="background:#f9fafb;padding:16px 32px;font-size:12px;color:#999;border-top:1px solid #e5e7eb">This email was sent by ${brand}.</div>`
 }
@@ -94,14 +103,26 @@ Due date: ${params.dueDate}
 
 You can scan QR code on the PDF invoice to pay the invoice. You also can pay by check to our Business Bank Account as mentioned in the PDF invoice.
 
-If you have any questions, please contact us at https://t.me/itsmart099
-
-Best Regards,
-
-IT-SMART.BIZ
-`
+${emailSignoff()}`
 }
 
+export function serviceReminderEmailTemplate(params: {
+  clientName: string
+  details: string
+  dueDate: string
+}) {
+  return `Dear ${params.clientName},
+
+This is a friendly reminder regarding: ${params.details}
+
+Expiry date: ${params.dueDate}
+
+Please renew before the expiry date to avoid service interruption.
+
+${emailSignoff()}`
+}
+
+/** @deprecated Use serviceReminderEmailTemplate (plain text) for service reminders */
 export function reminderEmailTemplate(params: {
   clientName: string
   type: 'invoice' | 'service'
@@ -110,19 +131,11 @@ export function reminderEmailTemplate(params: {
   companyName: string
   companyEmail?: string
 }) {
-  return `
-<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#333">
-<div style="background:#1d4ed8;padding:24px 32px"><h1 style="color:#fff;margin:0;font-size:24px">${params.companyName}</h1></div>
-<div style="padding:32px">
-  <h2 style="color:#dc2626">⚠️ Reminder: Action Required</h2>
-  <p>Dear <strong>${params.clientName}</strong>,</p>
-  <p>This is a friendly reminder regarding: <strong>${params.details}</strong></p>
-  <p>Due/Expiry date: <strong>${params.dueDate}</strong></p>
-  <p>Please take action before the due date to avoid service interruption.</p>
-  <p>Contact us at ${params.companyEmail || ''} for assistance.</p>
-</div>
-${emailFooter(params.companyName || 'IT-SMART.BIZ')}
-</body></html>`
+  return serviceReminderEmailTemplate({
+    clientName: params.clientName,
+    details: params.details,
+    dueDate: params.dueDate,
+  })
 }
 
 export function passwordResetEmailTemplate(params: {

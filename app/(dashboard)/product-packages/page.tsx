@@ -189,7 +189,6 @@ export default function ProductPackagesPage() {
             <tr>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Package</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Details</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Price</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
@@ -198,9 +197,9 @@ export default function ProductPackagesPage() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
             )}
             {packages.map(p => (
               <tr key={p.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
@@ -209,15 +208,7 @@ export default function ProductPackagesPage() {
                     {p.productType?.name || '—'}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="font-medium text-gray-900 dark:text-gray-100">{p.name}</div>
-                  {p.description && <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{p.description}</div>}
-                </td>
-                <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-300">
-                  {p.productType?.hasHostingSpecs
-                    ? `${p.diskSpaceGb}GB · ${p.bandwidthGb}GB BW · ${p.emailAccounts} emails`
-                    : '—'}
-                </td>
+                <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">{p.name}</td>
                 <td className="px-4 py-3">
                   <span className={`badge ${p.billingType === 'ONE_TIME' ? 'badge-domain' : 'badge-hosting'}`}>
                     {p.billingType === 'ONE_TIME' ? 'One-time' : 'Recurring'}
