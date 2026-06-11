@@ -3,6 +3,7 @@ import { subtractDays } from '@/lib/billing'
 import { formatDateValue, type DateFormatId } from '@/lib/date-format'
 import type { InvoiceCompanyProfile } from '@/lib/invoice-company'
 import { formatInvoiceItemDescription } from '@/lib/invoices'
+import { pdfKhmerText } from '@/lib/pdf-khmer-text'
 
 // Column widths — Unit Price & Amount equal; Total row uses same grid
 const COL = {
@@ -32,7 +33,7 @@ const styles = StyleSheet.create({
   metaGrid: { marginBottom: 12 },
   metaGridRow: { flexDirection: 'row', marginBottom: 3, alignItems: 'flex-start' },
   metaGridLabel: { fontSize: 9, lineHeight: 1.4 },
-  metaGridValue: { fontSize: 9, lineHeight: 1.4 },
+  metaGridValue: { fontSize: 9, lineHeight: 1.4, paddingRight: 2 },
   metaGridLabelCell: { paddingRight: 6 },
   metaGridValueCell: { paddingRight: 8 },
   valueBold: { fontSize: 10 },
@@ -115,7 +116,7 @@ function MetaGridRow({
         ) : null}
       </View>
       <View style={[styles.metaGridValueCell, { width: META_COL.customerValue }]}>
-        {customerValue && <Text style={styles.metaGridValue}>{customerValue}</Text>}
+        {customerValue && <Text style={styles.metaGridValue}>{pdfKhmerText(customerValue)}</Text>}
       </View>
       <View style={[styles.metaGridLabelCell, { width: META_COL.invoiceLabel }]}>
         {invoiceLabelText ? (
@@ -204,7 +205,7 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
 
         <View style={styles.centered}>
           <Text style={styles.companyTin}>លេខអត្តសញ្ញាណកម្ម (VAT TIN) {company.tin}</Text>
-          <Text>អាសយដ្ឋាន៖ {company.addressKhmer}</Text>
+          <Text>អាសយដ្ឋាន៖ {pdfKhmerText(company.addressKhmer)}</Text>
           <Text>Address: {company.address}</Text>
           <Text>ទូរស័ព្ទលេខ/Telephone: {company.phone}</Text>
           <Text>អ៊ីម៉ែល/Email: {company.email}  វេបសាយ/Website: {company.website}</Text>

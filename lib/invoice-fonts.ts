@@ -13,6 +13,7 @@ export function registerInvoiceFonts(fontDir?: string) {
       { src: path.join(dir, 'NotoSansKhmer-Bold.ttf'), fontWeight: 700 },
     ],
   })
+  Font.registerHyphenationCallback(word => [word])
   registered = true
 }
 
@@ -25,5 +26,6 @@ export function registerInvoiceFontsFromUrl(origin: string) {
       { src: `${origin}/fonts/NotoSansKhmer-Bold.ttf`, fontWeight: 700 },
     ],
   })
+  Font.registerHyphenationCallback(word => [word])
   registered = true
 }

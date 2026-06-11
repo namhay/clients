@@ -17,8 +17,6 @@ export default function ServicesPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editService, setEditService] = useState<any>(null)
-  const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
-
   const load = async () => {
     setLoading(true)
     const url = typeFilter
@@ -49,32 +47,6 @@ export default function ServicesPage() {
     if (!await toast.confirm('Delete this service?')) return
     await fetch(`/api/services/${id}`, { method: 'DELETE' })
     load()
-  }
-
-  const generateInvoice = async (s: any) => {
-    if (!await toast.confirm(`Generate invoice for "${s.name}"?`)) return
-    const sendInvoice = await toast.confirm('Also send invoice to client (email + Telegram)?')
-    setGeneratingInvoiceId(s.id)
-    try {
-      const res = await fetch(`/api/services/${s.id}/invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sendInvoice }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
-      const parts = [`Invoice ${data.invoice.invoiceNo} created.`]
-      if (sendInvoice) {
-        const sent = data.invoiceSent
-        if (sent?.email || sent?.telegram) parts.push('Sent to client.')
-        else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
-      }
-      toast.success(parts.join(' '))
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
-    } finally {
-      setGeneratingInvoiceId(null)
-    }
   }
 
   return (
@@ -165,13 +137,6 @@ export default function ServicesPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 flex-wrap">
-                      <button
-                        className="btn-secondary py-1 px-2 text-xs"
-                        disabled={generatingInvoiceId === s.id}
-                        onClick={() => generateInvoice(s)}
-                      >
-                        {generatingInvoiceId === s.id ? '...' : 'Invoice'}
-                      </button>
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(s)}>Edit</button>
                       <button className="btn-danger py-1 px-2 text-xs" onClick={() => del(s.id)}>Delete</button>
                     </div>
