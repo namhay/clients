@@ -165,15 +165,6 @@ export async function deleteClient(id: string) {
   await sql`DELETE FROM "Client" WHERE id = ${id}`
 }
 
-export async function clearTelegramIdForOtherClients(chatId: string, excludeClientId: string) {
-  const sql = getSql()
-  await sql`
-    UPDATE "Client" SET "telegramId" = NULL, "updatedAt" = ${new Date()}
-    WHERE "telegramId" = ${chatId} AND id != ${excludeClientId}
-  `
-}
-
 export async function linkClientTelegram(clientId: string, chatId: string): Promise<ClientRow> {
-  await clearTelegramIdForOtherClients(chatId, clientId)
   return updateClient(clientId, { telegramId: chatId })
 }
