@@ -12,6 +12,8 @@ import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { toast } from '@/lib/toast'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
+const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
+const InvoiceFormModal = dynamic(() => import('@/components/invoices/InvoiceFormModal'), { ssr: false })
 const TransactionEditModal = dynamic(
   () => import('@/components/transactions/TransactionEditModal'),
   { ssr: false },
@@ -42,6 +44,8 @@ export default function ClientProfilePage() {
   const [linkCopied, setLinkCopied] = useState(false)
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
   const [generatingRenewals, setGeneratingRenewals] = useState(false)
+  const [editService, setEditService] = useState<any>(null)
+  const [editInvoice, setEditInvoice] = useState<any>(null)
   const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
 
   const load = async () => {
@@ -160,12 +164,69 @@ export default function ClientProfilePage() {
   }
 
   const markPaid = async (invoiceId: string) => {
-    await fetch(`/api/invoices/${invoiceId}`, {
-      method: 'PUT',
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PAID' }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as paid')
+      toast.success('Invoice marked as paid')
+      load()
+    } catch {
+      toast.error('Failed to mark invoice as paid')
+    }
+  }
+
+  const markUnpaid = async (inv: { id: string; invoiceNo: string }) => {
+    const confirmed = await toast.confirm(
+      `Mark ${inv.invoiceNo} as unpaid? It will be removed from transactions and linked services will roll back one billing cycle.`,
+    )
+    if (!confirmed) return
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'UNPAID' }),
+      })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as unpaid')
+      toast.success('Invoice marked as unpaid')
+      load()
+    } catch {
+      toast.error('Failed to mark invoice as unpaid')
+    }
+  }
+
+  const viewPDF = (inv: { id: string }) => {
+    window.open(`/api/invoices/${inv.id}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
+  }
+
+  const sendEmail = async (inv: { id: string; clientId?: string }) => {
+    try {
+      const res = await fetch('/api/reminders/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId: inv.clientId || id, type: 'invoice', invoiceId: inv.id }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Email send failed')
+      toast.success(`Invoice email sent to ${client?.email}`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Email send failed')
+    }
+  }
+
+  const sendTelegram = async (inv: { id: string; clientId?: string }) => {
+    const res = await fetch('/api/reminders/telegram', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'PAID' }),
+      body: JSON.stringify({ clientId: inv.clientId || id, type: 'invoice', invoiceId: inv.id }),
     })
-    load()
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) return toast.error(data.error || 'Telegram send failed')
+    toast.success(`Invoice PDF sent to ${client?.name} via Telegram`)
   }
 
   if (loading) {
@@ -355,13 +416,16 @@ export default function ClientProfilePage() {
                     <span className={`badge ${s.status === 'ACTIVE' ? 'badge-active' : 'badge-expired'}`}>{s.status}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      className="btn-secondary py-1 px-2 text-xs"
-                      disabled={generatingInvoiceId === s.id}
-                      onClick={() => generateInvoice(s)}
-                    >
-                      {generatingInvoiceId === s.id ? '...' : 'Invoice'}
-                    </button>
+                    <div className="flex gap-1 flex-wrap">
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => setEditService(s)}>Edit</button>
+                      <button
+                        className="btn-secondary py-1 px-2 text-xs"
+                        disabled={generatingInvoiceId === s.id}
+                        onClick={() => generateInvoice(s)}
+                      >
+                        {generatingInvoiceId === s.id ? '...' : 'Invoice'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               )
@@ -380,10 +444,10 @@ export default function ClientProfilePage() {
             <tr>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice #</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Due Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Items</th>
-              <th className="px-4 py-2.5" />
+              <th className="px-4 py-2.5">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -394,17 +458,42 @@ export default function ClientProfilePage() {
               <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{inv.invoiceNo}</td>
                 <td className="px-4 py-3 font-medium">{formatCurrency(inv.total)}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.createdAt)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.dueDate)}</td>
                 <td className="px-4 py-3">
                   <span className={`badge ${invoiceStatusColors[inv.status] || 'badge-unpaid'}`}>{inv.status}</span>
                 </td>
-                <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">
-                  {inv.items?.map((i: any) => i.description).join(', ') || '—'}
-                </td>
                 <td className="px-4 py-3">
-                  {inv.status !== 'PAID' && (
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>Mark Paid</button>
-                  )}
+                  <div className="flex gap-1 flex-wrap">
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => setEditInvoice(inv)}>Edit</button>
+                    {inv.status !== 'PAID' && (
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>
+                    )}
+                    {inv.status === 'PAID' && (
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
+                    )}
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>PDF</button>
+                    <button
+                      className="btn-secondary inline-flex items-center justify-center p-1.5"
+                      onClick={() => sendEmail(inv)}
+                      title="Send via email"
+                      aria-label="Send via email"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </button>
+                    <button
+                      className="btn-secondary inline-flex items-center justify-center p-1.5 text-sky-600 dark:text-sky-400"
+                      onClick={() => sendTelegram(inv)}
+                      title="Send via Telegram"
+                      aria-label="Send via Telegram"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -487,6 +576,25 @@ export default function ClientProfilePage() {
         onSaved={load}
         defaultClientId={client.id}
         defaultClientName={client.name}
+      />
+
+      <ServiceFormModal
+        open={Boolean(editService)}
+        onClose={() => setEditService(null)}
+        onSaved={load}
+        service={editService}
+        defaultClientId={client.id}
+        defaultClientName={client.name}
+        lockClient
+      />
+
+      <InvoiceFormModal
+        open={Boolean(editInvoice)}
+        onClose={() => setEditInvoice(null)}
+        onSaved={load}
+        invoice={editInvoice}
+        defaultClientId={client.id}
+        lockClient
       />
 
       <TransactionEditModal

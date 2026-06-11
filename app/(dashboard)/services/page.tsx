@@ -1,6 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useState } from 'react'
 import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { daysUntil, formatCurrency } from '@/lib/utils'
@@ -14,6 +15,7 @@ export default function ServicesPage() {
   const [services, setServices] = useState<any[]>([])
   const [productTypes, setProductTypes] = useState<any[]>([])
   const [typeFilter, setTypeFilter] = useState('')
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editService, setEditService] = useState<any>(null)
@@ -32,6 +34,21 @@ export default function ServicesPage() {
   }, [])
 
   useEffect(() => { load() }, [typeFilter])
+
+  const filteredServices = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return services
+    return services.filter(s => {
+      const haystack = [
+        s.client?.name,
+        s.name,
+        s.productType?.name,
+        s.productPackage?.name,
+        s.status,
+      ].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [services, search])
 
   const openAdd = () => {
     setEditService(null)
@@ -63,6 +80,14 @@ export default function ServicesPage() {
       </div>
 
       <div className="card">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+          <input
+            className="input max-w-xs"
+            placeholder="Search services..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
         <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 flex-wrap">
           <button
             onClick={() => setTypeFilter('')}
@@ -95,15 +120,24 @@ export default function ServicesPage() {
           </thead>
           <tbody>
             {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && services.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No services found</td></tr>
+            {!loading && filteredServices.length === 0 && (
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
+                {search.trim() ? 'No services match your search' : 'No services found'}
+              </td></tr>
             )}
-            {services.map(s => {
+            {filteredServices.map(s => {
               const dueDate = s.nextDueDate || s.expiryDate
               const d = daysUntil(dueDate)
               return (
                 <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                  <td className="px-4 py-3 font-medium">{s.client?.name}</td>
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/clients/${s.clientId}`}
+                      className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-700 dark:hover:text-blue-400"
+                    >
+                      {s.client?.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="text-gray-600 dark:text-gray-300">{s.name}</div>
                     {s.productPackage && (
