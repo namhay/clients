@@ -253,18 +253,66 @@ function expandServicesForInvoiceItems(services: ServiceForInvoice[]): ServiceFo
   return result
 }
 
+function servicesMatch(a: ServiceForInvoice, b: ServiceForInvoice): boolean {
+  return a.clientId === b.clientId
+    && a.typeName === b.typeName
+    && a.name === b.name
+    && (a.productPackage?.name ?? null) === (b.productPackage?.name ?? null)
+}
+
 export function findServiceForInvoiceItem(
   description: string,
   services: ServiceForInvoice[],
 ): ServiceForInvoice | undefined {
-  const setup = description.match(/^Setup fee — (.+)$/i)
+  const normalized = formatInvoiceItemDescription(description)
+  const setup = normalized.match(/^Setup fee — (.+)$/i)
   if (setup) {
     return services.find(s => s.name === setup[1].trim())
   }
   return services.find(s => {
     const label = buildServiceInvoiceLabel(s.typeName, s.name, s.productPackage?.name)
-    return description === label || description.includes(`— ${s.name}`)
+    return normalized === label
   })
+}
+
+function findServiceRecordForInvoiceInput(
+  input: ServiceForInvoice,
+  services: ServiceWithRelations[],
+): ServiceWithRelations | undefined {
+  return services.find(s => servicesMatch(serviceRecordToInvoiceInput(s), input))
+}
+
+/** Map each billable invoice line to the service it renews (one entry per service). */
+async function resolveInvoiceItemsToServices(
+  invoice: InvoiceWithRelations,
+): Promise<{ service: ServiceWithRelations; item: InvoiceItemRow }[]> {
+  const linked = await getServicesForInvoice(invoice.id)
+  const pool = linked.length
+    ? linked
+    : await listServices({ clientId: invoice.clientId })
+  const inputs = pool.map(serviceRecordToInvoiceInput)
+  const byIndex = linked.length ? expandServicesForInvoiceItems(inputs) : []
+
+  const result: { service: ServiceWithRelations; item: InvoiceItemRow }[] = []
+  const seen = new Set<string>()
+
+  invoice.items.forEach((item, index) => {
+    if (isSetupFeeInvoiceItem(item.description)) return
+
+    const matchedInput =
+      findServiceForInvoiceItem(item.description, inputs)
+      || byIndex[index]
+
+    if (!matchedInput) return
+
+    const service = findServiceRecordForInvoiceInput(matchedInput, pool)
+    if (!service || seen.has(service.id)) return
+
+    seen.add(service.id)
+    result.push({ service, item })
+  })
+
+  return result
 }
 
 function isSetupFeeInvoiceItem(description: string): boolean {
@@ -273,32 +321,8 @@ function isSetupFeeInvoiceItem(description: string): boolean {
 
 /** Resolve unique services billed on an invoice (order link or description match). */
 export async function getInvoiceServices(invoice: InvoiceWithRelations): Promise<ServiceWithRelations[]> {
-  const linked = await getServicesForInvoice(invoice.id)
-  if (linked.length) return linked
-
-  const clientServices = await listServices({ clientId: invoice.clientId })
-  const serviceInputs = clientServices.map(serviceRecordToInvoiceInput)
-  const found = new Map<string, ServiceWithRelations>()
-
-  for (const item of invoice.items) {
-    if (isSetupFeeInvoiceItem(item.description)) continue
-    const match = findServiceForInvoiceItem(item.description, serviceInputs)
-    if (!match) continue
-    const service = clientServices.find(s => (
-      s.name === match.name && s.productType.name === match.typeName
-    ))
-    if (service) found.set(service.id, service)
-  }
-
-  return Array.from(found.values())
-}
-
-function findMainInvoiceItemForService(
-  invoice: InvoiceWithRelations,
-  service: ServiceForInvoice,
-): InvoiceItemRow | undefined {
-  const label = buildServiceInvoiceLabel(service.typeName, service.name, service.productPackage?.name)
-  return invoice.items.find(item => item.description === label)
+  const resolved = await resolveInvoiceItemsToServices(invoice)
+  return resolved.map(({ service }) => service)
 }
 
 /** Extend services on a paid invoice using item period end (or one billing cycle fallback). */
@@ -306,11 +330,9 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
   const invoice = await getInvoiceById(invoiceId)
   if (!invoice) return
 
-  const services = await getInvoiceServices(invoice)
-  for (const service of services) {
-    const input = serviceRecordToInvoiceInput(service)
-    const item = findMainInvoiceItemForService(invoice, input)
-    const extension = item?.periodEnd
+  const pairs = await resolveInvoiceItemsToServices(invoice)
+  for (const { service, item } of pairs) {
+    const extension = item.periodEnd
       ? { expiryDate: item.periodEnd, nextDueDate: item.periodEnd }
       : extendServiceByBillingCycle(service)
     if (!extension) continue
@@ -371,11 +393,9 @@ export async function revertServicesForUnpaidInvoice(invoiceId: string) {
   const invoice = await getInvoiceById(invoiceId)
   if (!invoice) return
 
-  const services = await getInvoiceServices(invoice)
-  for (const service of services) {
-    const input = serviceRecordToInvoiceInput(service)
-    const item = findMainInvoiceItemForService(invoice, input)
-    const reverted = item?.periodStart
+  const pairs = await resolveInvoiceItemsToServices(invoice)
+  for (const { service, item } of pairs) {
+    const reverted = item.periodStart
       ? { expiryDate: item.periodStart, nextDueDate: item.periodStart }
       : revertServiceByBillingCycle(service)
     if (!reverted) continue
