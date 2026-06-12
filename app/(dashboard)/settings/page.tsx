@@ -95,10 +95,12 @@ export default function SettingsPage() {
     fetch('/api/settings/branding')
       .then(async res => {
         const data = await res.json().catch(() => null)
-        if (!res.ok || !data?.assets) throw new Error(data?.error || 'Failed to load')
+        if (!res.ok || !data?.assets) {
+          throw new Error(data?.error || 'Failed to load branding assets')
+        }
         setBrandingAssets(data.assets)
       })
-      .catch(() => setBrandingError('Could not load branding assets'))
+      .catch((e: Error) => setBrandingError(e.message || 'Could not load branding assets'))
       .finally(() => setBrandingLoading(false))
   }
 

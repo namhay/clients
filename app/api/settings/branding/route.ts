@@ -10,7 +10,14 @@ import {
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json({ assets: getBrandingAssetsInfo() })
+
+  try {
+    const assets = await getBrandingAssetsInfo()
+    return NextResponse.json({ assets })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to load branding assets'
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -34,9 +41,10 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    saveBrandingAsset(key, buffer, file.type)
+    await saveBrandingAsset(key, buffer, file.type)
 
-    return NextResponse.json({ assets: getBrandingAssetsInfo() })
+    const assets = await getBrandingAssetsInfo()
+    return NextResponse.json({ assets })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Upload failed'
     return NextResponse.json({ error: message }, { status: 400 })

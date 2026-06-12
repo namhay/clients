@@ -10,7 +10,7 @@ import { getBrandingAssetSrc } from '@/lib/branding-assets'
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForPdf>>>
 
-export function getPaymentQrSrc() {
+export async function getPaymentQrSrc() {
   return getBrandingAssetSrc('qr')
 }
 
@@ -56,15 +56,20 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
     enrichInvoiceItemsWithPeriods(invoice),
   ])
   const pdfInvoice = toPdfInvoicePayload({ ...invoice, items })
+  const [paymentQrSrc, logoSrc, stampSrc] = await Promise.all([
+    getBrandingAssetSrc('qr'),
+    getBrandingAssetSrc('logo'),
+    getBrandingAssetSrc('stamp'),
+  ])
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,
     company,
     dateFormat,
     timezone,
-    paymentQrSrc: getPaymentQrSrc(),
-    logoSrc: getBrandingAssetSrc('logo'),
-    stampSrc: getBrandingAssetSrc('stamp'),
+    paymentQrSrc,
+    logoSrc,
+    stampSrc,
   })
   const raw = await renderToBuffer(doc as unknown as React.ReactElement)
   const buffer = Buffer.isBuffer(raw) ? raw : Buffer.from(raw as Uint8Array)

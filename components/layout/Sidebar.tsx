@@ -28,7 +28,7 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [signingOut, setSigningOut] = useState(false)
-  const [logoUrl, setLogoUrl] = useState('/api/branding/logo')
+  const [logoUrl, setLogoUrl] = useState('/invoice-logo.png')
   const initials = session?.user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
 
   useEffect(() => {

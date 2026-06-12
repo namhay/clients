@@ -17,7 +17,7 @@ export default function AuthShell({ title, subtitle, children, footer }: AuthShe
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl dark:bg-gray-900 sm:p-8">
         <div className="mb-8 text-center">
           <img
-            src="/api/branding/logo"
+            src="/invoice-logo.png"
             alt="IT SMART"
             className="mx-auto mb-4 h-14 w-auto max-w-[220px] object-contain"
           />

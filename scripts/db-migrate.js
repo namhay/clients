@@ -115,6 +115,17 @@ async function main() {
   `
 
   console.log('✓ Client companyKhmer column ready')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "BrandingAsset" (
+      key TEXT PRIMARY KEY,
+      data TEXT NOT NULL,
+      "mimeType" TEXT NOT NULL,
+      "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+
+  console.log('✓ BrandingAsset table ready')
 }
 
 main().catch(e => {
