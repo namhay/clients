@@ -8,9 +8,9 @@ import { parseServiceInput, serviceFields } from '@/lib/services'
 import {
   expiryWithinDays,
   filterServicesDueForAutoInvoice,
-  filterServicesDueForReminder,
+  filterServicesInReminderWindow,
   getMaxExpiryWindowDays,
-  getReminderExpiryBounds,
+  listServicesForReminderDisplay,
 } from '@/lib/reminders'
 
 export async function GET(req: NextRequest) {
@@ -51,21 +51,26 @@ export async function GET(req: NextRequest) {
 
   if (usePerTypeFilter) {
     if (dueForReminder || expiringSoon) {
-      const bounds = await getReminderExpiryBounds()
-      filters.expiryDateLte = bounds.lte
-      if (bounds.gte) filters.expiryDateGte = bounds.gte
-    } else {
-      const maxDays = await getMaxExpiryWindowDays()
-      filters.expiryDateLte = expiryWithinDays(maxDays)
+      let services = await listServicesForReminderDisplay()
+      if (productTypeId) {
+        services = services.filter(s => s.productTypeId === productTypeId)
+      } else if (type) {
+        const slug = type.toUpperCase()
+        services = services.filter(s => s.productType?.slug === slug)
+      }
+      if (clientId) {
+        services = services.filter(s => s.clientId === clientId)
+      }
+      services = filterServicesInReminderWindow(services)
+      return NextResponse.json(services)
     }
+
+    filters.expiryDateLte = expiryWithinDays(await getMaxExpiryWindowDays())
     filters.status = 'ACTIVE'
   }
-
   let services = await listServices(filters)
 
-  if (dueForReminder || expiringSoon) {
-    services = filterServicesDueForReminder(services)
-  } else if (dueForAutoInvoice) {
+  if (dueForAutoInvoice) {
     services = filterServicesDueForAutoInvoice(services)
   }
 

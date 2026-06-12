@@ -1,11 +1,10 @@
 import { getSql } from '@/lib/db'
 import { listInvoiceSummaries } from '@/lib/db/invoices'
-import { listServices } from '@/lib/db/services'
 import { countOrders } from '@/lib/db/orders'
 import { countClients } from '@/lib/db/clients'
 import {
-  filterServicesDueForReminder,
-  getReminderExpiryBounds,
+  filterServicesInReminderWindow,
+  listServicesForReminderDisplay,
 } from '@/lib/reminders'
 
 export type FinancialSummary = {
@@ -185,8 +184,6 @@ export async function getTopClientsByRevenue(limit = 5): Promise<TopClientRow[]>
 }
 
 export async function getDashboardData() {
-  const bounds = await getReminderExpiryBounds()
-
   const [
     totalClients,
     financial,
@@ -203,15 +200,12 @@ export async function getDashboardData() {
     getServiceStatusCounts(),
     listInvoiceSummaries('recent', 6),
     listInvoiceSummaries('open', 5),
-    listServices({
-      expiryDateGte: bounds.gte,
-      expiryDateLte: bounds.lte,
-      status: 'ACTIVE',
-    }),
+    listServicesForReminderDisplay(),
     countOrders(),
   ])
 
-  const expiringList = filterServicesDueForReminder(candidateServices).slice(0, 6)
+  const dueForReminder = filterServicesInReminderWindow(candidateServices)
+  const expiringList = dueForReminder.slice(0, 6)
 
   return {
     totalClients,
@@ -225,7 +219,7 @@ export async function getDashboardData() {
     revenueThisMonth: revenueThisMonth.revenue,
     paymentsThisMonth: revenueThisMonth.count,
     totalOrders: orders,
-    expiringServices: expiringList.length,
+    expiringServices: dueForReminder.length,
     recentInvoices,
     openInvoices,
     expiringList,

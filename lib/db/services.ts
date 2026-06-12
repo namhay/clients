@@ -187,14 +187,30 @@ export type ServiceFilters = {
   expiryDateGte?: Date
   expiryDateLte?: Date
   status?: string
+  statuses?: string[]
 }
 
 export async function listServices(filters: ServiceFilters = {}): Promise<ServiceWithRelations[]> {
   const sql = getSql()
-  const { productTypeId, productTypeSlug, clientId, expiryDateGte, expiryDateLte, status } = filters
+  const { productTypeId, productTypeSlug, clientId, expiryDateGte, expiryDateLte, status, statuses } = filters
 
   let rows
-  if (productTypeId && clientId && expiryDateLte && status) {
+  if (expiryDateLte && statuses?.length) {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      WHERE s."expiryDate" <= ${expiryDateLte}
+        AND s.status = ANY(${statuses})
+      ORDER BY s."expiryDate" ASC
+    `
+  } else if (expiryDateGte && expiryDateLte && statuses?.length) {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      WHERE s."expiryDate" >= ${expiryDateGte}
+        AND s."expiryDate" <= ${expiryDateLte}
+        AND s.status = ANY(${statuses})
+      ORDER BY s."expiryDate" ASC
+    `
+  } else if (productTypeId && clientId && expiryDateLte && status) {
     rows = await sql`
       SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
       WHERE s."productTypeId" = ${productTypeId} AND s."clientId" = ${clientId}
