@@ -3,7 +3,7 @@ import { renderToBuffer } from '@react-pdf/renderer'
 import InvoicePDF from '@/components/invoices/InvoicePDF'
 import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
 import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
-import { registerInvoiceFonts } from '@/lib/invoice-fonts'
+import { registerInvoiceFontsForPdf } from '@/lib/invoice-fonts'
 import { getInvoiceForPdf } from '@/lib/db/invoices'
 import { enrichInvoiceItemsWithPeriods } from '@/lib/invoices'
 import { getBrandingAssetSrc } from '@/lib/branding-assets'
@@ -45,7 +45,7 @@ export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
 }
 
 export async function generateInvoicePdfBuffer(invoiceId: string) {
-  registerInvoiceFonts()
+  registerInvoiceFontsForPdf()
 
   const invoice = await getInvoiceForPdf(invoiceId)
   if (!invoice) throw new Error('Invoice not found')

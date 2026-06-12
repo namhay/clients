@@ -4,8 +4,16 @@ const nextConfig = {
   poweredByHeader: false,
   compress: true,
   experimental: {
-    serverComponentsExternalPackages: ['bcryptjs', '@react-pdf/renderer'],
+    serverComponentsExternalPackages: ['bcryptjs', '@react-pdf/renderer', 'sharp'],
     optimizePackageImports: ['sonner'],
+    outputFileTracingIncludes: {
+      '/api/invoices/[id]/pdf': [
+        './public/fonts/**/*',
+        './public/invoice-logo.png',
+        './public/invoice-stamp.png',
+        './public/aba-qr.png',
+      ],
+    },
   },
 }
 

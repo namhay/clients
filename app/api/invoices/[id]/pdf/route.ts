@@ -23,7 +23,10 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         'Cache-Control': 'private, no-cache',
       },
     })
-  } catch {
-    return NextResponse.json({ error: 'Invoice not found' }, { status: 404 })
+  } catch (e) {
+    console.error('Invoice PDF generation failed:', e)
+    const message = e instanceof Error ? e.message : 'PDF generation failed'
+    const status = message === 'Invoice not found' ? 404 : 500
+    return NextResponse.json({ error: message }, { status })
   }
 }

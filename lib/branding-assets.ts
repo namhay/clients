@@ -1,7 +1,6 @@
 import fs from 'fs'
-import os from 'os'
 import path from 'path'
-import { pathToFileURL } from 'url'
+import { getAppOrigin } from '@/lib/app-origin'
 import {
   getBrandingAssetFromDb,
   listBrandingAssetsFromDb,
@@ -46,16 +45,40 @@ function mimeFromPath(filePath: string, fallbackMime?: string): string {
   return MIME_BY_EXT[ext] || 'image/jpeg'
 }
 
+function extToMime(ext: string): string {
+  return MIME_BY_EXT[ext.toLowerCase()] || 'image/png'
+}
+
 async function preparePdfImageBuffer(
   buffer: Buffer,
   mimeType: string,
-): Promise<{ buffer: Buffer; ext: string }> {
+): Promise<{ buffer: Buffer; mimeType: string }> {
   if (mimeType === 'image/svg+xml') {
-    const sharp = (await import('sharp')).default
-    const png = await sharp(buffer, { density: 200 }).png().toBuffer()
-    return { buffer: png, ext: '.png' }
+    try {
+      const sharp = (await import('sharp')).default
+      const png = await sharp(buffer, { density: 200 }).png().toBuffer()
+      return { buffer: png, mimeType: 'image/png' }
+    } catch {
+      throw new Error('Failed to convert SVG branding asset for PDF')
+    }
   }
-  return { buffer, ext: BRANDING_ALLOWED_MIME[mimeType] || '.png' }
+  return { buffer, mimeType }
+}
+
+async function fetchPublicBrandingBuffer(
+  key: BrandingAssetKey,
+): Promise<{ buffer: Buffer; mimeType: string; source: 'public' } | null> {
+  try {
+    const fileName = BRANDING_ASSETS[key].publicDefault
+    const res = await fetch(`${getAppOrigin()}/${fileName}`)
+    if (!res.ok) return null
+    const buffer = Buffer.from(await res.arrayBuffer())
+    const mimeType = res.headers.get('content-type')?.split(';')[0]?.trim()
+      || mimeFromPath(fileName)
+    return { buffer, mimeType, source: 'public' }
+  } catch {
+    return null
+  }
 }
 
 type BrandingMetaEntry = {
@@ -141,30 +164,20 @@ export async function getBrandingAssetBuffer(
     return { buffer: fs.readFileSync(publicPath), mimeType, source: 'public' }
   }
 
-  return null
+  return fetchPublicBrandingBuffer(key)
 }
 
-/** Absolute file:// URL for @react-pdf/renderer on Node. */
+/** Data URL for @react-pdf/renderer (works on Vercel serverless). */
 export async function getBrandingAssetSrc(key: BrandingAssetKey): Promise<string | undefined> {
-  const asset = await getBrandingAssetBuffer(key)
-  if (!asset) return undefined
-
-  if (asset.source === 'public') {
-    const publicPath = getPublicAssetPath(key)
-    if (publicPath) return pathToFileURL(publicPath).href
-  }
-
-  const tmpDir = canUseLocalFilesystem() ? BRANDING_DIR : os.tmpdir()
   try {
-    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true })
-  } catch {
-    // /tmp always exists on Vercel
-  }
+    const asset = await getBrandingAssetBuffer(key)
+    if (!asset) return undefined
 
-  const { buffer, ext } = await preparePdfImageBuffer(asset.buffer, asset.mimeType)
-  const tmpPath = path.join(tmpDir, `branding-${key}${ext}`)
-  fs.writeFileSync(tmpPath, buffer)
-  return pathToFileURL(tmpPath).href
+    const { buffer, mimeType } = await preparePdfImageBuffer(asset.buffer, asset.mimeType)
+    return `data:${mimeType};base64,${buffer.toString('base64')}`
+  } catch {
+    return undefined
+  }
 }
 
 export async function getBrandingAssetPublicUrl(key: BrandingAssetKey): Promise<string> {
