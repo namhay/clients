@@ -126,6 +126,27 @@ async function main() {
   `
 
   console.log('✓ BrandingAsset table ready')
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS "InvoicePayment" (
+      id TEXT PRIMARY KEY,
+      "invoiceId" TEXT NOT NULL REFERENCES "Invoice"(id) ON DELETE CASCADE,
+      amount DOUBLE PRECISION NOT NULL,
+      "paymentMethod" TEXT NOT NULL,
+      "paidAt" TIMESTAMPTZ NOT NULL,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `
+  await sql`
+    CREATE INDEX IF NOT EXISTS "InvoicePayment_invoiceId_idx"
+    ON "InvoicePayment" ("invoiceId")
+  `
+  await sql`
+    CREATE INDEX IF NOT EXISTS "InvoicePayment_paidAt_idx"
+    ON "InvoicePayment" ("paidAt")
+  `
+
+  console.log('✓ InvoicePayment table ready')
 }
 
 main().catch(e => {

@@ -10,6 +10,7 @@ import {
   type RevenuePeriod,
   type RevenuePeriodSummary,
 } from '@/lib/revenue-periods'
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 
@@ -69,7 +70,7 @@ export default function TransactionsPage() {
 
   const downloadPDF = async (inv: TransactionRow) => {
     try {
-      const res = await fetch(`/api/invoices/${inv.id}/pdf`)
+      const res = await fetch(`/api/invoices/${inv.invoiceId || inv.id}/pdf`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
         return toast.error(err.error || 'Failed to generate PDF')
@@ -107,7 +108,7 @@ export default function TransactionsPage() {
         <div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Transactions</h1>
           <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-            Payment history from invoices marked as paid
+            Payment history including partial and full invoice payments
           </p>
         </div>
         <div className="text-right">
@@ -190,6 +191,7 @@ export default function TransactionsPage() {
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Paid Date</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Invoice #</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Client</th>
+              <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Method</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Amount</th>
               <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400">Invoice Date</th>
               <th className="px-4 py-2.5" />
@@ -198,12 +200,12 @@ export default function TransactionsPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td>
               </tr>
             )}
             {!loading && transactions.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
+                <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   {periodFilter === 'all'
                     ? 'No transactions yet. Mark an invoice as paid to record a payment here.'
                     : `No payments in ${REVENUE_PERIOD_LABELS[periodFilter].toLowerCase()}.`}
@@ -224,7 +226,12 @@ export default function TransactionsPage() {
                       {tx.client?.name || '—'}
                     </Link>
                   </td>
-                  <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.total)}</td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                    {tx.paymentMethod
+                      ? PAYMENT_METHOD_LABELS[tx.paymentMethod as PaymentMethod]
+                      : '—'}
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.amount ?? tx.total)}</td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(tx.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-1">

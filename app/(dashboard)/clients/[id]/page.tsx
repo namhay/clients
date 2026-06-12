@@ -9,11 +9,13 @@ import { formatCurrency, daysUntil } from '@/lib/utils'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { toast } from '@/lib/toast'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
 const InvoiceFormModal = dynamic(() => import('@/components/invoices/InvoiceFormModal'), { ssr: false })
+const RecordPaymentModal = dynamic(() => import('@/components/invoices/RecordPaymentModal'), { ssr: false })
 const TransactionEditModal = dynamic(
   () => import('@/components/transactions/TransactionEditModal'),
   { ssr: false },
@@ -47,6 +49,18 @@ export default function ClientProfilePage() {
   const [editService, setEditService] = useState<any>(null)
   const [editInvoice, setEditInvoice] = useState<any>(null)
   const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null)
+  const [transactions, setTransactions] = useState<TransactionRow[]>([])
+
+  const loadTransactions = async () => {
+    const res = await fetch(`/api/transactions?clientId=${id}&page=1&pageSize=100`)
+    if (!res.ok) {
+      setTransactions([])
+      return
+    }
+    const data = await res.json()
+    setTransactions(data.items || [])
+  }
 
   const load = async () => {
     setLoading(true)
@@ -70,6 +84,7 @@ export default function ClientProfilePage() {
       notes: data.notes || '',
     })
     setLoading(false)
+    loadTransactions()
   }
 
   const loadTelegramConnect = async () => {
@@ -163,20 +178,8 @@ export default function ClientProfilePage() {
     load()
   }
 
-  const markPaid = async (invoiceId: string) => {
-    try {
-      const res = await fetch(`/api/invoices/${invoiceId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID' }),
-      })
-      const result = await res.json().catch(() => ({}))
-      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as paid')
-      toast.success('Invoice marked as paid')
-      load()
-    } catch {
-      toast.error('Failed to mark invoice as paid')
-    }
+  const openRecordPayment = (inv: { id: string; invoiceNo: string; total: number; status?: string }) => {
+    setPaymentInvoice(inv)
   }
 
   const markUnpaid = async (inv: { id: string; invoiceNo: string }) => {
@@ -249,12 +252,6 @@ export default function ClientProfilePage() {
   const unpaidTotal = unpaidInvoices.reduce((sum: number, i: any) => sum + i.total, 0)
   const paidTotal = paidInvoices.reduce((sum: number, i: any) => sum + i.total, 0)
   const invoicedTotal = client.invoices?.reduce((sum: number, i: any) => sum + i.total, 0) || 0
-  const transactions = [...paidInvoices].sort((a: any, b: any) => {
-    const aDate = new Date(a.paidAt || a.updatedAt).getTime()
-    const bDate = new Date(b.paidAt || b.updatedAt).getTime()
-    return bDate - aDate
-  })
-
   return (
     <div className="page-content">
       <div className="mb-4">
@@ -457,7 +454,14 @@ export default function ClientProfilePage() {
             {client.invoices?.map((inv: any) => (
               <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{inv.invoiceNo}</td>
-                <td className="px-4 py-3 font-medium">{formatCurrency(inv.total)}</td>
+                <td className="px-4 py-3 font-medium">
+                  <div>{formatCurrency(inv.total)}</div>
+                  {inv.amountPaid > 0 && inv.status !== 'PAID' && (
+                    <div className="text-xs text-amber-700 dark:text-amber-300">
+                      Paid {formatCurrency(inv.amountPaid)} · {formatCurrency(inv.total - inv.amountPaid)} due
+                    </div>
+                  )}
+                </td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.createdAt)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.dueDate)}</td>
                 <td className="px-4 py-3">
@@ -467,7 +471,7 @@ export default function ClientProfilePage() {
                   <div className="flex gap-1 flex-wrap">
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => setEditInvoice(inv)}>Edit</button>
                     {inv.status !== 'PAID' && (
-                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openRecordPayment(inv)}>Pay</button>
                     )}
                     {inv.status === 'PAID' && (
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
@@ -504,13 +508,14 @@ export default function ClientProfilePage() {
       <div className="card mb-6">
         <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Transactions</h2>
-          <span className="text-xs text-gray-400 dark:text-gray-500">{transactions.length} paid</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500">{transactions.length} payment{transactions.length === 1 ? '' : 's'}</span>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Paid Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice #</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Method</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoice Date</th>
               <th className="px-4 py-2.5" />
@@ -518,21 +523,30 @@ export default function ClientProfilePage() {
           </thead>
           <tbody>
             {!transactions.length && (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No payments recorded yet</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No payments recorded yet</td></tr>
             )}
             {transactions.map((tx: any) => (
               <tr key={tx.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{formatDate(tx.paidAt || tx.updatedAt)}</td>
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{tx.invoiceNo}</td>
-                <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.total)}</td>
+                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                  {tx.paymentMethod
+                    ? PAYMENT_METHOD_LABELS[tx.paymentMethod as PaymentMethod]
+                    : '—'}
+                </td>
+                <td className="px-4 py-3 font-semibold text-green-700 dark:text-green-400">{formatCurrency(tx.amount ?? tx.total)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(tx.createdAt)}</td>
                 <td className="px-4 py-3">
                   <button
                     className="btn-secondary py-1 px-2 text-xs"
                     onClick={() => setEditTransaction({
                       id: tx.id,
+                      invoiceId: tx.invoiceId,
                       invoiceNo: tx.invoiceNo,
-                      total: tx.total,
+                      amount: tx.amount,
+                      total: tx.amount ?? tx.total,
+                      paymentMethod: tx.paymentMethod,
+                      isLegacy: tx.isLegacy,
                       createdAt: tx.createdAt,
                       paidAt: tx.paidAt,
                       updatedAt: tx.updatedAt,
@@ -595,6 +609,13 @@ export default function ClientProfilePage() {
         invoice={editInvoice}
         defaultClientId={client.id}
         lockClient
+      />
+
+      <RecordPaymentModal
+        open={Boolean(paymentInvoice)}
+        invoice={paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
+        onSaved={load}
       />
 
       <TransactionEditModal

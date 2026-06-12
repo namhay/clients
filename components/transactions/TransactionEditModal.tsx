@@ -2,18 +2,23 @@
 
 import { useEffect, useState } from 'react'
 import { toPaidDateInput } from '@/lib/invoice-paid-date'
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/lib/payment-methods'
 import { toast } from '@/lib/toast'
 import { formatCurrency } from '@/lib/utils'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 
 export type TransactionRow = {
   id: string
-  clientId?: string
+  invoiceId?: string
   invoiceNo: string
+  amount?: number
   total: number
+  paymentMethod?: string | null
   createdAt: string
   paidAt?: string | null
   updatedAt?: string
+  clientId?: string
+  isLegacy?: boolean
   client?: { name: string; email?: string | null }
 }
 
@@ -27,11 +32,13 @@ type Props = {
 export default function TransactionEditModal({ open, onClose, onSaved, transaction }: Props) {
   const { formatDate } = useAppSettings()
   const [paidDate, setPaidDate] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('BANK_TRANSFER')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open || !transaction) return
     setPaidDate(toPaidDateInput(transaction.paidAt || transaction.updatedAt))
+    setPaymentMethod(transaction.paymentMethod || 'BANK_TRANSFER')
   }, [open, transaction])
 
   const save = async () => {
@@ -40,18 +47,26 @@ export default function TransactionEditModal({ open, onClose, onSaved, transacti
 
     setSaving(true)
     try {
-      const res = await fetch(`/api/invoices/${transaction.id}`, {
+      const url = transaction.isLegacy
+        ? `/api/invoices/${transaction.invoiceId || transaction.id}`
+        : `/api/invoice-payments/${transaction.id}`
+
+      const body = transaction.isLegacy
+        ? { paidAt: paidDate }
+        : { paidAt: paidDate, paymentMethod }
+
+      const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paidAt: paidDate }),
+        body: JSON.stringify(body),
       })
       const result = await res.json().catch(() => ({}))
-      if (!res.ok) return toast.error(result.error || 'Failed to update paid date')
-      toast.success('Payment date updated')
+      if (!res.ok) return toast.error(result.error || 'Failed to update payment')
+      toast.success('Payment updated')
       onClose()
       onSaved()
     } catch {
-      toast.error('Failed to update paid date')
+      toast.error('Failed to update payment')
     } finally {
       setSaving(false)
     }
@@ -60,12 +75,13 @@ export default function TransactionEditModal({ open, onClose, onSaved, transacti
   if (!open || !transaction) return null
 
   const paidAt = transaction.paidAt || transaction.updatedAt
+  const amount = transaction.amount ?? transaction.total
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-md shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-base font-semibold">Edit Payment Date</h2>
+          <h2 className="text-base font-semibold">Edit Payment</h2>
           <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
         </div>
         <div className="p-5 space-y-4">
@@ -82,13 +98,23 @@ export default function TransactionEditModal({ open, onClose, onSaved, transacti
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Amount</label>
-              <input className="input bg-gray-50 dark:bg-gray-800/50" readOnly value={formatCurrency(transaction.total)} />
+              <input className="input bg-gray-50 dark:bg-gray-800/50" readOnly value={formatCurrency(amount)} />
             </div>
             <div>
               <label className="label">Invoice Date</label>
               <input className="input bg-gray-50 dark:bg-gray-800/50" readOnly value={formatDate(transaction.createdAt)} />
             </div>
           </div>
+          {!transaction.isLegacy && (
+            <div>
+              <label className="label">Payment Method</label>
+              <select className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                {PAYMENT_METHODS.map(method => (
+                  <option key={method} value={method}>{PAYMENT_METHOD_LABELS[method]}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className="label">Paid Date *</label>
             <input

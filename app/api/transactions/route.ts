@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { getTransactionSummary, listTransactions, listTransactionsPaginated } from '@/lib/db/invoices'
+import {
+  getPaymentTransactionSummary,
+  listPaymentTransactions,
+  listPaymentTransactionsPaginated,
+} from '@/lib/db/invoice-payments'
 import { isPaginatedRequest, parsePageParams } from '@/lib/pagination'
 import type { RevenuePeriod } from '@/lib/revenue-periods'
 import { DEFAULT_TIMEZONE } from '@/lib/date-format'
@@ -21,13 +25,43 @@ export async function GET(req: NextRequest) {
 
   if (isPaginatedRequest(searchParams)) {
     const { page, pageSize } = parsePageParams(searchParams)
+    const clientId = searchParams.get('clientId') || undefined
     const [result, stats] = await Promise.all([
-      listTransactionsPaginated(page, pageSize, period, timezone),
-      getTransactionSummary(timezone),
+      listPaymentTransactionsPaginated(page, pageSize, period, timezone, clientId),
+      getPaymentTransactionSummary(timezone),
     ])
-    return NextResponse.json({ ...result, summary: stats.summary, allTime: stats.allTime })
+    return NextResponse.json({
+      ...result,
+      items: result.items.map(tx => ({
+        id: tx.id,
+        invoiceId: tx.invoiceId,
+        invoiceNo: tx.invoiceNo,
+        clientId: tx.clientId,
+        amount: tx.amount,
+        total: tx.amount,
+        paymentMethod: tx.paymentMethod,
+        paidAt: tx.paidAt.toISOString(),
+        createdAt: tx.invoiceCreatedAt.toISOString(),
+        isLegacy: tx.isLegacy,
+        client: tx.client,
+      })),
+      summary: stats.summary,
+      allTime: stats.allTime,
+    })
   }
 
-  const transactions = await listTransactions()
-  return NextResponse.json(transactions)
+  const transactions = await listPaymentTransactions()
+  return NextResponse.json(transactions.map(tx => ({
+    id: tx.id,
+    invoiceId: tx.invoiceId,
+    invoiceNo: tx.invoiceNo,
+    clientId: tx.clientId,
+    amount: tx.amount,
+    total: tx.amount,
+    paymentMethod: tx.paymentMethod,
+    paidAt: tx.paidAt.toISOString(),
+    createdAt: tx.invoiceCreatedAt.toISOString(),
+    isLegacy: tx.isLegacy,
+    client: tx.client,
+  })))
 }

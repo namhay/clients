@@ -644,6 +644,7 @@ export async function patchInvoice(
 
 export async function deleteInvoice(id: string) {
   const sql = getSql()
+  await sql`UPDATE "Order" SET "invoiceId" = NULL WHERE "invoiceId" = ${id}`
   await sql`DELETE FROM "InvoiceItem" WHERE "invoiceId" = ${id}`
   await sql`DELETE FROM "Invoice" WHERE id = ${id}`
 }

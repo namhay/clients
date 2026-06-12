@@ -165,7 +165,12 @@ export async function updateInvoice(id: string, data: InvoiceInput) {
     await renewServicesForPaidInvoice(id)
     await notifyPaymentReceivedTelegram(id)
   } else if (data.status !== 'PAID' && existing.status === 'PAID') {
+    const { deletePaymentsForInvoice } = await import('@/lib/db/invoice-payments')
+    await deletePaymentsForInvoice(id)
     await revertServicesForUnpaidInvoice(id)
+  } else if (data.status !== 'PAID') {
+    const { deletePaymentsForInvoice } = await import('@/lib/db/invoice-payments')
+    await deletePaymentsForInvoice(id)
   }
   return invoice
 }

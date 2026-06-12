@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { deleteInvoice, getInvoiceById, patchInvoice } from '@/lib/db/invoices'
 import { parsePaidAtDate } from '@/lib/invoice-paid-date'
+import { deletePaymentsForInvoice } from '@/lib/db/invoice-payments'
 import {
   notifyPaymentReceivedTelegram,
   parseInvoiceInput,
@@ -54,7 +55,10 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       await renewServicesForPaidInvoice(params.id)
       await notifyPaymentReceivedTelegram(params.id)
     } else if (body.status && body.status !== 'PAID' && existing.status === 'PAID') {
+      await deletePaymentsForInvoice(params.id)
       await revertServicesForUnpaidInvoice(params.id)
+    } else if (body.status && body.status !== 'PAID') {
+      await deletePaymentsForInvoice(params.id)
     }
     return NextResponse.json(invoice)
   } catch (e) {
@@ -66,6 +70,19 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  await deleteInvoice(params.id)
-  return NextResponse.json({ success: true })
+
+  try {
+    const existing = await getInvoiceById(params.id)
+    if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+    if (existing.status === 'PAID') {
+      await revertServicesForUnpaidInvoice(params.id)
+    }
+    await deletePaymentsForInvoice(params.id)
+    await deleteInvoice(params.id)
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to delete invoice'
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 }

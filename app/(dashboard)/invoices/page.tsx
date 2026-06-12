@@ -1,4 +1,5 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
@@ -6,6 +7,8 @@ import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
+
+const RecordPaymentModal = dynamic(() => import('@/components/invoices/RecordPaymentModal'), { ssr: false })
 
 const statusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -33,6 +36,7 @@ export default function InvoicesPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
+  const [paymentInvoice, setPaymentInvoice] = useState<any>(null)
 
   const extraParams = useMemo((): Record<string, string> => (
     statusFilter ? { status: statusFilter } : {}
@@ -145,20 +149,8 @@ export default function InvoicesPage() {
     }
   }
 
-  const markPaid = async (id: string) => {
-    try {
-      const res = await fetch(`/api/invoices/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'PAID' }),
-      })
-      const result = await res.json().catch(() => ({}))
-      if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as paid')
-      toast.success('Invoice marked as paid')
-      reload()
-    } catch {
-      toast.error('Failed to mark invoice as paid')
-    }
+  const openRecordPayment = (inv: { id: string; invoiceNo: string; total: number }) => {
+    setPaymentInvoice(inv)
   }
 
   const markUnpaid = async (inv: { id: string; invoiceNo: string }) => {
@@ -209,6 +201,22 @@ export default function InvoicesPage() {
     const data = await res.json().catch(() => ({}))
     if (!res.ok) return toast.error(data.error || 'Telegram send failed')
     toast.success(`Invoice PDF sent to ${inv.client?.name} via Telegram`)
+  }
+
+  const deleteInvoiceRow = async (inv: { id: string; invoiceNo: string; status: string }) => {
+    const message = inv.status === 'PAID'
+      ? `Delete ${inv.invoiceNo}? This removes the payment record and rolls back linked service dates.`
+      : `Delete ${inv.invoiceNo}? This cannot be undone.`
+    if (!await toast.confirm(message)) return
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to delete invoice')
+      toast.success('Invoice deleted')
+      reload()
+    } catch {
+      toast.error('Failed to delete invoice')
+    }
   }
 
   return (
@@ -283,7 +291,7 @@ export default function InvoicesPage() {
                   <div className="flex gap-1 flex-wrap">
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(inv)}>Edit</button>
                     {inv.status !== 'PAID' && (
-                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markPaid(inv.id)}>✓ Paid</button>
+                      <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openRecordPayment(inv)}>Pay</button>
                     )}
                     {inv.status === 'PAID' && (
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
@@ -309,6 +317,7 @@ export default function InvoicesPage() {
                         <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
                       </svg>
                     </button>
+                    <button className="btn-danger py-1 px-2 text-xs" onClick={() => deleteInvoiceRow(inv)}>Delete</button>
                   </div>
                 </td>
               </tr>
@@ -398,6 +407,13 @@ export default function InvoicesPage() {
           </div>
         </div>
       )}
+
+      <RecordPaymentModal
+        open={Boolean(paymentInvoice)}
+        invoice={paymentInvoice}
+        onClose={() => setPaymentInvoice(null)}
+        onSaved={reload}
+      />
     </div>
   )
 }
