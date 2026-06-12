@@ -19,10 +19,43 @@ export type BrandingAssetKey = keyof typeof BRANDING_ASSETS
 const BRANDING_DIR = path.join(process.cwd(), 'data', 'branding')
 const META_FILE = path.join(BRANDING_DIR, 'meta.json')
 
-const ALLOWED_MIME: Record<string, string> = {
+export const BRANDING_ALLOWED_MIME: Record<string, string> = {
   'image/png': '.png',
   'image/jpeg': '.jpg',
   'image/webp': '.webp',
+  'image/svg+xml': '.svg',
+}
+
+const MIME_BY_EXT: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+}
+
+export function resolveBrandingMimeType(fileName: string, fileType: string): string | null {
+  if (fileType in BRANDING_ALLOWED_MIME) return fileType
+  const ext = path.extname(fileName).toLowerCase()
+  return MIME_BY_EXT[ext] ?? null
+}
+
+function mimeFromPath(filePath: string, fallbackMime?: string): string {
+  if (fallbackMime) return fallbackMime
+  const ext = path.extname(filePath).toLowerCase()
+  return MIME_BY_EXT[ext] || 'image/jpeg'
+}
+
+async function preparePdfImageBuffer(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<{ buffer: Buffer; ext: string }> {
+  if (mimeType === 'image/svg+xml') {
+    const sharp = (await import('sharp')).default
+    const png = await sharp(buffer, { density: 200 }).png().toBuffer()
+    return { buffer: png, ext: '.png' }
+  }
+  return { buffer, ext: BRANDING_ALLOWED_MIME[mimeType] || '.png' }
 }
 
 type BrandingMetaEntry = {
@@ -98,16 +131,13 @@ export async function getBrandingAssetBuffer(
   const localPath = getLocalCustomPath(key)
   if (localPath) {
     const meta = readMetaSafe()
-    const ext = path.extname(localPath).toLowerCase()
-    const mimeType = meta[key]?.mimeType
-      || (ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg')
+    const mimeType = mimeFromPath(localPath, meta[key]?.mimeType)
     return { buffer: fs.readFileSync(localPath), mimeType, source: 'local' }
   }
 
   const publicPath = getPublicAssetPath(key)
   if (publicPath) {
-    const ext = path.extname(publicPath).toLowerCase()
-    const mimeType = ext === '.png' ? 'image/png' : ext === '.webp' ? 'image/webp' : 'image/jpeg'
+    const mimeType = mimeFromPath(publicPath)
     return { buffer: fs.readFileSync(publicPath), mimeType, source: 'public' }
   }
 
@@ -131,9 +161,9 @@ export async function getBrandingAssetSrc(key: BrandingAssetKey): Promise<string
     // /tmp always exists on Vercel
   }
 
-  const ext = ALLOWED_MIME[asset.mimeType] || '.png'
+  const { buffer, ext } = await preparePdfImageBuffer(asset.buffer, asset.mimeType)
   const tmpPath = path.join(tmpDir, `branding-${key}${ext}`)
-  fs.writeFileSync(tmpPath, asset.buffer)
+  fs.writeFileSync(tmpPath, buffer)
   return pathToFileURL(tmpPath).href
 }
 
@@ -154,8 +184,8 @@ export async function getBrandingAssetPublicUrl(key: BrandingAssetKey): Promise<
 }
 
 export async function saveBrandingAsset(key: BrandingAssetKey, buffer: Buffer, mimeType: string) {
-  const ext = ALLOWED_MIME[mimeType]
-  if (!ext) throw new Error('Unsupported image type. Use PNG, JPEG, or WebP.')
+  const ext = BRANDING_ALLOWED_MIME[mimeType]
+  if (!ext) throw new Error('Unsupported image type. Use PNG, JPEG, WebP, or SVG.')
 
   if (buffer.length > 2 * 1024 * 1024) {
     throw new Error('Image must be 2 MB or smaller.')

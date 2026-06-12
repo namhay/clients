@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import {
+  BRANDING_ALLOWED_MIME,
   getBrandingAssetsInfo,
   parseBrandingAssetKey,
+  resolveBrandingMimeType,
   saveBrandingAsset,
 } from '@/lib/branding-assets'
 
@@ -35,13 +37,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Choose an image file to upload' }, { status: 400 })
     }
 
-    const allowed = ['image/png', 'image/jpeg', 'image/webp']
-    if (!allowed.includes(file.type)) {
-      return NextResponse.json({ error: 'Use PNG, JPEG, or WebP images only' }, { status: 400 })
+    const mimeType = resolveBrandingMimeType(file.name, file.type)
+    if (!mimeType) {
+      const formats = Object.keys(BRANDING_ALLOWED_MIME)
+        .map(type => type.replace('image/', '').toUpperCase())
+        .join(', ')
+      return NextResponse.json({ error: `Use ${formats} images only` }, { status: 400 })
     }
 
     const buffer = Buffer.from(await file.arrayBuffer())
-    await saveBrandingAsset(key, buffer, file.type)
+    await saveBrandingAsset(key, buffer, mimeType)
 
     const assets = await getBrandingAssetsInfo()
     return NextResponse.json({ assets })

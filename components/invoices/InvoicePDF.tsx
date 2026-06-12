@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   tableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 28, alignItems: 'stretch' },
   cell: { padding: 5, borderRight: '0.5pt solid #000', justifyContent: 'center' },
   cellCenter: { alignItems: 'center' },
-  th: { fontSize: 8, textAlign: 'center' },
+  th: { fontSize: 10, textAlign: 'center' },
   td: { fontSize: 9 },
   colNo: { width: COL.no },
   colDesc: { width: COL.desc },

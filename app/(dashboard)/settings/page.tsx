@@ -273,7 +273,7 @@ export default function SettingsPage() {
                     {brandingUploading === asset.key ? 'Uploading...' : 'Replace image'}
                     <input
                       type="file"
-                      accept="image/png,image/jpeg,image/webp"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml,.svg"
                       className="hidden"
                       disabled={brandingUploading !== null}
                       onChange={e => {
