@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'ClientDesk — Hosting & Domain Manager',
   description: 'Manage clients, services, and invoices',
+  icons: {
+    icon: [{ url: '/favicon.ico', type: 'image/x-icon' }],
+    shortcut: ['/favicon.ico'],
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

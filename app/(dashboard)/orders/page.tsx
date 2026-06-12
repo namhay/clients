@@ -2,6 +2,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Pagination from '@/components/Pagination'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { toast } from '@/lib/toast'
 import { formatCurrency } from '@/lib/utils'
@@ -11,18 +12,24 @@ const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'
 export default function OrdersPage() {
   const { formatDate } = useAppSettings()
   const [orders, setOrders] = useState<any[]>([])
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
 
   const load = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/orders')
+      const res = await fetch(`/api/orders?page=${page}`)
       if (!res.ok) {
         setOrders([])
         return
       }
-      setOrders(await res.json())
+      const data = await res.json()
+      setOrders(data.items || [])
+      setTotal(data.total || 0)
+      setTotalPages(data.totalPages || 1)
     } catch {
       setOrders([])
     } finally {
@@ -30,7 +37,7 @@ export default function OrdersPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [page])
 
   const viewPDF = (invoiceId: string) => {
     window.open(`/api/invoices/${invoiceId}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
@@ -98,9 +105,6 @@ export default function OrdersPage() {
                   <Link href={`/clients/${order.clientId}`} className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-700 dark:hover:text-blue-400">
                     {order.client?.name}
                   </Link>
-                  {order.client?.email && (
-                    <div className="text-xs text-gray-400 dark:text-gray-500">{order.client.email}</div>
-                  )}
                 </td>
                 <td className="px-4 py-3 font-semibold text-gray-900 dark:text-gray-100 whitespace-nowrap">
                   {formatCurrency(order.totalAmount || 0)}
@@ -134,6 +138,14 @@ export default function OrdersPage() {
             ))}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={25}
+          onPageChange={setPage}
+          loading={loading}
+        />
       </div>
 
       <OrderFormModal

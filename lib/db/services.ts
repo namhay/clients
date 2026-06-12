@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
 import type { ServiceInput } from '@/lib/services'
 
 export type ServiceRow = ServiceInput & {
@@ -374,4 +375,116 @@ export async function countServicesByProductType(productTypeId: string): Promise
     SELECT COUNT(*)::int AS count FROM "Service" WHERE "productTypeId" = ${productTypeId}
   `
   return Number((rows[0] as { count: number }).count)
+}
+
+export type ServiceTableFilters = {
+  productTypeId?: string
+  search?: string
+}
+
+function serviceTableSearchPattern(search: string) {
+  return `%${search.trim()}%`
+}
+
+async function countServicesForTable(filters: ServiceTableFilters): Promise<number> {
+  const sql = getSql()
+  const { productTypeId, search } = filters
+  const pattern = search?.trim() ? serviceTableSearchPattern(search) : null
+
+  if (productTypeId && pattern) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count
+      FROM "Service" s
+      JOIN "Client" c ON c.id = s."clientId"
+      JOIN "ProductType" pt ON pt.id = s."productTypeId"
+      LEFT JOIN "ProductPackage" pp ON pp.id = s."productPackageId"
+      WHERE s."productTypeId" = ${productTypeId}
+        AND (
+          c.name ILIKE ${pattern} OR s.name ILIKE ${pattern}
+          OR pt.name ILIKE ${pattern} OR COALESCE(pp.name, '') ILIKE ${pattern}
+          OR s.status::text ILIKE ${pattern}
+        )
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  if (productTypeId) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count FROM "Service" WHERE "productTypeId" = ${productTypeId}
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  if (pattern) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count
+      FROM "Service" s
+      JOIN "Client" c ON c.id = s."clientId"
+      JOIN "ProductType" pt ON pt.id = s."productTypeId"
+      LEFT JOIN "ProductPackage" pp ON pp.id = s."productPackageId"
+      WHERE c.name ILIKE ${pattern} OR s.name ILIKE ${pattern}
+        OR pt.name ILIKE ${pattern} OR COALESCE(pp.name, '') ILIKE ${pattern}
+        OR s.status::text ILIKE ${pattern}
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM "Service"`
+  return Number((rows[0] as { count: number }).count)
+}
+
+export async function listServicesPaginated(
+  filters: ServiceTableFilters,
+  page = 1,
+  pageSize = 25,
+): Promise<PaginatedResult<ServiceWithRelations>> {
+  const sql = getSql()
+  const offset = (page - 1) * pageSize
+  const { productTypeId, search } = filters
+  const pattern = search?.trim() ? serviceTableSearchPattern(search) : null
+
+  let rows
+  if (productTypeId && pattern) {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      WHERE s."productTypeId" = ${productTypeId}
+        AND (
+          c.name ILIKE ${pattern} OR s.name ILIKE ${pattern}
+          OR pt.name ILIKE ${pattern} OR COALESCE(pp.name, '') ILIKE ${pattern}
+          OR s.status::text ILIKE ${pattern}
+        )
+      ORDER BY s."expiryDate" ASC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else if (productTypeId) {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      WHERE s."productTypeId" = ${productTypeId}
+      ORDER BY s."expiryDate" ASC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else if (pattern) {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      WHERE c.name ILIKE ${pattern} OR s.name ILIKE ${pattern}
+        OR pt.name ILIKE ${pattern} OR COALESCE(pp.name, '') ILIKE ${pattern}
+        OR s.status::text ILIKE ${pattern}
+      ORDER BY s."expiryDate" ASC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else {
+    rows = await sql`
+      SELECT ${sql.unsafe(SERVICE_SELECT)} ${sql.unsafe(SERVICE_JOIN)}
+      ORDER BY s."expiryDate" ASC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  }
+
+  const total = await countServicesForTable(filters)
+  return toPaginatedResult(
+    rows.map(r => mapServiceWithRelations(r as Record<string, unknown>)),
+    total,
+    page,
+    pageSize,
+  )
 }

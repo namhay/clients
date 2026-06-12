@@ -55,6 +55,17 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMessage, setPasswordMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
+  const [brandingAssets, setBrandingAssets] = useState<Array<{
+    key: string
+    label: string
+    url: string
+    hasCustom: boolean
+    updatedAt: string | null
+  }>>([])
+  const [brandingLoading, setBrandingLoading] = useState(true)
+  const [brandingUploading, setBrandingUploading] = useState<string | null>(null)
+  const [brandingMessage, setBrandingMessage] = useState('')
+  const [brandingError, setBrandingError] = useState('')
 
   const applySettings = (data: Record<string, unknown>) => {
     setForm({
@@ -80,6 +91,41 @@ export default function SettingsPage() {
     })
   }
 
+  const loadBranding = () => {
+    fetch('/api/settings/branding')
+      .then(async res => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !data?.assets) throw new Error(data?.error || 'Failed to load')
+        setBrandingAssets(data.assets)
+      })
+      .catch(() => setBrandingError('Could not load branding assets'))
+      .finally(() => setBrandingLoading(false))
+  }
+
+  const uploadBranding = async (key: string, file: File) => {
+    setBrandingUploading(key)
+    setBrandingError('')
+    setBrandingMessage('')
+    try {
+      const formData = new FormData()
+      formData.append('asset', key)
+      formData.append('file', file)
+      const res = await fetch('/api/settings/branding', { method: 'POST', body: formData })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setBrandingError(data.error || 'Upload failed')
+        return
+      }
+      setBrandingAssets(data.assets || [])
+      setBrandingMessage('Branding image updated')
+      setTimeout(() => setBrandingMessage(''), 3000)
+    } catch {
+      setBrandingError('Upload failed')
+    } finally {
+      setBrandingUploading(null)
+    }
+  }
+
   const loadWebhookStatus = () => {
     fetch('/api/telegram/setup-webhook')
       .then(async res => {
@@ -99,6 +145,7 @@ export default function SettingsPage() {
       .catch(() => setError('Could not load settings — values from .env may still save'))
       .finally(() => setLoading(false))
     loadWebhookStatus()
+    loadBranding()
   }, [])
 
   const registerWebhook = async () => {
@@ -195,6 +242,55 @@ export default function SettingsPage() {
     <div className="page-content">
       <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Settings</h1>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="card p-5 lg:col-span-2">
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Branding Assets</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+            Upload logo, stamp, and payment QR code. Changes apply immediately to invoices, login, and the sidebar — no redeploy needed.
+          </p>
+          {brandingLoading ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading assets...</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {brandingAssets.map(asset => (
+                <div key={asset.key} className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                  <div className="mb-3 flex h-24 items-center justify-center rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                    <img
+                      src={asset.url}
+                      alt={asset.label}
+                      className="max-h-20 max-w-full object-contain"
+                    />
+                  </div>
+                  <div className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-100">{asset.label}</div>
+                  <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                    {asset.hasCustom ? 'Custom upload' : 'Default from public folder'}
+                    {asset.updatedAt && (
+                      <> · Updated {new Date(asset.updatedAt).toLocaleString()}</>
+                    )}
+                  </p>
+                  <label className="btn-secondary inline-flex cursor-pointer text-xs">
+                    {brandingUploading === asset.key ? 'Uploading...' : 'Replace image'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="hidden"
+                      disabled={brandingUploading !== null}
+                      onChange={e => {
+                        const file = e.target.files?.[0]
+                        if (file) uploadBranding(asset.key, file)
+                        e.target.value = ''
+                      }}
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
+          )}
+          {(brandingMessage || brandingError) && (
+            <p className={`mt-3 text-sm ${brandingError ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+              {brandingError || brandingMessage}
+            </p>
+          )}
+        </div>
         <div className="card p-5">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Company Information</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Saved to database (local dev also updates .env)</p>

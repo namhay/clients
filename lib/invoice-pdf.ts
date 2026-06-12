@@ -1,6 +1,3 @@
-import fs from 'fs'
-import path from 'path'
-import { pathToFileURL } from 'url'
 import React from 'react'
 import { renderToBuffer } from '@react-pdf/renderer'
 import InvoicePDF from '@/components/invoices/InvoicePDF'
@@ -9,18 +6,12 @@ import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
 import { registerInvoiceFonts } from '@/lib/invoice-fonts'
 import { getInvoiceForPdf } from '@/lib/db/invoices'
 import { enrichInvoiceItemsWithPeriods } from '@/lib/invoices'
+import { getBrandingAssetSrc } from '@/lib/branding-assets'
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForPdf>>>
 
-/** Absolute file:// URL for @react-pdf/renderer on Node (data URIs are unreliable server-side). */
-export function getInvoiceAssetSrc(filename: string): string | undefined {
-  const assetPath = path.join(process.cwd(), 'public', filename)
-  if (!fs.existsSync(assetPath)) return undefined
-  return pathToFileURL(assetPath).href
-}
-
 export function getPaymentQrSrc() {
-  return getInvoiceAssetSrc('aba-qr.png')
+  return getBrandingAssetSrc('qr')
 }
 
 export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
@@ -72,8 +63,8 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
     dateFormat,
     timezone,
     paymentQrSrc: getPaymentQrSrc(),
-    logoSrc: getInvoiceAssetSrc('invoice-logo.png'),
-    stampSrc: getInvoiceAssetSrc('invoice-stamp.png'),
+    logoSrc: getBrandingAssetSrc('logo'),
+    stampSrc: getBrandingAssetSrc('stamp'),
   })
   const raw = await renderToBuffer(doc as unknown as React.ReactElement)
   const buffer = Buffer.isBuffer(raw) ? raw : Buffer.from(raw as Uint8Array)

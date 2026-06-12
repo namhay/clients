@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createService, listServices } from '@/lib/db/services'
+import { createService, listServices, listServicesPaginated } from '@/lib/db/services'
+import { isPaginatedRequest, parsePageParams } from '@/lib/pagination'
 import { createInvoiceForService, sendInvoiceToClient, serviceRecordToInvoiceInput } from '@/lib/invoices'
 import { parseServiceInput, serviceFields } from '@/lib/services'
 import {
@@ -24,6 +25,21 @@ export async function GET(req: NextRequest) {
   const dueForAutoInvoice = searchParams.get('dueForAutoInvoice')
 
   const usePerTypeFilter = Boolean(dueForReminder || dueForAutoInvoice || expiringSoon)
+
+  if (isPaginatedRequest(searchParams) && !usePerTypeFilter && !clientId) {
+    const { page, pageSize } = parsePageParams(searchParams)
+    const search = searchParams.get('search') || ''
+    const result = await listServicesPaginated(
+      {
+        productTypeId: productTypeId || undefined,
+        search,
+      },
+      page,
+      pageSize,
+    )
+    return NextResponse.json(result)
+  }
+
   const filters: Parameters<typeof listServices>[0] = {}
 
   if (productTypeId) {

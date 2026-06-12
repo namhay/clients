@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
 import type { OrderInput, OrderItemInput } from '@/lib/orders'
 
 export type OrderRow = {
@@ -174,6 +175,21 @@ export async function listOrders(): Promise<OrderWithRelations[]> {
   const sql = getSql()
   const rows = await sql`SELECT * FROM "Order" ORDER BY "createdAt" DESC`
   return attachOrderRelations(rows.map(r => mapOrder(r as Record<string, unknown>)))
+}
+
+export async function listOrdersPaginated(
+  page = 1,
+  pageSize = 25,
+): Promise<PaginatedResult<OrderWithRelations>> {
+  const sql = getSql()
+  const offset = (page - 1) * pageSize
+  const [rows, countRows] = await Promise.all([
+    sql`SELECT * FROM "Order" ORDER BY "createdAt" DESC LIMIT ${pageSize} OFFSET ${offset}`,
+    sql`SELECT COUNT(*)::int AS count FROM "Order"`,
+  ])
+  const total = Number((countRows[0] as { count: number }).count)
+  const items = await attachOrderRelations(rows.map(r => mapOrder(r as Record<string, unknown>)))
+  return toPaginatedResult(items, total, page, pageSize)
 }
 
 export async function getOrderById(id: string): Promise<OrderWithRelations | null> {

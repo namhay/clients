@@ -1,9 +1,11 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import Pagination from '@/components/Pagination'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/lib/toast'
+import { usePaginatedList } from '@/lib/use-paginated-list'
 
 const statusColors: Record<string, string> = {
   PAID: 'badge-paid',
@@ -25,26 +27,36 @@ const emptyForm = () => ({
 
 export default function InvoicesPage() {
   const { formatDate } = useAppSettings()
-  const [invoices, setInvoices] = useState<any[]>([])
   const [clients, setClients] = useState<any[]>([])
   const [statusFilter, setStatusFilter] = useState('')
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
 
-  const load = async () => {
-    setLoading(true)
-    const [invs, cls] = await Promise.all([
-      fetch(`/api/invoices${statusFilter ? `?status=${statusFilter}` : ''}`).then(r => r.json()),
-      fetch('/api/clients').then(r => r.json()),
-    ])
-    setInvoices(invs)
-    setClients(cls)
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [statusFilter])
+  const extraParams = useMemo((): Record<string, string> => (
+    statusFilter ? { status: statusFilter } : {}
+  ), [statusFilter])
+
+  const {
+    searchInput,
+    setSearchInput,
+    debouncedSearch,
+    page,
+    setPage,
+    items: invoices,
+    total,
+    totalPages,
+    loading,
+    reload,
+  } = usePaginatedList<any>({
+    endpoint: '/api/invoices',
+    extraParams,
+  })
+
+  useEffect(() => {
+    fetch('/api/clients').then(r => r.json()).then(setClients)
+  }, [])
 
   const updateItem = (i: number, field: string, val: unknown) => {
     setForm(f => {
@@ -125,7 +137,7 @@ export default function InvoicesPage() {
       toast.success(editId ? 'Invoice updated' : 'Invoice created')
       setShowModal(false)
       setEditId(null)
-      load()
+      reload()
     } catch {
       toast.error('Failed to save invoice')
     } finally {
@@ -143,7 +155,7 @@ export default function InvoicesPage() {
       const result = await res.json().catch(() => ({}))
       if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as paid')
       toast.success('Invoice marked as paid')
-      load()
+      reload()
     } catch {
       toast.error('Failed to mark invoice as paid')
     }
@@ -163,7 +175,7 @@ export default function InvoicesPage() {
       const result = await res.json().catch(() => ({}))
       if (!res.ok) return toast.error(result.error || 'Failed to mark invoice as unpaid')
       toast.success('Invoice marked as unpaid')
-      load()
+      reload()
     } catch {
       toast.error('Failed to mark invoice as unpaid')
     }
@@ -210,6 +222,14 @@ export default function InvoicesPage() {
       </div>
 
       <div className="card">
+        <div className="p-3 border-b border-gray-100 dark:border-gray-800">
+          <input
+            className="input max-w-xs"
+            placeholder="Search invoices..."
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+          />
+        </div>
         <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex flex-wrap gap-2">
           {['', 'UNPAID', 'PAID', 'OVERDUE'].map(s => (
             <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? 'bg-blue-700 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'}`}>{s || 'All'}</button>
@@ -227,7 +247,11 @@ export default function InvoicesPage() {
           </tr></thead>
           <tbody>
             {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && invoices.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No invoices found</td></tr>}
+            {!loading && invoices.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
+                {debouncedSearch.trim() ? 'No invoices match your search' : 'No invoices found'}
+              </td></tr>
+            )}
             {invoices.map(inv => (
               <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3 font-semibold text-blue-700 dark:text-blue-300">{inv.invoiceNo}</td>
@@ -250,7 +274,6 @@ export default function InvoicesPage() {
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-400 dark:text-gray-500">{inv.client?.email}</div>
                 </td>
                 <td className="px-4 py-3 font-semibold">{formatCurrency(inv.total)}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatDate(inv.createdAt)}</td>
@@ -292,6 +315,14 @@ export default function InvoicesPage() {
             ))}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={25}
+          onPageChange={setPage}
+          loading={loading}
+        />
       </div>
 
       {showModal && (

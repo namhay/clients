@@ -1,14 +1,14 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Pagination from '@/components/Pagination'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import {
   REVENUE_PERIOD_LABELS,
-  summarizeRevenueByPeriod,
-  transactionInPeriod,
   type RevenuePeriod,
+  type RevenuePeriodSummary,
 } from '@/lib/revenue-periods'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/lib/toast'
@@ -20,9 +20,21 @@ const TransactionEditModal = dynamic(
 
 const PERIOD_CARDS: RevenuePeriod[] = ['today', 'this_week', 'this_month', 'last_month']
 
+const emptySummary = (): RevenuePeriodSummary => ({
+  today: { revenue: 0, count: 0 },
+  thisWeek: { revenue: 0, count: 0 },
+  thisMonth: { revenue: 0, count: 0 },
+  lastMonth: { revenue: 0, count: 0 },
+})
+
 export default function TransactionsPage() {
   const { formatDate, timezone } = useAppSettings()
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
+  const [summary, setSummary] = useState<RevenuePeriodSummary>(emptySummary)
+  const [allTime, setAllTime] = useState({ revenue: 0, count: 0 })
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [editTx, setEditTx] = useState<TransactionRow | null>(null)
   const [periodFilter, setPeriodFilter] = useState<RevenuePeriod>('all')
@@ -30,12 +42,22 @@ export default function TransactionsPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/transactions')
+      const params = new URLSearchParams({
+        page: String(page),
+        period: periodFilter,
+        timezone,
+      })
+      const res = await fetch(`/api/transactions?${params}`)
       if (!res.ok) {
         setTransactions([])
         return
       }
-      setTransactions(await res.json())
+      const data = await res.json()
+      setTransactions(data.items || [])
+      setTotal(data.total || 0)
+      setTotalPages(data.totalPages || 1)
+      if (data.summary) setSummary(data.summary)
+      if (data.allTime) setAllTime(data.allTime)
     } catch {
       setTransactions([])
     } finally {
@@ -43,20 +65,7 @@ export default function TransactionsPage() {
     }
   }
 
-  useEffect(() => { load() }, [])
-
-  const summary = useMemo(
-    () => summarizeRevenueByPeriod(transactions, timezone),
-    [transactions, timezone],
-  )
-
-  const filtered = useMemo(
-    () => transactions.filter(tx => transactionInPeriod(tx, periodFilter, timezone)),
-    [transactions, periodFilter, timezone],
-  )
-
-  const filteredTotal = filtered.reduce((sum, t) => sum + (t.total || 0), 0)
-  const allTotal = transactions.reduce((sum, t) => sum + (t.total || 0), 0)
+  useEffect(() => { load() }, [page, periodFilter, timezone])
 
   const downloadPDF = async (inv: TransactionRow) => {
     try {
@@ -88,7 +97,7 @@ export default function TransactionsPage() {
       case 'last_month':
         return summary.lastMonth
       default:
-        return { revenue: allTotal, count: transactions.length }
+        return allTime
     }
   }
 
@@ -106,11 +115,11 @@ export default function TransactionsPage() {
             {periodFilter === 'all' ? 'All time' : REVENUE_PERIOD_LABELS[periodFilter]}
           </div>
           <div className="text-xl font-semibold text-green-700 dark:text-green-400">
-            {formatCurrency(periodFilter === 'all' ? allTotal : filteredTotal)}
+            {formatCurrency(periodFilter === 'all' ? allTime.revenue : periodValue(periodFilter).revenue)}
           </div>
           <div className="text-xs text-gray-400 dark:text-gray-500">
-            {periodFilter === 'all' ? transactions.length : filtered.length} payment
-            {(periodFilter === 'all' ? transactions.length : filtered.length) === 1 ? '' : 's'}
+            {periodFilter === 'all' ? allTime.count : periodValue(periodFilter).count} payment
+            {(periodFilter === 'all' ? allTime.count : periodValue(periodFilter).count) === 1 ? '' : 's'}
           </div>
         </div>
       </div>
@@ -118,7 +127,7 @@ export default function TransactionsPage() {
       <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <button
           type="button"
-          onClick={() => setPeriodFilter('all')}
+          onClick={() => { setPeriodFilter('all'); setPage(1) }}
           className={[
             'rounded-xl border p-4 text-left transition-colors',
             periodFilter === 'all'
@@ -127,8 +136,8 @@ export default function TransactionsPage() {
           ].join(' ')}
         >
           <div className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">All time</div>
-          <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(allTotal)}</div>
-          <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{transactions.length} payments</div>
+          <div className="mt-1 text-xl font-semibold text-gray-900 dark:text-gray-100">{formatCurrency(allTime.revenue)}</div>
+          <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">{allTime.count} payments</div>
         </button>
 
         {PERIOD_CARDS.map(period => {
@@ -138,7 +147,7 @@ export default function TransactionsPage() {
             <button
               key={period}
               type="button"
-              onClick={() => setPeriodFilter(period)}
+              onClick={() => { setPeriodFilter(period); setPage(1) }}
               className={[
                 'rounded-xl border p-4 text-left transition-colors',
                 active
@@ -169,7 +178,7 @@ export default function TransactionsPage() {
             <button
               type="button"
               className="text-xs font-medium text-blue-700 hover:underline dark:text-blue-300"
-              onClick={() => setPeriodFilter('all')}
+              onClick={() => { setPeriodFilter('all'); setPage(1) }}
             >
               Clear filter
             </button>
@@ -192,7 +201,7 @@ export default function TransactionsPage() {
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td>
               </tr>
             )}
-            {!loading && filtered.length === 0 && (
+            {!loading && transactions.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   {periodFilter === 'all'
@@ -201,7 +210,7 @@ export default function TransactionsPage() {
                 </td>
               </tr>
             )}
-            {filtered.map(tx => {
+            {transactions.map(tx => {
               const paidAt = tx.paidAt || tx.updatedAt || tx.createdAt
               return (
                 <tr key={tx.id} className="border-t border-gray-100 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/50">
@@ -228,6 +237,14 @@ export default function TransactionsPage() {
             })}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={25}
+          onPageChange={setPage}
+          loading={loading}
+        />
       </div>
 
       <TransactionEditModal

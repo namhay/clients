@@ -134,3 +134,82 @@ export const REVENUE_PERIOD_LABELS: Record<RevenuePeriod, string> = {
   this_month: 'This month',
   last_month: 'Last month',
 }
+
+function zonedDayStartUtc(day: ZonedDay, timezone: string): Date {
+  const guess = Date.UTC(day.year, day.month - 1, day.day, 12, 0, 0)
+  for (let offsetHours = -30; offsetHours <= 30; offsetHours++) {
+    const candidate = new Date(guess + offsetHours * 3_600_000)
+    const parts = readZonedParts(candidate, timezone)
+    if (
+      parts
+      && parts.year === day.year
+      && parts.month === day.month
+      && parts.day === day.day
+      && parts.hour === 0
+      && parts.minute === 0
+    ) {
+      return candidate
+    }
+  }
+  for (let offsetHours = -30; offsetHours <= 30; offsetHours++) {
+    const candidate = new Date(guess + offsetHours * 3_600_000)
+    const parts = readZonedParts(candidate, timezone)
+    if (parts && parts.year === day.year && parts.month === day.month && parts.day === day.day) {
+      return candidate
+    }
+  }
+  return new Date(guess)
+}
+
+function shiftMonth(day: ZonedDay, deltaMonths: number): ZonedDay {
+  const date = new Date(Date.UTC(day.year, day.month - 1 + deltaMonths, 1))
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: 1,
+  }
+}
+
+export function getPeriodUtcBounds(
+  period: RevenuePeriod,
+  timezone: string,
+  now = new Date(),
+): { start: Date | null; end: Date | null } {
+  if (period === 'all') return { start: null, end: null }
+
+  const current = readZonedParts(now, timezone)
+  if (!current) return { start: null, end: null }
+
+  const today: ZonedDay = { year: current.year, month: current.month, day: current.day }
+
+  if (period === 'today') {
+    const start = zonedDayStartUtc(today, timezone)
+    const tomorrow = addDays(today, 1)
+    return { start, end: zonedDayStartUtc(tomorrow, timezone) }
+  }
+
+  if (period === 'this_week') {
+    const monday = addDays(today, -weekdayMon0(today, timezone))
+    const nextMonday = addDays(monday, 7)
+    return {
+      start: zonedDayStartUtc(monday, timezone),
+      end: zonedDayStartUtc(nextMonday, timezone),
+    }
+  }
+
+  if (period === 'this_month') {
+    const monthStart = { year: current.year, month: current.month, day: 1 }
+    const nextMonth = shiftMonth(monthStart, 1)
+    return {
+      start: zonedDayStartUtc(monthStart, timezone),
+      end: zonedDayStartUtc(nextMonth, timezone),
+    }
+  }
+
+  const lastMonthStart = shiftMonth({ year: current.year, month: current.month, day: 1 }, -1)
+  const thisMonthStart = { year: current.year, month: current.month, day: 1 }
+  return {
+    start: zonedDayStartUtc(lastMonthStart, timezone),
+    end: zonedDayStartUtc(thisMonthStart, timezone),
+  }
+}

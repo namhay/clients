@@ -2,53 +2,46 @@
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+import Pagination from '@/components/Pagination'
 import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { daysUntil, formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { toast } from '@/lib/toast'
+import { usePaginatedList } from '@/lib/use-paginated-list'
 
 const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
 
 export default function ServicesPage() {
   const { formatDate } = useAppSettings()
-  const [services, setServices] = useState<any[]>([])
   const [productTypes, setProductTypes] = useState<any[]>([])
   const [typeFilter, setTypeFilter] = useState('')
-  const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editService, setEditService] = useState<any>(null)
-  const load = async () => {
-    setLoading(true)
-    const url = typeFilter
-      ? `/api/services?productTypeId=${typeFilter}`
-      : '/api/services'
-    const svcs = await fetch(url).then(r => r.json())
-    setServices(svcs)
-    setLoading(false)
-  }
+
+  const extraParams = useMemo((): Record<string, string> => (
+    typeFilter ? { productTypeId: typeFilter } : {}
+  ), [typeFilter])
+
+  const {
+    searchInput,
+    setSearchInput,
+    debouncedSearch,
+    page,
+    setPage,
+    items: services,
+    total,
+    totalPages,
+    loading,
+    reload,
+  } = usePaginatedList<any>({
+    endpoint: '/api/services',
+    extraParams,
+  })
 
   useEffect(() => {
     fetch('/api/product-types?active=true').then(r => r.json()).then(setProductTypes)
   }, [])
-
-  useEffect(() => { load() }, [typeFilter])
-
-  const filteredServices = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return services
-    return services.filter(s => {
-      const haystack = [
-        s.client?.name,
-        s.name,
-        s.productType?.name,
-        s.productPackage?.name,
-        s.status,
-      ].filter(Boolean).join(' ').toLowerCase()
-      return haystack.includes(q)
-    })
-  }, [services, search])
 
   const openAdd = () => {
     setEditService(null)
@@ -63,7 +56,7 @@ export default function ServicesPage() {
   const del = async (id: string) => {
     if (!await toast.confirm('Delete this service?')) return
     await fetch(`/api/services/${id}`, { method: 'DELETE' })
-    load()
+    reload()
   }
 
   return (
@@ -84,8 +77,8 @@ export default function ServicesPage() {
           <input
             className="input max-w-xs"
             placeholder="Search services..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
           />
         </div>
         <div className="p-3 border-b border-gray-100 dark:border-gray-800 flex gap-2 flex-wrap">
@@ -120,12 +113,12 @@ export default function ServicesPage() {
           </thead>
           <tbody>
             {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && filteredServices.length === 0 && (
+            {!loading && services.length === 0 && (
               <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
-                {search.trim() ? 'No services match your search' : 'No services found'}
+                {debouncedSearch.trim() ? 'No services match your search' : 'No services found'}
               </td></tr>
             )}
-            {filteredServices.map(s => {
+            {services.map(s => {
               const dueDate = s.nextDueDate || s.expiryDate
               const d = daysUntil(dueDate)
               return (
@@ -180,12 +173,20 @@ export default function ServicesPage() {
             })}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={25}
+          onPageChange={setPage}
+          loading={loading}
+        />
       </div>
 
       <ServiceFormModal
         open={showModal}
         onClose={() => { setShowModal(false); setEditService(null) }}
-        onSaved={load}
+        onSaved={reload}
         service={editService}
       />
     </div>

@@ -1,15 +1,27 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
+import Pagination from '@/components/Pagination'
 import { toast } from '@/lib/toast'
+import { usePaginatedList } from '@/lib/use-paginated-list'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<any[]>([])
-  const [search, setSearch] = useState('')
-  const [loading, setLoading] = useState(true)
+  const {
+    searchInput,
+    setSearchInput,
+    debouncedSearch,
+    page,
+    setPage,
+    items: clients,
+    total,
+    totalPages,
+    loading,
+    reload,
+  } = usePaginatedList<any>({ endpoint: '/api/clients' })
+
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' })
   const emptyForm = { name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' }
@@ -17,25 +29,17 @@ export default function ClientsPage() {
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderClient, setOrderClient] = useState<{ id: string; name: string } | null>(null)
 
-  const load = async (q='') => {
-    setLoading(true)
-    const res = await fetch(`/api/clients?search=${q}`)
-    setClients(await res.json())
-    setLoading(false)
-  }
-  useEffect(() => { load() }, [])
-
   const save = async () => {
     if (!form.name || !form.email) return toast.error('Name and email are required')
     const method = editId ? 'PUT' : 'POST'
     const url = editId ? `/api/clients/${editId}` : '/api/clients'
     await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(form) })
-    setShowModal(false); setForm(emptyForm); setEditId(null); load(search)
+    setShowModal(false); setForm(emptyForm); setEditId(null); reload()
   }
 
   const del = async (id: string) => {
     if (!await toast.confirm('Delete this client and all their data?')) return
-    await fetch(`/api/clients/${id}`, { method: 'DELETE' }); load(search)
+    await fetch(`/api/clients/${id}`, { method: 'DELETE' }); reload()
   }
 
   const edit = (c: any) => {
@@ -59,12 +63,12 @@ export default function ClientsPage() {
       </div>
       <div className="card">
         <div className="p-3 border-b border-gray-100 dark:border-gray-800">
-          <input className="input max-w-xs" placeholder="Search clients..." value={search} onChange={e => { setSearch(e.target.value); load(e.target.value) }} />
+          <input className="input max-w-xs" placeholder="Search clients..." value={searchInput} onChange={e => setSearchInput(e.target.value)} />
         </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/50"><tr>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Name</th>
-            <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Email</th>
+            <th className="hidden md:table-cell text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Email</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Phone</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Services</th>
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoices</th>
@@ -72,7 +76,11 @@ export default function ClientsPage() {
           </tr></thead>
           <tbody>
             {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && clients.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No clients found</td></tr>}
+            {!loading && clients.length === 0 && (
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
+                {debouncedSearch.trim() ? 'No clients match your search' : 'No clients found'}
+              </td></tr>
+            )}
             {clients.map(c => (
               <tr key={c.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3">
@@ -97,7 +105,7 @@ export default function ClientsPage() {
                     </div>
                   </Link>
                 </td>
-                <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{c.email}</td>
+                <td className="hidden md:table-cell px-4 py-3 text-gray-600 dark:text-gray-300">{c.email}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{c.phone || '-'}</td>
                 <td className="px-4 py-3"><span className="badge badge-domain">{c._count?.services || 0}</span></td>
                 <td className="px-4 py-3"><span className="badge badge-unpaid">{c._count?.invoices || 0}</span></td>
@@ -113,12 +121,20 @@ export default function ClientsPage() {
             ))}
           </tbody>
         </table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={25}
+          onPageChange={setPage}
+          loading={loading}
+        />
       </div>
 
       <OrderFormModal
         open={showOrderModal}
         onClose={() => { setShowOrderModal(false); setOrderClient(null) }}
-        onSaved={() => load(search)}
+        onSaved={reload}
         defaultClientId={orderClient?.id}
         defaultClientName={orderClient?.name}
       />

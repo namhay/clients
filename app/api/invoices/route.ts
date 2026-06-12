@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { createInvoice, listInvoices } from '@/lib/db/invoices'
+import { createInvoice, listInvoices, listInvoicesPaginated } from '@/lib/db/invoices'
 import { getNextInvoiceNo } from '@/lib/invoices'
+import { isPaginatedRequest, parsePageParams } from '@/lib/pagination'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -10,6 +11,21 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status')
   const clientId = searchParams.get('clientId')
+
+  if (isPaginatedRequest(searchParams) && !clientId) {
+    const { page, pageSize } = parsePageParams(searchParams)
+    const search = searchParams.get('search') || ''
+    const result = await listInvoicesPaginated(
+      {
+        status: status || undefined,
+        search,
+      },
+      page,
+      pageSize,
+    )
+    return NextResponse.json(result)
+  }
+
   const invoices = await listInvoices({
     status: status || undefined,
     clientId: clientId || undefined,

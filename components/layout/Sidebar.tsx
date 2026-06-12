@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ThemeToggle from '@/components/layout/ThemeToggle'
 
 const navItems = [
@@ -28,7 +28,19 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [signingOut, setSigningOut] = useState(false)
+  const [logoUrl, setLogoUrl] = useState('/api/branding/logo')
   const initials = session?.user?.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'U'
+
+  useEffect(() => {
+    fetch('/api/settings/branding')
+      .then(async res => {
+        const data = await res.json().catch(() => null)
+        if (!res.ok || !data?.assets) return
+        const logo = data.assets.find((a: { key: string; url: string }) => a.key === 'logo')
+        if (logo?.url) setLogoUrl(logo.url)
+      })
+      .catch(() => {})
+  }, [])
 
   const handleSignOut = async () => {
     if (signingOut) return
@@ -49,15 +61,13 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
       ].join(' ')}
     >
       <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800">
-        <div className="flex min-w-0 items-center gap-2">
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-700">
-            <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-          </div>
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-gray-900 dark:text-gray-100">ClientDesk</div>
-            <div className="truncate text-xs text-gray-500 dark:text-gray-400">Hosting Manager</div>
-          </div>
-        </div>
+        <Link href="/" className="flex min-w-0 flex-1 items-center" onClick={onClose}>
+          <img
+            src={logoUrl}
+            alt="IT SMART"
+            className="h-16 w-full max-w-[200px] object-contain object-left"
+          />
+        </Link>
         <button
           type="button"
           className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300 lg:hidden"

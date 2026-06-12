@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
 import type { InvoiceItemRow, InvoiceRow } from '@/lib/db/invoices'
 import type { ServiceWithRelations } from '@/lib/db/services'
 import type { ReminderLogRow } from '@/lib/db/reminder-logs'
@@ -73,27 +74,82 @@ export async function countClients(): Promise<number> {
   return Number((rows[0] as { count: number }).count)
 }
 
+const CLIENT_LIST_SELECT = `
+  c.*,
+  (SELECT COUNT(*)::int FROM "Service" s WHERE s."clientId" = c.id) AS service_count,
+  (SELECT COUNT(*)::int FROM "Invoice" i WHERE i."clientId" = c.id) AS invoice_count
+`
+
 export async function listClients(search = ''): Promise<ClientWithCounts[]> {
   const sql = getSql()
   const pattern = `%${search}%`
   const rows = search
     ? await sql`
-        SELECT c.*,
-          (SELECT COUNT(*)::int FROM "Service" s WHERE s."clientId" = c.id) AS service_count,
-          (SELECT COUNT(*)::int FROM "Invoice" i WHERE i."clientId" = c.id) AS invoice_count
+        SELECT ${sql.unsafe(CLIENT_LIST_SELECT)}
         FROM "Client" c
         WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern}
           OR COALESCE(c.company, '') ILIKE ${pattern} OR COALESCE(c."companyKhmer", '') ILIKE ${pattern}
         ORDER BY c."createdAt" DESC
       `
     : await sql`
-        SELECT c.*,
-          (SELECT COUNT(*)::int FROM "Service" s WHERE s."clientId" = c.id) AS service_count,
-          (SELECT COUNT(*)::int FROM "Invoice" i WHERE i."clientId" = c.id) AS invoice_count
+        SELECT ${sql.unsafe(CLIENT_LIST_SELECT)}
         FROM "Client" c
         ORDER BY c."createdAt" DESC
       `
   return rows.map(r => mapWithCounts(r as Record<string, unknown>))
+}
+
+export async function listClientsPaginated(
+  search = '',
+  page = 1,
+  pageSize = 25,
+): Promise<PaginatedResult<ClientWithCounts>> {
+  const sql = getSql()
+  const offset = (page - 1) * pageSize
+  const pattern = `%${search}%`
+
+  if (search) {
+    const [rows, countRows] = await Promise.all([
+      sql`
+        SELECT ${sql.unsafe(CLIENT_LIST_SELECT)}
+        FROM "Client" c
+        WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern}
+          OR COALESCE(c.company, '') ILIKE ${pattern} OR COALESCE(c."companyKhmer", '') ILIKE ${pattern}
+        ORDER BY c."createdAt" DESC
+        LIMIT ${pageSize} OFFSET ${offset}
+      `,
+      sql`
+        SELECT COUNT(*)::int AS count
+        FROM "Client" c
+        WHERE c.name ILIKE ${pattern} OR c.email ILIKE ${pattern}
+          OR COALESCE(c.company, '') ILIKE ${pattern} OR COALESCE(c."companyKhmer", '') ILIKE ${pattern}
+      `,
+    ])
+    const total = Number((countRows[0] as { count: number }).count)
+    return toPaginatedResult(
+      rows.map(r => mapWithCounts(r as Record<string, unknown>)),
+      total,
+      page,
+      pageSize,
+    )
+  }
+
+  const [rows, countRows] = await Promise.all([
+    sql`
+      SELECT ${sql.unsafe(CLIENT_LIST_SELECT)}
+      FROM "Client" c
+      ORDER BY c."createdAt" DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `,
+    sql`SELECT COUNT(*)::int AS count FROM "Client"`,
+  ])
+  const total = Number((countRows[0] as { count: number }).count)
+  return toPaginatedResult(
+    rows.map(r => mapWithCounts(r as Record<string, unknown>)),
+    total,
+    page,
+    pageSize,
+  )
 }
 
 export async function getClientById(id: string): Promise<ClientRow | null> {

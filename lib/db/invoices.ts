@@ -1,6 +1,13 @@
 import { getSql, newId } from '@/lib/db'
 import type { InvoiceInput, InvoiceItemInput } from '@/lib/invoices'
 import type { ClientRow } from '@/lib/db/clients'
+import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
+import {
+  getPeriodUtcBounds,
+  summarizeRevenueByPeriod,
+  type RevenuePeriod,
+  type RevenuePeriodSummary,
+} from '@/lib/revenue-periods'
 
 export type InvoiceItemRow = {
   id: string
@@ -212,6 +219,138 @@ export async function listInvoices(filters: InvoiceFilters = {}): Promise<Invoic
   return attachItems(invoices)
 }
 
+export type InvoiceTableFilters = {
+  status?: string
+  search?: string
+}
+
+const INVOICE_LIST_FROM = `
+  FROM "Invoice" i
+  INNER JOIN "Client" c ON c.id = i."clientId"
+`
+
+function invoiceSearchPattern(search: string) {
+  return `%${search.trim()}%`
+}
+
+async function countInvoicesForTable(filters: InvoiceTableFilters): Promise<number> {
+  const sql = getSql()
+  const { status, search } = filters
+  const pattern = search?.trim() ? invoiceSearchPattern(search) : null
+
+  if (status && pattern) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      WHERE i.status = ${status}
+        AND (
+          i."invoiceNo" ILIKE ${pattern}
+          OR c.name ILIKE ${pattern}
+          OR c.email ILIKE ${pattern}
+          OR i.status::text ILIKE ${pattern}
+          OR EXISTS (
+            SELECT 1 FROM "InvoiceItem" ii
+            WHERE ii."invoiceId" = i.id AND ii.description ILIKE ${pattern}
+          )
+        )
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  if (status) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count FROM "Invoice" WHERE status = ${status}
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  if (pattern) {
+    const rows = await sql`
+      SELECT COUNT(*)::int AS count
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      WHERE i."invoiceNo" ILIKE ${pattern}
+        OR c.name ILIKE ${pattern}
+        OR c.email ILIKE ${pattern}
+        OR i.status::text ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM "InvoiceItem" ii
+          WHERE ii."invoiceId" = i.id AND ii.description ILIKE ${pattern}
+        )
+    `
+    return Number((rows[0] as { count: number }).count)
+  }
+
+  const rows = await sql`SELECT COUNT(*)::int AS count FROM "Invoice"`
+  return Number((rows[0] as { count: number }).count)
+}
+
+export async function listInvoicesPaginated(
+  filters: InvoiceTableFilters = {},
+  page = 1,
+  pageSize = 25,
+): Promise<PaginatedResult<InvoiceWithRelations>> {
+  const sql = getSql()
+  const offset = (page - 1) * pageSize
+  const { status, search } = filters
+  const pattern = search?.trim() ? invoiceSearchPattern(search) : null
+
+  let rows
+  if (status && pattern) {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      WHERE i.status = ${status}
+        AND (
+          i."invoiceNo" ILIKE ${pattern}
+          OR c.name ILIKE ${pattern}
+          OR c.email ILIKE ${pattern}
+          OR i.status::text ILIKE ${pattern}
+          OR EXISTS (
+            SELECT 1 FROM "InvoiceItem" ii
+            WHERE ii."invoiceId" = i.id AND ii.description ILIKE ${pattern}
+          )
+        )
+      ORDER BY i."createdAt" DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else if (status) {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      WHERE i.status = ${status}
+      ORDER BY i."createdAt" DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else if (pattern) {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      WHERE i."invoiceNo" ILIKE ${pattern}
+        OR c.name ILIKE ${pattern}
+        OR c.email ILIKE ${pattern}
+        OR i.status::text ILIKE ${pattern}
+        OR EXISTS (
+          SELECT 1 FROM "InvoiceItem" ii
+          WHERE ii."invoiceId" = i.id AND ii.description ILIKE ${pattern}
+        )
+      ORDER BY i."createdAt" DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  } else {
+    rows = await sql`
+      SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+      ${sql.unsafe(INVOICE_LIST_FROM)}
+      ORDER BY i."createdAt" DESC
+      LIMIT ${pageSize} OFFSET ${offset}
+    `
+  }
+
+  const invoiceRows = rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
+  const withItems = await attachItems(invoiceRows)
+  const total = await countInvoicesForTable(filters)
+  return toPaginatedResult(withItems, total, page, pageSize)
+}
+
 export async function getInvoiceById(id: string): Promise<InvoiceWithRelations | null> {
   const sql = getSql()
   const rows = await sql`SELECT * FROM "Invoice" WHERE id = ${id} LIMIT 1`
@@ -292,6 +431,92 @@ export async function listTransactions(): Promise<InvoiceWithRelations[]> {
   `
   const invoices = rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
   return attachItems(invoices)
+}
+
+export async function getTransactionSummary(timezone: string): Promise<{
+  summary: RevenuePeriodSummary
+  allTime: { revenue: number; count: number }
+}> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT total, "paidAt", "updatedAt", "createdAt"
+    FROM "Invoice"
+    WHERE status = 'PAID'
+  `
+  const transactions = rows.map(r => {
+    const row = r as Record<string, unknown>
+    return {
+      total: Number(row.total),
+      paidAt: row.paidAt != null ? new Date(row.paidAt as string) : null,
+      updatedAt: new Date(row.updatedAt as string),
+      createdAt: new Date(row.createdAt as string),
+    }
+  })
+  const summary = summarizeRevenueByPeriod(transactions, timezone)
+  const allTime = transactions.reduce(
+    (acc, tx) => {
+      acc.revenue += Number(tx.total) || 0
+      acc.count++
+      return acc
+    },
+    { revenue: 0, count: 0 },
+  )
+  return { summary, allTime }
+}
+
+export async function listTransactionsPaginated(
+  page = 1,
+  pageSize = 25,
+  period: RevenuePeriod = 'all',
+  timezone = 'Asia/Phnom_Penh',
+): Promise<PaginatedResult<InvoiceWithRelations>> {
+  const sql = getSql()
+  const offset = (page - 1) * pageSize
+  const { start, end } = getPeriodUtcBounds(period, timezone)
+
+  let rows
+  let countRows
+  if (start && end) {
+    ;[rows, countRows] = await Promise.all([
+      sql`
+        SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+        FROM "Invoice" i
+        INNER JOIN "Client" c ON c.id = i."clientId"
+        WHERE i.status = 'PAID'
+          AND COALESCE(i."paidAt", i."updatedAt") >= ${start}
+          AND COALESCE(i."paidAt", i."updatedAt") < ${end}
+        ORDER BY COALESCE(i."paidAt", i."updatedAt") DESC
+        LIMIT ${pageSize} OFFSET ${offset}
+      `,
+      sql`
+        SELECT COUNT(*)::int AS count
+        FROM "Invoice" i
+        WHERE i.status = 'PAID'
+          AND COALESCE(i."paidAt", i."updatedAt") >= ${start}
+          AND COALESCE(i."paidAt", i."updatedAt") < ${end}
+      `,
+    ])
+  } else {
+    ;[rows, countRows] = await Promise.all([
+      sql`
+        SELECT ${sql.unsafe(INVOICE_CLIENT_SELECT)}
+        FROM "Invoice" i
+        INNER JOIN "Client" c ON c.id = i."clientId"
+        WHERE i.status = 'PAID'
+        ORDER BY COALESCE(i."paidAt", i."updatedAt") DESC
+        LIMIT ${pageSize} OFFSET ${offset}
+      `,
+      sql`
+        SELECT COUNT(*)::int AS count
+        FROM "Invoice" i
+        WHERE i.status = 'PAID'
+      `,
+    ])
+  }
+
+  const total = Number((countRows[0] as { count: number }).count)
+  const items = rows.map(r => mapInvoiceWithClientRow(r as Record<string, unknown>))
+  return toPaginatedResult(items, total, page, pageSize)
 }
 
 export async function findInvoiceByInvoiceNo(invoiceNo: string, excludeId?: string): Promise<InvoiceRow | null> {

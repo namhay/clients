@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { listOrders } from '@/lib/db/orders'
+import { listOrders, listOrdersPaginated } from '@/lib/db/orders'
 import { fulfillOrder, parseOrderInput } from '@/lib/orders'
+import { isPaginatedRequest, parsePageParams } from '@/lib/pagination'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  if (isPaginatedRequest(searchParams)) {
+    const { page, pageSize } = parsePageParams(searchParams)
+    const result = await listOrdersPaginated(page, pageSize)
+    return NextResponse.json(result)
+  }
 
   const orders = await listOrders()
   return NextResponse.json(orders)
