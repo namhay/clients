@@ -32,14 +32,21 @@ export function startOfDay(date: Date | string): Date {
   return d
 }
 
-/** Order / new service from modal: use the start and expiry dates entered on the form. */
+/** Order / new service: period starts on the form date; invoice period end is +1 billing cycle. */
 export function getFormServiceInvoicePeriod(
-  service: { startDate: Date | string; expiryDate: Date | string },
+  service: {
+    startDate: Date | string
+    expiryDate: Date | string
+    recurring: boolean
+    period: string | null
+  },
 ): { periodStart: Date; periodEnd: Date } {
-  return {
-    periodStart: startOfDay(service.startDate),
-    periodEnd: startOfDay(service.expiryDate),
+  const periodStart = startOfDay(service.startDate)
+  if (service.recurring && service.period) {
+    const months = getBillingMonths(service.period)
+    if (months) return { periodStart, periodEnd: addMonths(periodStart, months) }
   }
+  return { periodStart, periodEnd: startOfDay(service.expiryDate) }
 }
 
 /** New order / new service: period starts today (or invoice date), ends after one billing cycle. */

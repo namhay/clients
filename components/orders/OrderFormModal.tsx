@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { BILLING_CYCLES, calculateBillingDates, toDateInput } from '@/lib/billing'
+import { BILLING_CYCLES } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
 import { isOneTimePackage } from '@/lib/product-packages'
 import { toast } from '@/lib/toast'
@@ -19,9 +19,14 @@ type OrderLine = {
   nextDueDate: string
 }
 
+const syncLineDates = (date: string) => ({
+  startDate: date,
+  nextDueDate: date,
+  expiryDate: date,
+})
+
 const newLine = (): OrderLine => {
   const today = new Date().toISOString().split('T')[0]
-  const dates = calculateBillingDates(today, 'YEARLY')
   return {
     key: crypto.randomUUID(),
     productTypeId: '',
@@ -31,9 +36,7 @@ const newLine = (): OrderLine => {
     setupFee: '',
     recurring: true,
     period: 'YEARLY',
-    startDate: today,
-    expiryDate: toDateInput(dates.expiryDate),
-    nextDueDate: toDateInput(dates.nextDueDate),
+    ...syncLineDates(today),
   }
 }
 
@@ -81,7 +84,7 @@ export default function OrderFormModal({
       )))
   }
 
-  const updateLine = (key: string, patch: Partial<OrderLine>, recalcDates = false) => {
+  const updateLine = (key: string, patch: Partial<OrderLine>) => {
     setLines(prev => prev.map(line => {
       if (line.key !== key) return line
       let next = { ...line, ...patch }
@@ -103,13 +106,9 @@ export default function OrderFormModal({
           }
         }
       }
-      if (recalcDates && next.recurring && next.startDate && next.period) {
-        const { nextDueDate, expiryDate } = calculateBillingDates(next.startDate, next.period)
-        next = {
-          ...next,
-          nextDueDate: toDateInput(nextDueDate),
-          expiryDate: toDateInput(expiryDate),
-        }
+      if (patch.startDate || patch.nextDueDate || patch.expiryDate) {
+        const date = patch.startDate || patch.nextDueDate || patch.expiryDate || next.startDate
+        next = { ...next, ...syncLineDates(date) }
       }
       if (patch.recurring === false) {
         next = { ...next, period: 'YEARLY', nextDueDate: '' }
@@ -274,7 +273,7 @@ export default function OrderFormModal({
                         className="input"
                         value={line.recurring ? 'recurring' : 'onetime'}
                         disabled={packageIsOneTime}
-                        onChange={e => updateLine(line.key, { recurring: e.target.value === 'recurring' }, e.target.value === 'recurring')}
+                        onChange={e => updateLine(line.key, { recurring: e.target.value === 'recurring' })}
                       >
                         <option value="recurring">Recurring</option>
                         <option value="onetime">One-time</option>
@@ -286,7 +285,7 @@ export default function OrderFormModal({
                         <select
                           className="input"
                           value={line.period}
-                          onChange={e => updateLine(line.key, { period: e.target.value }, true)}
+                          onChange={e => updateLine(line.key, { period: e.target.value })}
                         >
                           {BILLING_CYCLES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                         </select>
@@ -302,7 +301,7 @@ export default function OrderFormModal({
                     </div>
                     <div>
                       <label className="label">Start Date</label>
-                      <input type="date" className="input" value={line.startDate} onChange={e => updateLine(line.key, { startDate: e.target.value }, line.recurring)} />
+                      <input type="date" className="input" value={line.startDate} onChange={e => updateLine(line.key, { startDate: e.target.value })} />
                     </div>
                     {line.recurring && (
                       <div>
@@ -311,7 +310,7 @@ export default function OrderFormModal({
                           type="date"
                           className="input"
                           value={line.nextDueDate}
-                          onChange={e => updateLine(line.key, { nextDueDate: e.target.value, expiryDate: e.target.value })}
+                          onChange={e => updateLine(line.key, { nextDueDate: e.target.value })}
                         />
                       </div>
                     )}

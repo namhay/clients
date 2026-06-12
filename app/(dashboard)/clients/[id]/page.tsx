@@ -182,6 +182,35 @@ export default function ClientProfilePage() {
     setPaymentInvoice(inv)
   }
 
+  const deleteService = async (s: { id: string; name: string }) => {
+    if (!await toast.confirm(`Delete service "${s.name}"? This cannot be undone.`)) return
+    try {
+      const res = await fetch(`/api/services/${s.id}`, { method: 'DELETE' })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to delete service')
+      toast.success('Service deleted')
+      load()
+    } catch {
+      toast.error('Failed to delete service')
+    }
+  }
+
+  const deleteInvoice = async (inv: { id: string; invoiceNo: string; status: string }) => {
+    const message = inv.status === 'PAID'
+      ? `Delete ${inv.invoiceNo}? This removes the payment record and rolls back linked service dates.`
+      : `Delete ${inv.invoiceNo}? This cannot be undone.`
+    if (!await toast.confirm(message)) return
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}`, { method: 'DELETE' })
+      const result = await res.json().catch(() => ({}))
+      if (!res.ok) return toast.error(result.error || 'Failed to delete invoice')
+      toast.success('Invoice deleted')
+      load()
+    } catch {
+      toast.error('Failed to delete invoice')
+    }
+  }
+
   const markUnpaid = async (inv: { id: string; invoiceNo: string }) => {
     const confirmed = await toast.confirm(
       `Mark ${inv.invoiceNo} as unpaid? It will be removed from transactions and linked services will roll back one billing cycle.`,
@@ -422,6 +451,7 @@ export default function ClientProfilePage() {
                       >
                         {generatingInvoiceId === s.id ? '...' : 'Invoice'}
                       </button>
+                      <button className="btn-danger py-1 px-2 text-xs" onClick={() => deleteService(s)}>Delete</button>
                     </div>
                   </td>
                 </tr>
@@ -477,6 +507,7 @@ export default function ClientProfilePage() {
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => markUnpaid(inv)}>Unpaid</button>
                     )}
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => viewPDF(inv)}>PDF</button>
+                    <button className="btn-danger py-1 px-2 text-xs" onClick={() => deleteInvoice(inv)}>Delete</button>
                     <button
                       className="btn-secondary inline-flex items-center justify-center p-1.5"
                       onClick={() => sendEmail(inv)}

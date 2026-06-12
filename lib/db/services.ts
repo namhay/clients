@@ -382,7 +382,14 @@ export async function updateService(id: string, data: ServiceInput): Promise<Ser
 
 export async function deleteService(id: string) {
   const sql = getSql()
-  await sql`DELETE FROM "Service" WHERE id = ${id}`
+  const existing = await getServiceById(id)
+  if (!existing) throw new Error('Service not found')
+
+  // Order items keep history; drop the link so the service row can be removed.
+  await sql`UPDATE "OrderItem" SET "serviceId" = NULL WHERE "serviceId" = ${id}`
+
+  const rows = await sql`DELETE FROM "Service" WHERE id = ${id} RETURNING id`
+  if (!rows[0]) throw new Error('Service not found')
 }
 
 export async function countServicesByProductType(productTypeId: string): Promise<number> {

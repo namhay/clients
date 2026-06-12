@@ -12,7 +12,6 @@ import {
 } from '@/lib/revenue-periods'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { formatCurrency } from '@/lib/utils'
-import { toast } from '@/lib/toast'
 
 const TransactionEditModal = dynamic(
   () => import('@/components/transactions/TransactionEditModal'),
@@ -68,23 +67,8 @@ export default function TransactionsPage() {
 
   useEffect(() => { load() }, [page, periodFilter, timezone])
 
-  const downloadPDF = async (inv: TransactionRow) => {
-    try {
-      const res = await fetch(`/api/invoices/${inv.invoiceId || inv.id}/pdf`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        return toast.error(err.error || 'Failed to generate PDF')
-      }
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${inv.invoiceNo}.pdf`
-      a.click()
-      URL.revokeObjectURL(url)
-    } catch {
-      toast.error('Failed to download PDF')
-    }
+  const viewPDF = (inv: TransactionRow) => {
+    window.open(`/api/invoices/${inv.invoiceId || inv.id}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
   }
 
   const periodValue = (period: RevenuePeriod) => {
@@ -236,7 +220,7 @@ export default function TransactionsPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap justify-end gap-1">
                       <button className="btn-secondary px-2 py-1 text-xs" onClick={() => setEditTx(tx)}>Edit</button>
-                      <button className="btn-secondary px-2 py-1 text-xs" onClick={() => downloadPDF(tx)}>PDF</button>
+                      <button className="btn-secondary px-2 py-1 text-xs" onClick={() => viewPDF(tx)}>PDF</button>
                     </div>
                   </td>
                 </tr>

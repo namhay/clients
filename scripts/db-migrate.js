@@ -75,6 +75,18 @@ async function main() {
   console.log('✓ Order and OrderItem tables ready')
 
   await sql`
+    ALTER TABLE "OrderItem"
+    DROP CONSTRAINT IF EXISTS "OrderItem_serviceId_fkey"
+  `
+  await sql`
+    ALTER TABLE "OrderItem"
+    ADD CONSTRAINT "OrderItem_serviceId_fkey"
+    FOREIGN KEY ("serviceId") REFERENCES "Service"(id) ON DELETE SET NULL
+  `
+
+  console.log('✓ OrderItem serviceId ON DELETE SET NULL ready')
+
+  await sql`
     ALTER TABLE "ProductPackage"
     ADD COLUMN IF NOT EXISTS "billingType" TEXT NOT NULL DEFAULT 'RECURRING'
   `

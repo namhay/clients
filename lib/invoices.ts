@@ -445,7 +445,7 @@ export async function enrichInvoiceItemsWithPeriods(
 export type ServiceInvoiceOptions = {
   /** Renewal invoices should not re-bill setup fees. Default true for manual invoices. */
   includeSetupFee?: boolean
-  /** `form` = order / new service (modal start → expiry). `new` = today → +1 cycle. `renewal` = cron / manual generate (expiry → +1 cycle). */
+  /** `form` = order (start → start + 1 cycle on invoice). `new` = today → +1 cycle. `renewal` = existing service (expiry → +1 cycle). */
   periodMode?: 'form' | 'new' | 'renewal'
 }
 

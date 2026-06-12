@@ -28,6 +28,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  await deleteService(params.id)
-  return NextResponse.json({ success: true })
+  try {
+    await deleteService(params.id)
+    return NextResponse.json({ success: true })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Failed to delete service'
+    const status = message === 'Service not found' ? 404 : 400
+    return NextResponse.json({ error: message }, { status })
+  }
 }
