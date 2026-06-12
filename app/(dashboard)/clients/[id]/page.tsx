@@ -11,6 +11,12 @@ import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { toast } from '@/lib/toast'
+import {
+  clearJsonCache,
+  clientProfileApiUrl,
+  getJsonCache,
+  setJsonCache,
+} from '@/lib/list-cache'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
@@ -28,12 +34,37 @@ const invoiceStatusColors: Record<string, string> = {
   CANCELLED: 'badge-domain',
 }
 
+function clientFormFromData(data: {
+  name: string
+  email: string
+  phone?: string | null
+  company?: string | null
+  companyKhmer?: string | null
+  address?: string | null
+  vatTin?: string | null
+  telegramId?: string | null
+  notes?: string | null
+}) {
+  return {
+    name: data.name,
+    email: data.email,
+    phone: data.phone || '',
+    company: data.company || '',
+    companyKhmer: data.companyKhmer || '',
+    address: data.address || '',
+    vatTin: data.vatTin || '',
+    telegramId: data.telegramId || '',
+    notes: data.notes || '',
+  }
+}
+
 export default function ClientProfilePage() {
   const { formatDate, formatDateTime } = useAppSettings()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [client, setClient] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', companyKhmer: '', address: '', vatTin: '', telegramId: '', notes: '' })
@@ -63,28 +94,35 @@ export default function ClientProfilePage() {
   }
 
   const load = async () => {
-    setLoading(true)
-    const res = await fetch(`/api/clients/${id}`)
-    if (!res.ok) {
-      setClient(null)
+    const apiUrl = clientProfileApiUrl(id)
+    const cached = getJsonCache<any>(apiUrl)
+    if (cached) {
+      setClient(cached)
+      setForm(clientFormFromData(cached))
       setLoading(false)
-      return
+      setRefreshing(true)
+      loadTransactions()
+    } else {
+      setLoading(true)
     }
-    const data = await res.json()
-    setClient(data)
-    setForm({
-      name: data.name,
-      email: data.email,
-      phone: data.phone || '',
-      company: data.company || '',
-      companyKhmer: data.companyKhmer || '',
-      address: data.address || '',
-      vatTin: data.vatTin || '',
-      telegramId: data.telegramId || '',
-      notes: data.notes || '',
-    })
-    setLoading(false)
-    loadTransactions()
+
+    try {
+      const res = await fetch(apiUrl)
+      if (!res.ok) {
+        if (!cached) setClient(null)
+        return
+      }
+      const data = await res.json()
+      setClient(data)
+      setForm(clientFormFromData(data))
+      setJsonCache(apiUrl, data)
+      loadTransactions()
+    } catch {
+      if (!cached) setClient(null)
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
   }
 
   const loadTelegramConnect = async () => {
@@ -261,7 +299,7 @@ export default function ClientProfilePage() {
     toast.success(`Invoice PDF sent to ${client?.name} via Telegram`)
   }
 
-  if (loading) {
+  if (loading && !client) {
     return <div className="page-content text-gray-500 dark:text-gray-400">Loading client profile...</div>
   }
 
@@ -282,7 +320,7 @@ export default function ClientProfilePage() {
   const paidTotal = paidInvoices.reduce((sum: number, i: any) => sum + i.total, 0)
   const invoicedTotal = client.invoices?.reduce((sum: number, i: any) => sum + i.total, 0) || 0
   return (
-    <div className="page-content">
+    <div className={`page-content${refreshing ? ' opacity-80 transition-opacity' : ''}`}>
       <div className="mb-4">
         <Link href="/clients" className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400">← Clients</Link>
       </div>
@@ -335,6 +373,7 @@ export default function ClientProfilePage() {
               className="btn-danger"
               onClick={async () => {
                 if (!await toast.confirm('Delete this client and all their data?')) return
+                clearJsonCache(clientProfileApiUrl(id))
                 await fetch(`/api/clients/${id}`, { method: 'DELETE' })
                 router.push('/clients')
               }}

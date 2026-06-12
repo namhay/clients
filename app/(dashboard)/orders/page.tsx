@@ -1,43 +1,29 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { toast } from '@/lib/toast'
 import { formatCurrency } from '@/lib/utils'
+import { usePaginatedList } from '@/lib/use-paginated-list'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
 export default function OrdersPage() {
   const { formatDate } = useAppSettings()
-  const [orders, setOrders] = useState<any[]>([])
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(true)
+  const {
+    page,
+    setPage,
+    items: orders,
+    total,
+    totalPages,
+    loading,
+    initialLoading,
+    refreshing,
+    reload,
+  } = usePaginatedList<any>({ endpoint: '/api/orders' })
   const [showModal, setShowModal] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/orders?page=${page}`)
-      if (!res.ok) {
-        setOrders([])
-        return
-      }
-      const data = await res.json()
-      setOrders(data.items || [])
-      setTotal(data.total || 0)
-      setTotalPages(data.totalPages || 1)
-    } catch {
-      setOrders([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [page])
 
   const viewPDF = (invoiceId: string) => {
     window.open(`/api/invoices/${invoiceId}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
@@ -58,7 +44,7 @@ export default function OrdersPage() {
       return
     }
     toast.success('Order deleted')
-    load()
+    reload()
   }
 
   return (
@@ -87,11 +73,11 @@ export default function OrdersPage() {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {loading && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && (
               <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>
             )}
-            {!loading && orders.length === 0 && (
+            {!initialLoading && orders.length === 0 && (
               <tr>
                 <td colSpan={5} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   No orders yet. Create an order to add multiple products on one invoice.
@@ -151,7 +137,7 @@ export default function OrdersPage() {
       <OrderFormModal
         open={showModal}
         onClose={() => setShowModal(false)}
-        onSaved={load}
+        onSaved={reload}
       />
     </div>
   )

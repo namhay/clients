@@ -27,6 +27,8 @@ const emptySummary = (): RevenuePeriodSummary => ({
   lastMonth: { revenue: 0, count: 0 },
 })
 
+import { getListCache, setListCache } from '@/lib/list-cache'
+
 export default function TransactionsPage() {
   const { formatDate, timezone } = useAppSettings()
   const [transactions, setTransactions] = useState<TransactionRow[]>([])
@@ -39,27 +41,55 @@ export default function TransactionsPage() {
   const [editTx, setEditTx] = useState<TransactionRow | null>(null)
   const [periodFilter, setPeriodFilter] = useState<RevenuePeriod>('all')
 
+  const initialLoading = loading && transactions.length === 0
+  const refreshing = loading && transactions.length > 0
+
   const load = async () => {
-    setLoading(true)
+    const params = new URLSearchParams({
+      page: String(page),
+      period: periodFilter,
+      timezone,
+    })
+    const cacheKey = `/api/transactions?${params}`
+    const cached = getListCache<TransactionRow>(cacheKey)
+    if (cached?.items?.length) {
+      setTransactions(cached.items)
+      setTotal(cached.total ?? 0)
+      setTotalPages(cached.totalPages ?? 1)
+      const summary = cached.meta?.summary as RevenuePeriodSummary | undefined
+      const allTimeMeta = cached.meta?.allTime as { revenue: number; count: number } | undefined
+      if (summary) setSummary(summary)
+      if (allTimeMeta) setAllTime(allTimeMeta)
+      setLoading(false)
+    } else {
+      setLoading(true)
+    }
+
     try {
-      const params = new URLSearchParams({
-        page: String(page),
-        period: periodFilter,
-        timezone,
-      })
-      const res = await fetch(`/api/transactions?${params}`)
+      const res = await fetch(cacheKey)
       if (!res.ok) {
-        setTransactions([])
+        if (!cached) setTransactions([])
         return
       }
       const data = await res.json()
-      setTransactions(data.items || [])
-      setTotal(data.total || 0)
-      setTotalPages(data.totalPages || 1)
-      if (data.summary) setSummary(data.summary)
-      if (data.allTime) setAllTime(data.allTime)
+      const nextTransactions = data.items || []
+      const nextTotal = data.total || 0
+      const nextTotalPages = data.totalPages || 1
+      const nextSummary = data.summary || emptySummary()
+      const nextAllTime = data.allTime || { revenue: 0, count: 0 }
+      setTransactions(nextTransactions)
+      setTotal(nextTotal)
+      setTotalPages(nextTotalPages)
+      setSummary(nextSummary)
+      setAllTime(nextAllTime)
+      setListCache(cacheKey, {
+        items: nextTransactions,
+        total: nextTotal,
+        totalPages: nextTotalPages,
+        meta: { summary: nextSummary, allTime: nextAllTime },
+      })
     } catch {
-      setTransactions([])
+      if (!cached) setTransactions([])
     } finally {
       setLoading(false)
     }
@@ -181,13 +211,13 @@ export default function TransactionsPage() {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {loading && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td>
               </tr>
             )}
-            {!loading && transactions.length === 0 && (
+            {!initialLoading && transactions.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                   {periodFilter === 'all'

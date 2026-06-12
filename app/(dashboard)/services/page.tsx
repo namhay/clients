@@ -1,6 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
-import Link from 'next/link'
+import ClientLink from '@/components/clients/ClientLink'
 import { useEffect, useMemo, useState } from 'react'
 import Pagination from '@/components/Pagination'
 import { formatBillingCycle } from '@/lib/billing'
@@ -33,6 +33,8 @@ export default function ServicesPage() {
     total,
     totalPages,
     loading,
+    initialLoading,
+    refreshing,
     reload,
   } = usePaginatedList<any>({
     endpoint: '/api/services',
@@ -111,9 +113,9 @@ export default function ServicesPage() {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && services.length === 0 && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!initialLoading && services.length === 0 && (
               <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                 {debouncedSearch.trim() ? 'No services match your search' : 'No services found'}
               </td></tr>
@@ -124,12 +126,12 @@ export default function ServicesPage() {
               return (
                 <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/clients/${s.clientId}`}
+                    <ClientLink
+                      clientId={s.clientId}
                       className="font-medium text-gray-900 dark:text-gray-100 hover:text-blue-700 dark:hover:text-blue-400"
                     >
                       {s.client?.name}
-                    </Link>
+                    </ClientLink>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-gray-600 dark:text-gray-300">{s.name}</div>

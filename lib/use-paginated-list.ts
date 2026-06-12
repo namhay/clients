@@ -1,12 +1,32 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
+import { getListCache, prefetchList, setListCache } from '@/lib/list-cache'
 import type { PaginatedResult } from '@/lib/pagination'
 
 type UsePaginatedListOptions = {
   endpoint: string
   searchParam?: string
   extraParams?: Record<string, string>
+}
+
+function buildCacheKey(endpoint: string, params: URLSearchParams) {
+  return `${endpoint}?${params.toString()}`
+}
+
+function buildParams(
+  page: number,
+  search: string,
+  searchParam: string,
+  extraParams: Record<string, string>,
+) {
+  const params = new URLSearchParams({ page: String(page) })
+  const trimmed = search.trim()
+  if (trimmed) params.set(searchParam, trimmed)
+  for (const [key, value] of Object.entries(extraParams)) {
+    if (value) params.set(key, value)
+  }
+  return params
 }
 
 export function usePaginatedList<T>({
@@ -39,26 +59,43 @@ export function usePaginatedList<T>({
       setPage(1)
     }
 
-    setLoading(true)
-    const params = new URLSearchParams({ page: String(pageToLoad) })
-    const trimmed = debouncedSearch.trim()
-    if (trimmed) params.set(searchParam, trimmed)
-    for (const [key, value] of Object.entries(extraParams)) {
-      if (value) params.set(key, value)
+    const params = buildParams(pageToLoad, debouncedSearch, searchParam, extraParams)
+    const cacheKey = buildCacheKey(endpoint, params)
+    const cached = getListCache<T>(cacheKey)
+    if (cached) {
+      setItems(cached.items)
+      setTotal(cached.total ?? 0)
+      setTotalPages(cached.totalPages ?? 1)
+      setLoading(false)
+    } else {
+      setLoading(true)
     }
 
-    fetch(`${endpoint}?${params}`, { signal: ac.signal })
+    fetch(cacheKey, { signal: ac.signal })
       .then(async res => {
         if (!res.ok) throw new Error('Failed to load')
         return res.json() as Promise<PaginatedResult<T>>
       })
       .then(data => {
-        setItems(data.items || [])
-        setTotal(data.total || 0)
-        setTotalPages(data.totalPages || 1)
+        const nextItems = data.items || []
+        const nextTotal = data.total || 0
+        const nextTotalPages = data.totalPages || 1
+        setItems(nextItems)
+        setTotal(nextTotal)
+        setTotalPages(nextTotalPages)
+        setListCache(cacheKey, {
+          items: nextItems,
+          total: nextTotal,
+          totalPages: nextTotalPages,
+        })
+
+        if (pageToLoad < nextTotalPages) {
+          const nextParams = buildParams(pageToLoad + 1, debouncedSearch, searchParam, extraParams)
+          void prefetchList(buildCacheKey(endpoint, nextParams))
+        }
       })
       .catch(err => {
-        if (err?.name !== 'AbortError') {
+        if (err?.name !== 'AbortError' && !cached) {
           setItems([])
           setTotal(0)
           setTotalPages(1)
@@ -73,6 +110,9 @@ export function usePaginatedList<T>({
 
   const reload = () => setReloadToken(token => token + 1)
 
+  const initialLoading = loading && items.length === 0
+  const refreshing = loading && items.length > 0
+
   return {
     searchInput,
     setSearchInput,
@@ -83,6 +123,8 @@ export function usePaginatedList<T>({
     total,
     totalPages,
     loading,
+    initialLoading,
+    refreshing,
     reload,
   }
 }

@@ -1,7 +1,8 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { PRODUCT_TYPE_COLORS, formatReminderRule } from '@/lib/product-types'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { useCachedList } from '@/lib/use-cached-list'
 import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
@@ -17,29 +18,11 @@ const emptyForm = () => ({
 })
 
 export default function ProductTypesPage() {
-  const [types, setTypes] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const { items: types, initialLoading, refreshing, reload } = useCachedList<any>('/api/product-types')
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
-
-  const load = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/product-types')
-      if (!res.ok) {
-        setTypes([])
-        return
-      }
-      setTypes(await res.json())
-    } catch {
-      setTypes([])
-    } finally {
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [])
 
   const openAdd = async () => {
     setEditId(null)
@@ -92,7 +75,7 @@ export default function ProductTypesPage() {
       if (!res.ok) return toast.error(result.error || 'Failed to save')
       setShowModal(false)
       setEditId(null)
-      await load()
+      await reload()
     } catch {
       toast.error('Failed to save product type')
     } finally {
@@ -105,7 +88,7 @@ export default function ProductTypesPage() {
     const res = await fetch(`/api/product-types/${id}`, { method: 'DELETE' })
     const result = await res.json()
     if (!res.ok) return toast.error(result.error || 'Failed to delete')
-    load()
+    reload()
   }
 
   return (
@@ -135,9 +118,9 @@ export default function ProductTypesPage() {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {loading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && types.length === 0 && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!initialLoading && types.length === 0 && (
               <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No product types yet</td></tr>
             )}
             {types.map(t => (

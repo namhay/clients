@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { useCachedList } from '@/lib/use-cached-list'
 import { toast } from '@/lib/toast'
 
 const emptyForm = (productTypeId = '') => ({
@@ -28,9 +29,14 @@ const emptyForm = (productTypeId = '') => ({
 export default function ProductPackagesPage() {
   const searchParams = useSearchParams()
   const [types, setTypes] = useState<any[]>([])
-  const [packages, setPackages] = useState<any[]>([])
   const [typeFilter, setTypeFilter] = useState('')
-  const [loading, setLoading] = useState(true)
+  const packagesEndpoint = typeFilter
+    ? `/api/product-packages?productTypeId=${typeFilter}`
+    : '/api/product-packages'
+  const { items: packages, initialLoading, refreshing, reload } = useCachedList<any>(
+    packagesEndpoint,
+    [typeFilter],
+  )
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -44,33 +50,12 @@ export default function ProductPackagesPage() {
     if (res.ok) setTypes(await res.json())
   }
 
-  const load = async () => {
-    setLoading(true)
-    try {
-      const url = typeFilter
-        ? `/api/product-packages?productTypeId=${typeFilter}`
-        : '/api/product-packages'
-      const res = await fetch(url)
-      if (!res.ok) {
-        setPackages([])
-        return
-      }
-      setPackages(await res.json())
-    } catch {
-      setPackages([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   useEffect(() => {
     loadTypes().then(() => {
       const fromUrl = searchParams.get('productTypeId')
       if (fromUrl) setTypeFilter(fromUrl)
     })
   }, [searchParams])
-
-  useEffect(() => { load() }, [typeFilter])
 
   const openAdd = () => {
     setEditId(null)
@@ -137,7 +122,7 @@ export default function ProductPackagesPage() {
       toast.success(editId ? 'Package updated' : 'Package created')
       setShowModal(false)
       setEditId(null)
-      await load()
+      await reload()
     } catch {
       toast.error('Failed to save package')
     } finally {
@@ -150,7 +135,7 @@ export default function ProductPackagesPage() {
     const res = await fetch(`/api/product-packages/${id}`, { method: 'DELETE' })
     const result = await res.json()
     if (!res.ok) return toast.error(result.error || 'Failed to delete')
-    load()
+    reload()
   }
 
   return (
@@ -196,9 +181,9 @@ export default function ProductPackagesPage() {
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
-          <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && packages.length === 0 && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!initialLoading && packages.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No packages yet</td></tr>
             )}
             {packages.map(p => (

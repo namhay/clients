@@ -52,6 +52,8 @@ export default function InvoicesPage() {
     total,
     totalPages,
     loading,
+    initialLoading,
+    refreshing,
     reload,
   } = usePaginatedList<any>({
     endpoint: '/api/invoices',
@@ -253,9 +255,9 @@ export default function InvoicesPage() {
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
             <th className="px-4 py-2.5">Actions</th>
           </tr></thead>
-          <tbody>
-            {loading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && invoices.length === 0 && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!initialLoading && invoices.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                 {debouncedSearch.trim() ? 'No invoices match your search' : 'No invoices found'}
               </td></tr>

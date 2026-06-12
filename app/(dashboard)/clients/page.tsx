@@ -1,10 +1,12 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
+import { prefetchClientProfile } from '@/lib/list-cache'
+import ClientLink from '@/components/clients/ClientLink'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
@@ -19,6 +21,8 @@ export default function ClientsPage() {
     total,
     totalPages,
     loading,
+    initialLoading,
+    refreshing,
     reload,
   } = usePaginatedList<any>({ endpoint: '/api/clients' })
 
@@ -28,6 +32,12 @@ export default function ClientsPage() {
   const [editId, setEditId] = useState<string|null>(null)
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderClient, setOrderClient] = useState<{ id: string; name: string } | null>(null)
+
+  useEffect(() => {
+    for (const c of clients.slice(0, 8)) {
+      void prefetchClientProfile(c.id)
+    }
+  }, [clients])
 
   const save = async () => {
     if (!form.name || !form.email) return toast.error('Name and email are required')
@@ -74,9 +84,9 @@ export default function ClientsPage() {
             <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Invoices</th>
             <th className="px-4 py-2.5"></th>
           </tr></thead>
-          <tbody>
-            {loading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
-            {!loading && clients.length === 0 && (
+          <tbody className={refreshing ? 'opacity-60 transition-opacity' : undefined}>
+            {initialLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">Loading...</td></tr>}
+            {!initialLoading && clients.length === 0 && (
               <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">
                 {debouncedSearch.trim() ? 'No clients match your search' : 'No clients found'}
               </td></tr>
@@ -84,7 +94,7 @@ export default function ClientsPage() {
             {clients.map(c => (
               <tr key={c.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                 <td className="px-4 py-3">
-                  <Link href={`/clients/${c.id}`} className="flex items-center gap-2 group">
+                  <ClientLink clientId={c.id} className="flex items-center gap-2 group">
                     <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-xs font-semibold flex-shrink-0">
                       {c.name.split(' ').map((n:string)=>n[0]).join('').slice(0,2).toUpperCase()}
                     </div>
@@ -103,7 +113,7 @@ export default function ClientsPage() {
                         )}
                       </div>
                     </div>
-                  </Link>
+                  </ClientLink>
                 </td>
                 <td className="hidden md:table-cell px-4 py-3 text-gray-600 dark:text-gray-300">{c.email}</td>
                 <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{c.phone || '-'}</td>
@@ -111,7 +121,7 @@ export default function ClientsPage() {
                 <td className="px-4 py-3"><span className="badge badge-unpaid">{c._count?.invoices || 0}</span></td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
-                    <Link href={`/clients/${c.id}`} className="btn-secondary py-1 px-2 text-xs">View</Link>
+                    <ClientLink clientId={c.id} className="btn-secondary py-1 px-2 text-xs">View</ClientLink>
                     <button className="btn-primary py-1 px-2 text-xs" onClick={() => addOrder(c)}>Add Order</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => edit(c)}>Edit</button>
                     <button className="btn-danger py-1 px-2 text-xs" onClick={() => del(c.id)}>Delete</button>
