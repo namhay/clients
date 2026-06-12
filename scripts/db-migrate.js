@@ -140,6 +140,17 @@ async function main() {
   console.log('✓ BrandingAsset table ready')
 
   await sql`
+    ALTER TABLE "BrandingAsset"
+    ADD COLUMN IF NOT EXISTS "pdfData" TEXT
+  `
+  await sql`
+    ALTER TABLE "BrandingAsset"
+    ADD COLUMN IF NOT EXISTS "pdfMimeType" TEXT
+  `
+
+  console.log('✓ BrandingAsset pdfData columns ready')
+
+  await sql`
     CREATE TABLE IF NOT EXISTS "InvoicePayment" (
       id TEXT PRIMARY KEY,
       "invoiceId" TEXT NOT NULL REFERENCES "Invoice"(id) ON DELETE CASCADE,

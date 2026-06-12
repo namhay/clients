@@ -5,7 +5,9 @@ import {
   getBrandingAssetFromDb,
   listBrandingAssetsFromDb,
   saveBrandingAssetToDb,
+  saveBrandingPdfRaster,
 } from '@/lib/db/branding'
+import { rasterizeSvgToPng } from '@/lib/svg-rasterize'
 
 export const BRANDING_ASSETS = {
   logo: { key: 'logo', label: 'Company Logo', publicDefault: 'invoice-logo.png' },
@@ -45,22 +47,21 @@ function mimeFromPath(filePath: string, fallbackMime?: string): string {
   return MIME_BY_EXT[ext] || 'image/jpeg'
 }
 
-function extToMime(ext: string): string {
-  return MIME_BY_EXT[ext.toLowerCase()] || 'image/png'
+function isSvgMime(mimeType: string): boolean {
+  return mimeType === 'image/svg+xml' || mimeType === 'image/svg'
 }
 
 async function preparePdfImageBuffer(
   buffer: Buffer,
   mimeType: string,
+  cachedPdf?: Buffer | null,
 ): Promise<{ buffer: Buffer; mimeType: string }> {
-  if (mimeType === 'image/svg+xml') {
-    try {
-      const sharp = (await import('sharp')).default
-      const png = await sharp(buffer, { density: 200 }).png().toBuffer()
-      return { buffer: png, mimeType: 'image/png' }
-    } catch {
-      throw new Error('Failed to convert SVG branding asset for PDF')
-    }
+  if (cachedPdf) {
+    return { buffer: cachedPdf, mimeType: 'image/png' }
+  }
+  if (isSvgMime(mimeType)) {
+    const png = await rasterizeSvgToPng(buffer)
+    return { buffer: png, mimeType: 'image/png' }
   }
   return { buffer, mimeType }
 }
@@ -143,28 +144,56 @@ export function parseBrandingAssetKey(value: string): BrandingAssetKey | null {
   return isBrandingAssetKey(value) ? value : null
 }
 
+type BrandingAssetBuffer = {
+  buffer: Buffer
+  mimeType: string
+  pdfData: Buffer | null
+  pdfMimeType: string | null
+  source: 'db' | 'local' | 'public'
+}
+
 export async function getBrandingAssetBuffer(
   key: BrandingAssetKey,
-): Promise<{ buffer: Buffer; mimeType: string; source: 'db' | 'local' | 'public' } | null> {
+): Promise<BrandingAssetBuffer | null> {
   const dbRow = await getBrandingAssetFromDb(key)
   if (dbRow) {
-    return { buffer: dbRow.data, mimeType: dbRow.mimeType, source: 'db' }
+    return {
+      buffer: dbRow.data,
+      mimeType: dbRow.mimeType,
+      pdfData: dbRow.pdfData,
+      pdfMimeType: dbRow.pdfMimeType,
+      source: 'db',
+    }
   }
 
   const localPath = getLocalCustomPath(key)
   if (localPath) {
     const meta = readMetaSafe()
     const mimeType = mimeFromPath(localPath, meta[key]?.mimeType)
-    return { buffer: fs.readFileSync(localPath), mimeType, source: 'local' }
+    return {
+      buffer: fs.readFileSync(localPath),
+      mimeType,
+      pdfData: null,
+      pdfMimeType: null,
+      source: 'local',
+    }
   }
 
   const publicPath = getPublicAssetPath(key)
   if (publicPath) {
     const mimeType = mimeFromPath(publicPath)
-    return { buffer: fs.readFileSync(publicPath), mimeType, source: 'public' }
+    return {
+      buffer: fs.readFileSync(publicPath),
+      mimeType,
+      pdfData: null,
+      pdfMimeType: null,
+      source: 'public',
+    }
   }
 
-  return fetchPublicBrandingBuffer(key)
+  const fetched = await fetchPublicBrandingBuffer(key)
+  if (!fetched) return null
+  return { ...fetched, pdfData: null, pdfMimeType: null }
 }
 
 /** Data URL for @react-pdf/renderer (works on Vercel serverless). */
@@ -173,9 +202,23 @@ export async function getBrandingAssetSrc(key: BrandingAssetKey): Promise<string
     const asset = await getBrandingAssetBuffer(key)
     if (!asset) return undefined
 
-    const { buffer, mimeType } = await preparePdfImageBuffer(asset.buffer, asset.mimeType)
+    const { buffer, mimeType } = await preparePdfImageBuffer(
+      asset.buffer,
+      asset.mimeType,
+      asset.pdfData,
+    )
+
+    if (
+      asset.source === 'db'
+      && isSvgMime(asset.mimeType)
+      && !asset.pdfData
+    ) {
+      void saveBrandingPdfRaster(key, buffer).catch(() => {})
+    }
+
     return `data:${mimeType};base64,${buffer.toString('base64')}`
-  } catch {
+  } catch (e) {
+    console.error(`Branding PDF raster failed for ${key}:`, e)
     return undefined
   }
 }
@@ -204,7 +247,14 @@ export async function saveBrandingAsset(key: BrandingAssetKey, buffer: Buffer, m
     throw new Error('Image must be 2 MB or smaller.')
   }
 
-  const saved = await saveBrandingAssetToDb(key, buffer, mimeType)
+  let pdfData: Buffer | null = null
+  let pdfMimeType: string | null = null
+  if (isSvgMime(mimeType)) {
+    pdfData = await rasterizeSvgToPng(buffer)
+    pdfMimeType = 'image/png'
+  }
+
+  const saved = await saveBrandingAssetToDb(key, buffer, mimeType, pdfData, pdfMimeType)
 
   if (canUseLocalFilesystem()) {
     try {
