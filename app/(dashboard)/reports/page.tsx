@@ -1,11 +1,12 @@
+'use client'
 import Link from 'next/link'
+import ClientLink from '@/components/clients/ClientLink'
 import StatCard from '@/components/dashboard/StatCard'
 import BarChartRow from '@/components/dashboard/BarChartRow'
 import MonthlyRevenueChart from '@/components/dashboard/MonthlyRevenueChart'
-import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
-import { getReportsData } from '@/lib/analytics'
-import { formatDateValue } from '@/lib/date-format'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { useCachedJson } from '@/lib/use-cached-json'
 import { formatCurrency } from '@/lib/utils'
 
 const barColors: Record<string, string> = {
@@ -20,19 +21,45 @@ const barColors: Record<string, string> = {
   indigo: 'bg-indigo-600',
 }
 
-export default async function ReportsPage() {
-  const [data, dateFormat, timezone] = await Promise.all([
-    getReportsData(),
-    getAppDateFormat(),
-    getAppTimezone(),
-  ])
-  const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
+type ReportsData = {
+  financial: {
+    paidTotal: number
+    paidCount: number
+    openTotal: number
+    openCount: number
+    overdueTotal: number
+    overdueCount: number
+    totalInvoices: number
+  }
+  monthlyRevenue: Array<{ month: string; label: string; revenue: number }>
+  servicesByType: Array<{ id: string; name: string; color: string; active: number; total: number }>
+  serviceStatus: { active: number; expired: number; total: number }
+  topClients: Array<{ id: string; name: string; invoiceCount: number; revenue: number }>
+  recentTransactions: Array<{
+    id: string
+    invoiceNo: string
+    total: number
+    paidAt: string | null
+    updatedAt: string
+    client?: { name: string } | null
+  }>
+  totalClients: number
+  totalOrders: number
+}
+
+export default function ReportsPage() {
+  const { formatDate } = useAppSettings()
+  const { data, initialLoading, refreshing } = useCachedJson<ReportsData>('/api/reports')
+
+  if (initialLoading || !data) {
+    return <div className="page-content text-gray-500 dark:text-gray-400">Loading reports...</div>
+  }
 
   const { financial, monthlyRevenue, servicesByType, serviceStatus, topClients, recentTransactions, totalClients, totalOrders } = data
   const maxServiceType = Math.max(...servicesByType.map(s => s.total), 1)
 
   return (
-    <div className="page-content">
+    <div className={`page-content${refreshing ? ' opacity-60' : ''}`}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Reports</h1>
@@ -148,9 +175,9 @@ export default async function ReportsPage() {
               {topClients.map(client => (
                 <tr key={client.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="truncate font-medium">
-                    <Link href={`/clients/${client.id}`} className="hover:text-blue-700 dark:hover:text-blue-300" title={client.name}>
+                    <ClientLink clientId={client.id} className="hover:text-blue-700 dark:hover:text-blue-300" title={client.name}>
                       {client.name}
-                    </Link>
+                    </ClientLink>
                   </td>
                   <td>{client.invoiceCount}</td>
                   <td className="whitespace-nowrap font-medium text-green-700 dark:text-green-300">

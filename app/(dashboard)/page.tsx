@@ -1,9 +1,10 @@
+'use client'
 import Link from 'next/link'
+import ClientLink from '@/components/clients/ClientLink'
 import StatCard from '@/components/dashboard/StatCard'
-import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
-import { getDashboardData } from '@/lib/analytics'
-import { formatDateValue } from '@/lib/date-format'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
+import { useCachedJson } from '@/lib/use-cached-json'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 
 const statusColor: Record<string, string> = {
@@ -12,18 +13,56 @@ const statusColor: Record<string, string> = {
   OVERDUE: 'badge-overdue',
 }
 
-export default async function DashboardPage() {
-  const [stats, dateFormat, timezone] = await Promise.all([
-    getDashboardData(),
-    getAppDateFormat(),
-    getAppTimezone(),
-  ])
-  const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
+type DashboardStats = {
+  totalClients: number
+  activeServices: number
+  outstandingAmount: number
+  unpaidInvoices: number
+  overdueInvoices: number
+  overdueAmount: number
+  totalRevenue: number
+  revenueThisMonth: number
+  expiringServices: number
+  expiredServices: number
+  totalOrders: number
+  paymentsThisMonth: number
+  recentInvoices: Array<{
+    id: string
+    invoiceNo: string
+    total: number
+    status: string
+    createdAt: string
+    client?: { name: string } | null
+  }>
+  openInvoices: Array<{
+    id: string
+    total: number
+    status: string
+    dueDate: string
+    client?: { name: string } | null
+  }>
+  expiringList: Array<{
+    id: string
+    clientId: string
+    name: string
+    expiryDate: string
+    client?: { name: string } | null
+    productType?: { name: string; color: string } | null
+  }>
+}
+
+export default function DashboardPage() {
+  const { formatDate } = useAppSettings()
+  const { data: stats, initialLoading, refreshing } = useCachedJson<DashboardStats>('/api/dashboard')
+
+  if (initialLoading || !stats) {
+    return <div className="page-content text-gray-500 dark:text-gray-400">Loading dashboard...</div>
+  }
 
   const needsAttention = stats.unpaidInvoices > 0 || stats.expiringServices > 0 || stats.overdueInvoices > 0
 
   return (
-    <div className="page-content">
+    <div className={`page-content${refreshing ? ' opacity-60' : ''}`}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
@@ -190,9 +229,9 @@ export default async function DashboardPage() {
                 return (
                   <tr key={svc.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="truncate font-medium" title={svc.client?.name}>
-                      <Link href={`/clients/${svc.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                      <ClientLink clientId={svc.clientId} className="hover:text-blue-700 dark:hover:text-blue-300">
                         {svc.client?.name}
-                      </Link>
+                      </ClientLink>
                     </td>
                     <td>
                       <div className="truncate text-gray-600 dark:text-gray-300" title={svc.name}>{svc.name}</div>

@@ -2,8 +2,13 @@
 import { useEffect, useState } from 'react'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { DATE_FORMAT_OPTIONS } from '@/lib/date-format'
+import { getJsonCache, setJsonCache } from '@/lib/list-cache'
 import { APP_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
 import { toast } from '@/lib/toast'
+import { useCachedJson } from '@/lib/use-cached-json'
+
+const SETTINGS_URL = '/api/settings'
+const BRANDING_URL = '/api/settings/branding'
 
 const emptyForm = () => ({
   companyName: '',
@@ -29,8 +34,35 @@ const emptyForm = () => ({
 
 export default function SettingsPage() {
   const { reloadSettings } = useAppSettings()
-  const [form, setForm] = useState(emptyForm())
-  const [loading, setLoading] = useState(true)
+  const { data: settingsData, initialLoading: settingsLoading, refreshing: settingsRefreshing } =
+    useCachedJson<Record<string, unknown>>(SETTINGS_URL)
+  const { data: brandingData, initialLoading: brandingInitialLoading } =
+    useCachedJson<{ assets: Array<{ key: string; label: string; url: string; hasCustom: boolean; updatedAt: string | null }> }>(BRANDING_URL)
+  const [form, setForm] = useState(() => {
+    const cached = getJsonCache<Record<string, unknown>>(SETTINGS_URL)
+    if (!cached) return emptyForm()
+    return {
+      companyName: String(cached.companyName || ''),
+      companyAddress: String(cached.companyAddress || ''),
+      companyEmail: String(cached.companyEmail || ''),
+      companyPhone: String(cached.companyPhone || ''),
+      invoicePrefix: String(cached.invoicePrefix || 'INV-'),
+      invoiceStartNumber: String(cached.invoiceStartNumber ?? 1),
+      dateFormat: String(cached.dateFormat || 'DD_MMM_YYYY'),
+      reminderDays: String(cached.reminderDays ?? 7),
+      reminderTime: String(cached.reminderTime || '09:00'),
+      reminderTimezone: String(cached.reminderTimezone || 'Asia/Phnom_Penh'),
+      lastReminderRunDate: String(cached.lastReminderRunDate || ''),
+      smtpHost: String(cached.smtpHost || ''),
+      smtpPort: String(cached.smtpPort ?? 465),
+      smtpSecure: cached.smtpSecure !== false,
+      smtpUser: String(cached.smtpUser || ''),
+      smtpPass: String(cached.smtpPass || ''),
+      smtpFrom: String(cached.smtpFrom || ''),
+      telegramBotToken: String(cached.telegramBotToken || ''),
+      telegramDefaultChatId: String(cached.telegramDefaultChatId || ''),
+    }
+  })
   const [saving, setSaving] = useState(false)
   const [savedMessage, setSavedMessage] = useState('')
   const [error, setError] = useState('')
@@ -55,14 +87,10 @@ export default function SettingsPage() {
   const [passwordSaving, setPasswordSaving] = useState(false)
   const [passwordMessage, setPasswordMessage] = useState('')
   const [passwordError, setPasswordError] = useState('')
-  const [brandingAssets, setBrandingAssets] = useState<Array<{
-    key: string
-    label: string
-    url: string
-    hasCustom: boolean
-    updatedAt: string | null
-  }>>([])
-  const [brandingLoading, setBrandingLoading] = useState(true)
+  const [brandingAssets, setBrandingAssets] = useState(() => {
+    const cached = getJsonCache<{ assets: Array<{ key: string; label: string; url: string; hasCustom: boolean; updatedAt: string | null }> }>(BRANDING_URL)
+    return cached?.assets ?? []
+  })
   const [brandingUploading, setBrandingUploading] = useState<string | null>(null)
   const [brandingMessage, setBrandingMessage] = useState('')
   const [brandingError, setBrandingError] = useState('')
@@ -91,19 +119,6 @@ export default function SettingsPage() {
     })
   }
 
-  const loadBranding = () => {
-    fetch('/api/settings/branding')
-      .then(async res => {
-        const data = await res.json().catch(() => null)
-        if (!res.ok || !data?.assets) {
-          throw new Error(data?.error || 'Failed to load branding assets')
-        }
-        setBrandingAssets(data.assets)
-      })
-      .catch((e: Error) => setBrandingError(e.message || 'Could not load branding assets'))
-      .finally(() => setBrandingLoading(false))
-  }
-
   const uploadBranding = async (key: string, file: File) => {
     setBrandingUploading(key)
     setBrandingError('')
@@ -118,7 +133,9 @@ export default function SettingsPage() {
         setBrandingError(data.error || 'Upload failed')
         return
       }
-      setBrandingAssets(data.assets || [])
+      const assets = data.assets || []
+      setBrandingAssets(assets)
+      setJsonCache(BRANDING_URL, { assets })
       setBrandingMessage('Branding image updated')
       setTimeout(() => setBrandingMessage(''), 3000)
     } catch {
@@ -138,16 +155,21 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    fetch('/api/settings')
-      .then(async res => {
-        const data = await res.json().catch(() => null)
-        if (!res.ok || !data || data.error) throw new Error(data?.error || 'Failed to load')
-        applySettings(data)
-      })
-      .catch(() => setError('Could not load settings — values from .env may still save'))
-      .finally(() => setLoading(false))
+    if (settingsData) applySettings(settingsData)
+  }, [settingsData])
+
+  useEffect(() => {
+    if (brandingData?.assets) setBrandingAssets(brandingData.assets)
+  }, [brandingData])
+
+  useEffect(() => {
+    if (!settingsLoading && !settingsData) {
+      setError('Could not load settings — values from .env may still save')
+    }
+  }, [settingsLoading, settingsData])
+
+  useEffect(() => {
     loadWebhookStatus()
-    loadBranding()
   }, [])
 
   const registerWebhook = async () => {
@@ -222,6 +244,7 @@ export default function SettingsPage() {
         return
       }
       applySettings(result)
+      setJsonCache(SETTINGS_URL, result)
       await reloadSettings()
       const savedTo = Array.isArray(result.savedTo) ? result.savedTo : ['database']
       const message = savedTo.includes('env')
@@ -236,12 +259,12 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
+  if (settingsLoading) {
     return <div className="page-content text-gray-500 dark:text-gray-400">Loading settings...</div>
   }
 
   return (
-    <div className="page-content">
+    <div className={`page-content${settingsRefreshing ? ' opacity-60' : ''}`}>
       <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Settings</h1>
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="card p-5 lg:col-span-2">
@@ -249,7 +272,7 @@ export default function SettingsPage() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
             Upload logo, stamp, and payment QR code. Changes apply immediately to invoices, login, and the sidebar — no redeploy needed.
           </p>
-          {brandingLoading ? (
+          {brandingInitialLoading && brandingAssets.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading assets...</p>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

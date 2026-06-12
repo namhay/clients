@@ -1,12 +1,14 @@
+'use client'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import ClientLink from '@/components/clients/ClientLink'
 import ReminderSendButtons from '@/components/reminders/ReminderSendButtons'
 import StatCard from '@/components/dashboard/StatCard'
-import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
-import { formatDateValue, formatDateTimeValue } from '@/lib/date-format'
+import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
-import { formatReminderRule } from '@/lib/product-types'
+import { formatReminderRule, parseReminderTiming } from '@/lib/product-types'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
-import { getRemindersPageData } from '@/lib/reminders-page'
+import { useCachedJson } from '@/lib/use-cached-json'
 import { daysUntil, formatCurrency } from '@/lib/utils'
 
 const statusColor: Record<string, string> = {
@@ -15,20 +17,67 @@ const statusColor: Record<string, string> = {
   OVERDUE: 'badge-overdue',
 }
 
-export default async function RemindersPage({
-  searchParams,
-}: {
-  searchParams?: { logPage?: string }
-}) {
-  const logPage = Math.max(1, parseInt(searchParams?.logPage || '1', 10) || 1)
+type RemindersPageData = {
+  openInvoices: Array<{
+    id: string
+    clientId: string
+    invoiceNo: string
+    total: number
+    status: string
+    dueDate: string
+    client?: { name: string; email?: string | null; telegramId?: string | null } | null
+  }>
+  expiringServices: Array<{
+    id: string
+    clientId: string
+    name: string
+    expiryDate: string
+    client?: { name: string; email?: string | null; telegramId?: string | null } | null
+    productType?: {
+      name: string
+      color: string
+      reminderDaysBeforeExpiry?: number | null
+      reminderTiming?: string | null
+    } | null
+  }>
+  recentLogs: Array<{
+    id: string
+    clientId: string
+    clientName: string
+    type: string
+    channel: string
+    createdAt: string
+    message?: string | null
+  }>
+  recentLogsPagination: {
+    total: number
+    page: number
+    pageSize: number
+    totalPages: number
+  }
+  summary: {
+    openCount: number
+    outstandingAmount: number
+    overdueCount: number
+    expiringCount: number
+    telegramReady: number
+  }
+  schedule: {
+    timeLabel: string
+    lastRunDate: string | null
+  }
+}
 
-  const [data, dateFormat, timezone] = await Promise.all([
-    getRemindersPageData(logPage),
-    getAppDateFormat(),
-    getAppTimezone(),
-  ])
-  const formatDate = (date: Date | string) => formatDateValue(date, dateFormat, timezone)
-  const formatDateTime = (date: Date | string) => formatDateTimeValue(date, dateFormat, timezone)
+export default function RemindersPage() {
+  const searchParams = useSearchParams()
+  const logPage = Math.max(1, parseInt(searchParams.get('logPage') || '1', 10) || 1)
+  const { formatDate, formatDateTime } = useAppSettings()
+  const apiUrl = `/api/reminders?logPage=${logPage}`
+  const { data, initialLoading, refreshing } = useCachedJson<RemindersPageData>(apiUrl, [logPage])
+
+  if (initialLoading || !data) {
+    return <div className="page-content text-gray-500 dark:text-gray-400">Loading reminders...</div>
+  }
 
   const { openInvoices, expiringServices, recentLogs, recentLogsPagination, summary, schedule } = data
   const { total: logsTotal, page: logsPage, pageSize: logsPageSize, totalPages: logsTotalPages } = recentLogsPagination
@@ -36,7 +85,7 @@ export default async function RemindersPage({
   const logsRangeEnd = Math.min(logsPage * logsPageSize, logsTotal)
 
   return (
-    <div className="page-content">
+    <div className={`page-content${refreshing ? ' opacity-60' : ''}`}>
       <div className="page-header">
         <div>
           <h1 className="page-title">Reminders</h1>
@@ -121,9 +170,9 @@ export default async function RemindersPage({
               {openInvoices.map(inv => (
                 <tr key={inv.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="truncate font-medium" title={inv.client?.name}>
-                    <Link href={`/clients/${inv.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                    <ClientLink clientId={inv.clientId} className="hover:text-blue-700 dark:hover:text-blue-300">
                       {inv.client?.name}
-                    </Link>
+                    </ClientLink>
                   </td>
                   <td className="whitespace-nowrap font-medium">{inv.invoiceNo}</td>
                   <td className="whitespace-nowrap">{formatCurrency(inv.total)}</td>
@@ -137,7 +186,7 @@ export default async function RemindersPage({
                       invoiceId={inv.id}
                       variant="invoice"
                       hasTelegram={Boolean(inv.client?.telegramId)}
-                      clientEmail={inv.client?.email}
+                      clientEmail={inv.client?.email ?? undefined}
                       clientName={inv.client?.name}
                     />
                   </td>
@@ -178,14 +227,14 @@ export default async function RemindersPage({
               {expiringServices.map(svc => {
                 const d = daysUntil(svc.expiryDate)
                 const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
-                const remindTiming = svc.productType?.reminderTiming ?? 'BEFORE'
+                const remindTiming = parseReminderTiming(svc.productType?.reminderTiming)
                 const remindRule = formatReminderRule(remindDays, remindTiming)
                 return (
                   <tr key={svc.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="truncate font-medium" title={svc.client?.name}>
-                      <Link href={`/clients/${svc.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                      <ClientLink clientId={svc.clientId} className="hover:text-blue-700 dark:hover:text-blue-300">
                         {svc.client?.name}
-                      </Link>
+                      </ClientLink>
                     </td>
                     <td className="truncate font-medium" title={svc.name}>{svc.name}</td>
                     <td>
@@ -206,7 +255,7 @@ export default async function RemindersPage({
                         serviceId={svc.id}
                         variant="service"
                         hasTelegram={Boolean(svc.client?.telegramId)}
-                        clientEmail={svc.client?.email}
+                        clientEmail={svc.client?.email ?? undefined}
                         clientName={svc.client?.name}
                       />
                     </td>
@@ -244,9 +293,9 @@ export default async function RemindersPage({
             {recentLogs.map(log => (
               <tr key={log.id} className="border-t border-gray-100 dark:border-gray-800">
                 <td className="truncate font-medium" title={log.clientName}>
-                  <Link href={`/clients/${log.clientId}`} className="hover:text-blue-700 dark:hover:text-blue-300">
+                  <ClientLink clientId={log.clientId} className="hover:text-blue-700 dark:hover:text-blue-300">
                     {log.clientName}
-                  </Link>
+                  </ClientLink>
                 </td>
                 <td className="truncate text-gray-600 dark:text-gray-300" title={formatReminderLogMessage(log)}>
                   {formatReminderLogMessage(log)}

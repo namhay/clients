@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import ThemeToggle from '@/components/layout/ThemeToggle'
-import { prefetchList } from '@/lib/list-cache'
+import { prefetchJson, prefetchList } from '@/lib/list-cache'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -20,7 +20,7 @@ const navItems = [
   { href: '/settings', label: 'Settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
 ]
 
-const prefetchByHref: Record<string, string> = {
+const prefetchListByHref: Record<string, string> = {
   '/clients': '/api/clients?page=1',
   '/services': '/api/services?page=1',
   '/orders': '/api/orders?page=1',
@@ -28,6 +28,13 @@ const prefetchByHref: Record<string, string> = {
   '/transactions': '/api/transactions?page=1&period=all',
   '/product-types': '/api/product-types',
   '/product-packages': '/api/product-packages',
+}
+
+const prefetchJsonByHref: Record<string, string> = {
+  '/': '/api/dashboard',
+  '/reminders': '/api/reminders?logPage=1',
+  '/reports': '/api/reports',
+  '/settings': '/api/settings',
 }
 
 type SidebarProps = {
@@ -100,8 +107,11 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
               href={item.href}
               prefetch
               onMouseEnter={() => {
-                const url = prefetchByHref[item.href]
-                if (url) void prefetchList(url)
+                const listUrl = prefetchListByHref[item.href]
+                if (listUrl) void prefetchList(listUrl)
+                const jsonUrl = prefetchJsonByHref[item.href]
+                if (jsonUrl) void prefetchJson(jsonUrl)
+                if (item.href === '/settings') void prefetchJson('/api/settings/branding')
               }}
               onClick={onClose}
               className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${active ? 'bg-blue-50 font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100'}`}
