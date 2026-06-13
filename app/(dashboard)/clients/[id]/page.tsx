@@ -401,65 +401,82 @@ export default function ClientProfilePage() {
         <Link href="/clients" className="text-sm text-gray-500 dark:text-gray-400 hover:text-blue-700 dark:hover:text-blue-400">← Clients</Link>
       </div>
 
-      <div className="card p-5 mb-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-lg font-semibold flex-shrink-0">
-              {initials}
-            </div>
-            <div>
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">{client.name}</h1>
-              {(client.companyKhmer || client.company) && (
-                <div className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                  {client.companyKhmer && <p>{client.companyKhmer}</p>}
-                  {client.company && <p>{client.company}</p>}
-                </div>
-              )}
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-sm text-gray-600 dark:text-gray-300">
-                <div><span className="text-gray-400 dark:text-gray-500">Email:</span> {client.email}</div>
-                <div><span className="text-gray-400 dark:text-gray-500">Phone:</span> {client.phone || '—'}</div>
-                <div><span className="text-gray-400 dark:text-gray-500">Address:</span> {client.address || '—'}</div>
-                <div><span className="text-gray-400 dark:text-gray-500">VAT TIN:</span> {client.vatTin || '—'}</div>
-                <div>
-                  <span className="text-gray-400 dark:text-gray-500">Telegram:</span>{' '}
-                  {client.telegramId ? (
-                    <span className="text-green-700 dark:text-green-300">Connected ({client.telegramId})</span>
-                  ) : (
-                    <span className="text-orange-600 dark:text-orange-400">Not connected</span>
-                  )}
-                </div>
-                <div><span className="text-gray-400 dark:text-gray-500">Joined:</span> {formatDate(client.createdAt)}</div>
-                <div className="col-span-2 sm:col-span-1">
-                  <span className="text-gray-400 dark:text-gray-500">Invoice & Reminder:</span>{' '}
-                  {formatRenewalTiming(client.renewalDaysBeforeExpiry ?? 14)}
-                </div>
+      <div className="mb-6 space-y-4">
+        <div className="stat-card">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="flex items-start gap-4 min-w-0 flex-1">
+              <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 flex items-center justify-center text-lg font-semibold flex-shrink-0">
+                {initials}
               </div>
-              {client.notes && (
-                <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">{client.notes}</p>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 break-words">{client.name}</h1>
+                {(client.companyKhmer || client.company) && (
+                  <div className="text-sm text-gray-500 dark:text-gray-400 mt-1 space-y-0.5">
+                    {client.companyKhmer && <p className="break-words">{client.companyKhmer}</p>}
+                    {client.company && <p className="break-words">{client.company}</p>}
+                  </div>
+                )}
+                {client.notes && (
+                  <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 break-words">{client.notes}</p>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 w-full md:w-auto md:min-w-[17rem] md:shrink-0">
+              <button className="btn-primary w-full justify-center" onClick={() => setShowOrderModal(true)}>Add Order</button>
+              <button
+                className="btn-primary w-full justify-center"
+                onClick={generateRenewalInvoices}
+                disabled={generatingRenewals}
+              >
+                {generatingRenewals ? 'Generating…' : 'Generate Invoices'}
+              </button>
+              <button className="btn-secondary w-full justify-center" onClick={() => setShowEditModal(true)}>Edit Client</button>
+              <button
+                className="btn-danger w-full justify-center"
+                onClick={async () => {
+                  if (!await toast.confirm('Delete this client and all their data?')) return
+                  clearJsonCache(clientProfileApiUrl(id))
+                  await fetch(`/api/clients/${id}`, { method: 'DELETE' })
+                  router.push('/clients')
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="stat-card min-w-0">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-all">{client.email}</div>
+          </div>
+          <div className="stat-card min-w-0">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">{client.phone || '—'}</div>
+          </div>
+          <div className="stat-card min-w-0 sm:col-span-2">
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 break-words">{client.address || '—'}</div>
+          </div>
+          <div className="stat-card min-w-0">
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">VAT TIN</div>
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1 break-words">{client.vatTin || '—'}</div>
+          </div>
+          <div className="stat-card min-w-0">
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Telegram</div>
+            <div className="text-sm font-medium mt-1 break-words">
+              {client.telegramId ? (
+                <span className="text-green-700 dark:text-green-300">Connected ({client.telegramId})</span>
+              ) : (
+                <span className="text-orange-600 dark:text-orange-400">Not connected</span>
               )}
             </div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button className="btn-primary" onClick={() => setShowOrderModal(true)}>Add Order</button>
-            <button
-              className="btn-primary"
-              onClick={generateRenewalInvoices}
-              disabled={generatingRenewals}
-            >
-              {generatingRenewals ? 'Generating…' : 'Generate Invoices'}
-            </button>
-            <button className="btn-secondary" onClick={() => setShowEditModal(true)}>Edit Client</button>
-            <button
-              className="btn-danger"
-              onClick={async () => {
-                if (!await toast.confirm('Delete this client and all their data?')) return
-                clearJsonCache(clientProfileApiUrl(id))
-                await fetch(`/api/clients/${id}`, { method: 'DELETE' })
-                router.push('/clients')
-              }}
-            >
-              Delete
-            </button>
+          <div className="stat-card min-w-0">
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Joined</div>
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1">{formatDate(client.createdAt)}</div>
+          </div>
+          <div className="stat-card min-w-0">
+            <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Invoice & Reminder</div>
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1 break-words">{formatRenewalTiming(client.renewalDaysBeforeExpiry ?? 14)}</div>
           </div>
         </div>
       </div>
