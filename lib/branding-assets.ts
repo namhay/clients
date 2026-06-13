@@ -51,42 +51,20 @@ function isSvgMime(mimeType: string): boolean {
   return mimeType === 'image/svg+xml' || mimeType === 'image/svg'
 }
 
-/** Target pixel sizes for PDF embed (~2x display size on A4). */
-const PDF_EMBED_SIZES: Record<BrandingAssetKey, { maxWidth: number; maxHeight: number; preferJpeg?: boolean }> = {
-  logo: { maxWidth: 400, maxHeight: 112 },
-  stamp: { maxWidth: 360, maxHeight: 180, preferJpeg: true },
-  qr: { maxWidth: 140, maxHeight: 140 },
-}
-
-async function optimizeBrandingForPdf(
-  key: BrandingAssetKey,
-  buffer: Buffer,
-  mimeType: string,
-): Promise<{ buffer: Buffer; mimeType: string }> {
-  const { optimizeImageForPdf } = await import('@/lib/pdf-image-optimize')
-  const size = PDF_EMBED_SIZES[key]
-  return optimizeImageForPdf(buffer, mimeType, size)
-}
-
 async function preparePdfImageBuffer(
-  key: BrandingAssetKey,
   buffer: Buffer,
   mimeType: string,
   cachedPdf?: Buffer | null,
   cachedPdfMime?: string | null,
 ): Promise<{ buffer: Buffer; mimeType: string }> {
-  let prepared: { buffer: Buffer; mimeType: string }
-
   if (cachedPdf) {
-    prepared = { buffer: cachedPdf, mimeType: cachedPdfMime || 'image/png' }
-  } else if (isSvgMime(mimeType)) {
-    const png = await rasterizeSvgToPng(buffer, PDF_EMBED_SIZES[key].maxWidth)
-    prepared = { buffer: png, mimeType: 'image/png' }
-  } else {
-    prepared = { buffer, mimeType }
+    return { buffer: cachedPdf, mimeType: cachedPdfMime || 'image/png' }
   }
-
-  return optimizeBrandingForPdf(key, prepared.buffer, prepared.mimeType)
+  if (isSvgMime(mimeType)) {
+    const png = await rasterizeSvgToPng(buffer)
+    return { buffer: png, mimeType: 'image/png' }
+  }
+  return { buffer, mimeType }
 }
 
 async function fetchPublicBrandingBuffer(
@@ -225,13 +203,20 @@ export async function getBrandingAssetSrc(key: BrandingAssetKey): Promise<string
     const asset = await getBrandingAssetBuffer(key)
     if (!asset) return undefined
 
-    const { buffer, mimeType } = await preparePdfImageBuffer(
-      key,
-      asset.buffer,
-      asset.mimeType,
-      asset.pdfData,
-      asset.pdfMimeType,
-    )
+    let buffer = asset.buffer
+    let mimeType = asset.mimeType
+    try {
+      const prepared = await preparePdfImageBuffer(
+        asset.buffer,
+        asset.mimeType,
+        asset.pdfData,
+        asset.pdfMimeType,
+      )
+      buffer = prepared.buffer
+      mimeType = prepared.mimeType
+    } catch (prepareError) {
+      console.error(`Branding PDF prepare failed for ${key}, using original:`, prepareError)
+    }
 
     if (
       asset.source === 'db'
@@ -275,10 +260,8 @@ export async function saveBrandingAsset(key: BrandingAssetKey, buffer: Buffer, m
   let pdfData: Buffer | null = null
   let pdfMimeType: string | null = null
   if (isSvgMime(mimeType)) {
-    const rasterized = await rasterizeSvgToPng(buffer, PDF_EMBED_SIZES[key].maxWidth)
-    const optimized = await optimizeBrandingForPdf(key, rasterized, 'image/png')
-    pdfData = optimized.buffer
-    pdfMimeType = optimized.mimeType
+    pdfData = await rasterizeSvgToPng(buffer)
+    pdfMimeType = 'image/png'
   }
 
   const saved = await saveBrandingAssetToDb(key, buffer, mimeType, pdfData, pdfMimeType)
