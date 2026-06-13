@@ -18,7 +18,6 @@ function mapProductPackage(row: Record<string, unknown>): ProductPackageRow {
     id: String(row.id),
     productTypeId: String(row.productTypeId),
     name: String(row.name),
-    description: row.description != null ? String(row.description) : null,
     diskSpaceGb: row.diskSpaceGb != null ? Number(row.diskSpaceGb) : null,
     bandwidthGb: row.bandwidthGb != null ? Number(row.bandwidthGb) : null,
     emailAccounts: row.emailAccounts != null ? Number(row.emailAccounts) : null,
@@ -29,7 +28,6 @@ function mapProductPackage(row: Record<string, unknown>): ProductPackageRow {
     priceQuarterly: Number(row.priceQuarterly ?? 0),
     priceSemiAnnual: Number(row.priceSemiAnnual ?? 0),
     priceYearly: Number(row.priceYearly ?? 0),
-    setupFee: Number(row.setupFee ?? 0),
     active: Boolean(row.active),
     sortOrder: Number(row.sortOrder ?? 0),
     createdAt: new Date(row.createdAt as string),
@@ -61,11 +59,11 @@ function mapWithRelations(row: Record<string, unknown>): ProductPackageWithRelat
 }
 
 const PACKAGE_SELECT = `
-  pp.id, pp."productTypeId", pp.name, pp.description,
+  pp.id, pp."productTypeId", pp.name,
   pp."diskSpaceGb", pp."bandwidthGb", pp."emailAccounts", pp.databases, pp."addonDomains",
   pp."billingType",
   pp."priceMonthly", pp."priceQuarterly", pp."priceSemiAnnual", pp."priceYearly",
-  pp."setupFee", pp.active, pp."sortOrder", pp."createdAt", pp."updatedAt",
+  pp.active, pp."sortOrder", pp."createdAt", pp."updatedAt",
   pt.id AS pt_id, pt.name AS pt_name, pt.slug AS pt_slug, pt.color AS pt_color,
   pt."hasHostingSpecs" AS pt_hasHostingSpecs, pt.active AS pt_active, pt."sortOrder" AS pt_sortOrder,
   pt."reminderDaysBeforeExpiry" AS pt_reminderDaysBeforeExpiry,
@@ -158,15 +156,15 @@ export async function createProductPackage(data: ProductPackageInput): Promise<P
   const now = new Date()
   await sql`
     INSERT INTO "ProductPackage" (
-      id, "productTypeId", name, description,
+      id, "productTypeId", name,
       "diskSpaceGb", "bandwidthGb", "emailAccounts", databases, "addonDomains",
       "billingType", "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
-      "setupFee", active, "sortOrder", "createdAt", "updatedAt"
+      active, "sortOrder", "createdAt", "updatedAt"
     ) VALUES (
-      ${id}, ${data.productTypeId}, ${data.name}, ${data.description},
+      ${id}, ${data.productTypeId}, ${data.name},
       ${data.diskSpaceGb}, ${data.bandwidthGb}, ${data.emailAccounts}, ${data.databases}, ${data.addonDomains},
       ${data.billingType}, ${data.priceMonthly}, ${data.priceQuarterly}, ${data.priceSemiAnnual}, ${data.priceYearly},
-      ${data.setupFee}, ${data.active}, ${data.sortOrder}, ${now}, ${now}
+      ${data.active}, ${data.sortOrder}, ${now}, ${now}
     )
   `
   const pkg = await getProductPackageById(id)
@@ -181,7 +179,6 @@ export async function updateProductPackage(id: string, data: ProductPackageInput
     UPDATE "ProductPackage" SET
       "productTypeId" = ${data.productTypeId},
       name = ${data.name},
-      description = ${data.description},
       "diskSpaceGb" = ${data.diskSpaceGb},
       "bandwidthGb" = ${data.bandwidthGb},
       "emailAccounts" = ${data.emailAccounts},
@@ -192,7 +189,6 @@ export async function updateProductPackage(id: string, data: ProductPackageInput
       "priceQuarterly" = ${data.priceQuarterly},
       "priceSemiAnnual" = ${data.priceSemiAnnual},
       "priceYearly" = ${data.priceYearly},
-      "setupFee" = ${data.setupFee},
       active = ${data.active},
       "sortOrder" = ${data.sortOrder},
       "updatedAt" = ${now}

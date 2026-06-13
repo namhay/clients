@@ -122,6 +122,17 @@ Please renew before the expiry date to avoid service interruption.
 ${emailSignoff()}`
 }
 
+export function paymentReceivedEmailTemplate(params: {
+  clientName: string
+  invoiceNo: string
+}) {
+  return `Dear ${params.clientName},
+
+We have received your payment for invoice ${params.invoiceNo}. Thank you!
+
+${emailSignoff()}`
+}
+
 /** @deprecated Use serviceReminderEmailTemplate (plain text) for service reminders */
 export function reminderEmailTemplate(params: {
   clientName: string

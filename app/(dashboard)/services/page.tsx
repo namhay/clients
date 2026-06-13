@@ -45,11 +45,6 @@ export default function ServicesPage() {
     fetch('/api/product-types?active=true').then(r => r.json()).then(setProductTypes)
   }, [])
 
-  const openAdd = () => {
-    setEditService(null)
-    setShowModal(true)
-  }
-
   const openEdit = (s: any) => {
     setEditService(s)
     setShowModal(true)
@@ -68,10 +63,6 @@ export default function ServicesPage() {
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Services</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Manage products, pricing, and billing cycles</p>
         </div>
-        <button className="btn-primary" onClick={openAdd}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          Add Service
-        </button>
       </div>
 
       <div className="card">

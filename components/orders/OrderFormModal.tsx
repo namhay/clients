@@ -11,7 +11,6 @@ type OrderLine = {
   productPackageId: string
   name: string
   price: string
-  setupFee: string
   recurring: boolean
   period: string
   startDate: string
@@ -33,7 +32,6 @@ const newLine = (): OrderLine => {
     productPackageId: '',
     name: '',
     price: '',
-    setupFee: '',
     recurring: true,
     period: 'YEARLY',
     ...syncLineDates(today),
@@ -89,7 +87,7 @@ export default function OrderFormModal({
       if (line.key !== key) return line
       let next = { ...line, ...patch }
       if (patch.productTypeId && patch.productTypeId !== line.productTypeId) {
-        next = { ...next, productPackageId: '', price: '', setupFee: '' }
+        next = { ...next, productPackageId: '', price: '' }
         loadPackages(patch.productTypeId)
       }
       if (patch.productPackageId || (patch.period && next.productPackageId)) {
@@ -102,7 +100,6 @@ export default function OrderFormModal({
             ...next,
             recurring: oneTime ? false : next.recurring,
             price: String(getPackagePrice(pkg, period)),
-            setupFee: String(pkg.setupFee ?? 0),
           }
         }
       }
@@ -147,7 +144,6 @@ export default function OrderFormModal({
             productPackageId: line.productPackageId,
             name: line.name.trim(),
             price: parseFloat(line.price) || 0,
-            setupFee: parseFloat(line.setupFee) || 0,
             startDate: line.startDate,
             expiryDate: line.expiryDate,
             nextDueDate: line.recurring ? line.nextDueDate || line.expiryDate : null,
@@ -184,7 +180,7 @@ export default function OrderFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-4xl shadow-xl max-h-[92vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
           <h2 className="text-base font-semibold">
             {defaultClientName ? `New Order — ${defaultClientName}` : 'New Order'}
@@ -294,10 +290,6 @@ export default function OrderFormModal({
                     <div>
                       <label className="label">Price (USD)</label>
                       <input type="number" min="0" step="0.01" className="input" value={line.price} onChange={e => updateLine(line.key, { price: e.target.value })} />
-                    </div>
-                    <div>
-                      <label className="label">Setup Fee (USD)</label>
-                      <input type="number" min="0" step="0.01" className="input" value={line.setupFee} onChange={e => updateLine(line.key, { setupFee: e.target.value })} />
                     </div>
                     <div>
                       <label className="label">Start Date</label>

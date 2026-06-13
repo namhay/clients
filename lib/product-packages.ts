@@ -3,7 +3,6 @@ export type PackageBillingType = 'RECURRING' | 'ONE_TIME'
 export type ProductPackageInput = {
   productTypeId: string
   name: string
-  description: string | null
   diskSpaceGb: number | null
   bandwidthGb: number | null
   emailAccounts: number | null
@@ -14,7 +13,6 @@ export type ProductPackageInput = {
   priceQuarterly: number
   priceSemiAnnual: number
   priceYearly: number
-  setupFee: number
   active: boolean
   sortOrder: number
 }
@@ -49,7 +47,6 @@ export function parseProductPackageInput(
   return {
     productTypeId,
     name,
-    description: body.description ? String(body.description).trim() : null,
     diskSpaceGb: hasHostingSpecs ? (parseOptionalInt(body.diskSpaceGb) ?? 0) : null,
     bandwidthGb: hasHostingSpecs ? (parseOptionalInt(body.bandwidthGb) ?? 0) : null,
     emailAccounts: hasHostingSpecs ? (parseOptionalInt(body.emailAccounts) ?? 0) : null,
@@ -60,7 +57,6 @@ export function parseProductPackageInput(
     priceQuarterly: billingType === 'ONE_TIME' ? 0 : parseFloat(String(body.priceQuarterly)) || 0,
     priceSemiAnnual: billingType === 'ONE_TIME' ? 0 : parseFloat(String(body.priceSemiAnnual)) || 0,
     priceYearly: billingType === 'ONE_TIME' ? oneTimePrice : parseFloat(String(body.priceYearly)) || 0,
-    setupFee: parseFloat(String(body.setupFee)) || 0,
     active: body.active !== false,
     sortOrder: parseInt(String(body.sortOrder)) || 0,
   }

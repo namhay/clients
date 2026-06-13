@@ -72,7 +72,6 @@ function mapOrderItem(row: Record<string, unknown>): OrderItemRow {
     productPackageId: row.productPackageId != null ? String(row.productPackageId) : null,
     name: String(row.name),
     price: Number(row.price),
-    setupFee: Number(row.setupFee),
     startDate: new Date(row.startDate as string),
     expiryDate: new Date(row.expiryDate as string),
     nextDueDate: row.nextDueDate != null ? new Date(row.nextDueDate as string) : null,
@@ -153,7 +152,7 @@ async function attachOrderRelations(orders: OrderRow[]): Promise<OrderWithRelati
 
   return orders.map(order => {
     const orderItems = itemsByOrder.get(order.id) || []
-    const totalAmount = orderItems.reduce((sum, i) => sum + i.price + i.setupFee, 0)
+    const totalAmount = orderItems.reduce((sum, i) => sum + i.price, 0)
     return {
       ...order,
       client: clientsById.get(order.clientId)!,
@@ -228,11 +227,11 @@ export async function createOrderItem(
   await sql`
     INSERT INTO "OrderItem" (
       id, "orderId", "serviceId", "productTypeId", "productPackageId", name,
-      price, "setupFee", "startDate", "expiryDate", "nextDueDate",
+      price, "startDate", "expiryDate", "nextDueDate",
       recurring, period, "sortOrder", "createdAt"
     ) VALUES (
       ${id}, ${orderId}, ${serviceId}, ${item.productTypeId}, ${item.productPackageId}, ${item.name},
-      ${item.price}, ${item.setupFee}, ${item.startDate}, ${item.expiryDate}, ${item.nextDueDate},
+      ${item.price}, ${item.startDate}, ${item.expiryDate}, ${item.nextDueDate},
       ${item.recurring}, ${item.period}, ${sortOrder}, ${now}
     )
   `

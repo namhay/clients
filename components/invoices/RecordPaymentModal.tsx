@@ -26,6 +26,8 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
   const [amount, setAmount] = useState('')
   const [amountPaid, setAmountPaid] = useState(0)
   const [remaining, setRemaining] = useState(0)
+  const [telegramAlert, setTelegramAlert] = useState(true)
+  const [emailAlert, setEmailAlert] = useState(true)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -34,6 +36,8 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
 
     setPaidDate(toPaidDateInput(new Date()))
     setPaymentMethod('BANK_TRANSFER')
+    setTelegramAlert(true)
+    setEmailAlert(true)
     setLoading(true)
 
     fetch(`/api/invoices/${invoice.id}/payments`)
@@ -72,6 +76,8 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
           paidAt: paidDate,
           paymentMethod,
           amount: parsedAmount,
+          telegramAlert,
+          emailAlert,
         }),
       })
       const result = await res.json().catch(() => ({}))
@@ -97,7 +103,7 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl dark:bg-gray-900">
+      <div className="w-full max-w-xl rounded-xl bg-white shadow-xl dark:bg-gray-900">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-700">
           <h2 className="text-base font-semibold">Record Payment</h2>
           <button
@@ -109,9 +115,20 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
           </button>
         </div>
         <div className="space-y-4 p-5">
-          <div>
-            <label className="label">Invoice #</label>
-            <input className="input bg-gray-50 dark:bg-gray-800/50" readOnly value={invoice.invoiceNo} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label">Invoice #</label>
+              <input className="input bg-gray-50 dark:bg-gray-800/50" readOnly value={invoice.invoiceNo} />
+            </div>
+            <div>
+              <label className="label">Payment Date *</label>
+              <input
+                type="date"
+                className="input"
+                value={paidDate}
+                onChange={e => setPaidDate(e.target.value)}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -135,36 +152,55 @@ export default function RecordPaymentModal({ open, invoice, onClose, onSaved }: 
               />
             </div>
           </div>
-          <div>
-            <label className="label">Payment Date *</label>
-            <input
-              type="date"
-              className="input"
-              value={paidDate}
-              onChange={e => setPaidDate(e.target.value)}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="label">Payment Method *</label>
+              <select className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                {PAYMENT_METHODS.map(method => (
+                  <option key={method} value={method}>{PAYMENT_METHOD_LABELS[method]}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label">Amount *</label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="input"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                disabled={loading}
+              />
+            </div>
           </div>
-          <div>
-            <label className="label">Payment Method *</label>
-            <select className="input" value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
-              {PAYMENT_METHODS.map(method => (
-                <option key={method} value={method}>{PAYMENT_METHOD_LABELS[method]}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Amount *</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              className="input"
-              value={amount}
-              onChange={e => setAmount(e.target.value)}
-              disabled={loading}
-            />
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-              Defaults to the remaining balance. Partial payments keep the invoice unpaid until fully paid.
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            Defaults to the remaining balance. Partial payments keep the invoice unpaid until fully paid.
+          </p>
+          <div className="space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/40">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-300">Client alerts</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={telegramAlert}
+                  onChange={e => setTelegramAlert(e.target.checked)}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Telegram alert</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={emailAlert}
+                  onChange={e => setEmailAlert(e.target.checked)}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Email alert</span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Sent when this payment fully pays the invoice. Uncheck to record payment without notifying the client.
             </p>
           </div>
         </div>

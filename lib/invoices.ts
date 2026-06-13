@@ -17,6 +17,7 @@ import {
 } from '@/lib/db/services'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
+import { paymentReceivedEmailTemplate, sendEmail } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { sendTelegram, sendTelegramDocument, invoiceTelegramMessage, paymentReceivedTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
@@ -385,6 +386,37 @@ export async function notifyPaymentReceivedTelegram(invoiceId: string): Promise<
     return { sent: true }
   } catch (e) {
     return { sent: false, error: e instanceof Error ? e.message : 'Telegram send failed' }
+  }
+}
+
+/** Notify client by email when an invoice is marked paid. Does not throw. */
+export async function notifyPaymentReceivedEmail(invoiceId: string): Promise<{ sent: boolean; error?: string }> {
+  try {
+    const invoice = await getInvoiceById(invoiceId)
+    if (!invoice) return { sent: false, error: 'Invoice not found' }
+    if (!invoice.client.email) return { sent: false, error: 'No client email' }
+
+    const settings = await getAppSettings()
+    const text = paymentReceivedEmailTemplate({
+      clientName: invoice.client.name,
+      invoiceNo: invoice.invoiceNo,
+    })
+
+    await sendEmail({
+      to: invoice.client.email,
+      subject: `Payment received — ${invoice.invoiceNo}`,
+      text,
+    })
+    await createReminderLog({
+      clientId: invoice.clientId,
+      type: `Payment received — ${invoice.invoiceNo}`,
+      channel: 'Email',
+      message: text,
+      status: 'sent',
+    })
+    return { sent: true }
+  } catch (e) {
+    return { sent: false, error: e instanceof Error ? e.message : 'Email send failed' }
   }
 }
 

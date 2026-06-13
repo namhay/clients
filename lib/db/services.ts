@@ -27,7 +27,6 @@ export type ProductPackageNested = {
   id: string
   productTypeId: string
   name: string
-  description: string | null
   diskSpaceGb: number | null
   bandwidthGb: number | null
   emailAccounts: number | null
@@ -38,7 +37,6 @@ export type ProductPackageNested = {
   priceQuarterly: number
   priceSemiAnnual: number
   priceYearly: number
-  setupFee: number
   active: boolean
   sortOrder: number
   createdAt: Date
@@ -87,13 +85,13 @@ const SERVICE_SELECT = `
   pt."autoInvoiceDaysBeforeExpiry" AS pt_autoInvoiceDaysBeforeExpiry,
   pt."createdAt" AS pt_createdAt, pt."updatedAt" AS pt_updatedAt,
   pp.id AS pp_id, pp."productTypeId" AS pp_productTypeId, pp.name AS pp_name,
-  pp.description AS pp_description, pp."diskSpaceGb" AS pp_diskSpaceGb,
+  pp."diskSpaceGb" AS pp_diskSpaceGb,
   pp."bandwidthGb" AS pp_bandwidthGb, pp."emailAccounts" AS pp_emailAccounts,
   pp.databases AS pp_databases, pp."addonDomains" AS pp_addonDomains,
   pp."billingType" AS pp_billingType,
   pp."priceMonthly" AS pp_priceMonthly, pp."priceQuarterly" AS pp_priceQuarterly,
   pp."priceSemiAnnual" AS pp_priceSemiAnnual, pp."priceYearly" AS pp_priceYearly,
-  pp."setupFee" AS pp_setupFee, pp.active AS pp_active, pp."sortOrder" AS pp_sortOrder,
+  pp.active AS pp_active, pp."sortOrder" AS pp_sortOrder,
   pp."createdAt" AS pp_createdAt, pp."updatedAt" AS pp_updatedAt
 `
 
@@ -137,7 +135,6 @@ function mapProductPackageNested(row: Record<string, unknown>): ProductPackageNe
     id: String(row.pp_id),
     productTypeId: String(row.pp_productTypeId),
     name: String(row.pp_name),
-    description: row.pp_description != null ? String(row.pp_description) : null,
     diskSpaceGb: row.pp_diskSpaceGb != null ? Number(row.pp_diskSpaceGb) : null,
     bandwidthGb: row.pp_bandwidthGb != null ? Number(row.pp_bandwidthGb) : null,
     emailAccounts: row.pp_emailAccounts != null ? Number(row.pp_emailAccounts) : null,
@@ -148,7 +145,6 @@ function mapProductPackageNested(row: Record<string, unknown>): ProductPackageNe
     priceQuarterly: Number(row.pp_priceQuarterly ?? 0),
     priceSemiAnnual: Number(row.pp_priceSemiAnnual ?? 0),
     priceYearly: Number(row.pp_priceYearly ?? 0),
-    setupFee: Number(row.pp_setupFee ?? 0),
     active: Boolean(row.pp_active),
     sortOrder: Number(row.pp_sortOrder ?? 0),
     createdAt: new Date(row.pp_createdAt as string),

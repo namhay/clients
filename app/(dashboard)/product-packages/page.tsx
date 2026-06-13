@@ -9,7 +9,6 @@ import { toast } from '@/lib/toast'
 const emptyForm = (productTypeId = '') => ({
   productTypeId,
   name: '',
-  description: '',
   billingType: 'RECURRING' as 'RECURRING' | 'ONE_TIME',
   diskSpaceGb: '5',
   bandwidthGb: '50',
@@ -21,7 +20,6 @@ const emptyForm = (productTypeId = '') => ({
   priceQuarterly: '',
   priceSemiAnnual: '',
   priceYearly: '',
-  setupFee: '',
   active: true,
   sortOrder: '0',
 })
@@ -68,7 +66,6 @@ export default function ProductPackagesPage() {
     setForm({
       productTypeId: p.productTypeId,
       name: p.name,
-      description: p.description || '',
       diskSpaceGb: String(p.diskSpaceGb ?? 5),
       bandwidthGb: String(p.bandwidthGb ?? 50),
       emailAccounts: String(p.emailAccounts ?? 5),
@@ -80,7 +77,6 @@ export default function ProductPackagesPage() {
       priceQuarterly: String(p.priceQuarterly),
       priceSemiAnnual: String(p.priceSemiAnnual),
       priceYearly: String(p.priceYearly),
-      setupFee: String(p.setupFee),
       active: p.active,
       sortOrder: String(p.sortOrder),
     })
@@ -102,7 +98,6 @@ export default function ProductPackagesPage() {
         priceQuarterly: parseFloat(form.priceQuarterly) || 0,
         priceSemiAnnual: parseFloat(form.priceSemiAnnual) || 0,
         priceYearly: parseFloat(form.priceYearly) || 0,
-        setupFee: parseFloat(form.setupFee) || 0,
         sortOrder: parseInt(form.sortOrder) || 0,
       }
       if (hasHostingSpecs) {
@@ -251,10 +246,6 @@ export default function ProductPackagesPage() {
                   <label className="label">Package Name *</label>
                   <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Registration" />
                 </div>
-                <div className="col-span-2">
-                  <label className="label">Description</label>
-                  <input className="input" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Short description" />
-                </div>
                 <div>
                   <label className="label">Sort Order</label>
                   <input type="number" className="input" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
@@ -299,27 +290,21 @@ export default function ProductPackagesPage() {
                   </select>
                 </div>
                 {form.billingType === 'ONE_TIME' ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="label">One-time Price (USD)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="input"
-                        value={form.oneTimePrice}
-                        onChange={e => setForm(f => ({ ...f, oneTimePrice: e.target.value }))}
-                        placeholder="e.g. 299"
-                      />
-                    </div>
-                    <div>
-                      <label className="label">Setup Fee (USD)</label>
-                      <input type="number" min="0" step="0.01" className="input" value={form.setupFee} onChange={e => setForm(f => ({ ...f, setupFee: e.target.value }))} />
-                    </div>
+                  <div>
+                    <label className="label">One-time Price (USD)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      className="input max-w-xs"
+                      value={form.oneTimePrice}
+                      onChange={e => setForm(f => ({ ...f, oneTimePrice: e.target.value }))}
+                      placeholder="e.g. 299"
+                    />
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
-                    {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually'], ['setupFee', 'Setup Fee']].map(([k, l]) => (
+                    {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually']].map(([k, l]) => (
                       <div key={k}>
                         <label className="label">{l} (USD)</label>
                         <input type="number" min="0" step="0.01" className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />

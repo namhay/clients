@@ -61,7 +61,6 @@ async function main() {
       "productPackageId" TEXT REFERENCES "ProductPackage"(id),
       name TEXT NOT NULL,
       price DOUBLE PRECISION NOT NULL DEFAULT 0,
-      "setupFee" DOUBLE PRECISION NOT NULL DEFAULT 0,
       "startDate" TIMESTAMPTZ NOT NULL,
       "expiryDate" TIMESTAMPTZ NOT NULL,
       "nextDueDate" TIMESTAMPTZ,
@@ -170,6 +169,22 @@ async function main() {
   `
 
   console.log('✓ InvoicePayment table ready')
+
+  await sql`
+    ALTER TABLE "ProductPackage"
+    DROP COLUMN IF EXISTS description
+  `
+  await sql`
+    ALTER TABLE "ProductPackage"
+    DROP COLUMN IF EXISTS "setupFee"
+  `
+  await sql`
+    ALTER TABLE "OrderItem"
+    DROP COLUMN IF EXISTS "setupFee"
+  `
+
+  console.log('✓ ProductPackage description/setupFee columns removed')
+  console.log('✓ OrderItem setupFee column removed')
 }
 
 main().catch(e => {

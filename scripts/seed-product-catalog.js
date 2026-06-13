@@ -12,37 +12,34 @@ const PRODUCT_TYPES = [
 
 const PACKAGES_BY_SLUG = {
   DOMAIN: [
-    { name: 'Registration', description: 'Register a new domain name', priceYearly: 12, setupFee: 0, sortOrder: 1 },
-    { name: 'Renew', description: 'Renew an existing domain', priceYearly: 12, setupFee: 0, sortOrder: 2 },
-    { name: 'Transfer', description: 'Transfer domain from another registrar', priceYearly: 12, setupFee: 5, sortOrder: 3 },
+    { name: 'Registration', priceYearly: 12, sortOrder: 1 },
+    { name: 'Renew', priceYearly: 12, sortOrder: 2 },
+    { name: 'Transfer', priceYearly: 12, sortOrder: 3 },
   ],
   HOSTING: [
     {
       name: 'Basic Plan',
-      description: 'Starter hosting for small websites',
       diskSpaceGb: 5, bandwidthGb: 50, emailAccounts: 5, databases: 1, addonDomains: 0,
-      priceMonthly: 8, priceQuarterly: 22, priceSemiAnnual: 42, priceYearly: 60, setupFee: 25, sortOrder: 1,
+      priceMonthly: 8, priceQuarterly: 22, priceSemiAnnual: 42, priceYearly: 60, sortOrder: 1,
     },
     {
       name: 'Medium Plan',
-      description: 'Growing businesses with more traffic',
       diskSpaceGb: 15, bandwidthGb: 150, emailAccounts: 25, databases: 5, addonDomains: 3,
-      priceMonthly: 18, priceQuarterly: 50, priceSemiAnnual: 95, priceYearly: 150, setupFee: 25, sortOrder: 2,
+      priceMonthly: 18, priceQuarterly: 50, priceSemiAnnual: 95, priceYearly: 150, sortOrder: 2,
     },
     {
       name: 'Premium Plan',
-      description: 'High-performance hosting for demanding sites',
       diskSpaceGb: 40, bandwidthGb: 500, emailAccounts: 100, databases: 15, addonDomains: 10,
-      priceMonthly: 35, priceQuarterly: 95, priceSemiAnnual: 180, priceYearly: 300, setupFee: 0, sortOrder: 3,
+      priceMonthly: 35, priceQuarterly: 95, priceSemiAnnual: 180, priceYearly: 300, sortOrder: 3,
     },
   ],
   SSL: [
-    { name: 'Simple SSL', description: 'Standard single-domain SSL certificate', priceYearly: 15, setupFee: 0, sortOrder: 1 },
-    { name: 'Wildcard SSL', description: 'Wildcard SSL for all subdomains', priceYearly: 75, setupFee: 10, sortOrder: 2 },
+    { name: 'Simple SSL', priceYearly: 15, sortOrder: 1 },
+    { name: 'Wildcard SSL', priceYearly: 75, sortOrder: 2 },
   ],
   DESIGN: [
-    { name: 'Basic Website', description: 'Simple brochure-style website', billingType: 'ONE_TIME', priceYearly: 299, setupFee: 0, sortOrder: 1 },
-    { name: 'eCommerce Website', description: 'Online store with payment integration', billingType: 'ONE_TIME', priceYearly: 799, setupFee: 0, sortOrder: 2 },
+    { name: 'Basic Website', billingType: 'ONE_TIME', priceYearly: 299, sortOrder: 1 },
+    { name: 'eCommerce Website', billingType: 'ONE_TIME', priceYearly: 799, sortOrder: 2 },
   ],
 }
 
@@ -110,7 +107,6 @@ async function upsertProductPackage(productTypeId, pkg) {
   `
   const billingType = String(pkg.billingType || 'RECURRING').toUpperCase() === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING'
   const values = {
-    description: pkg.description ?? null,
     diskSpaceGb: pkg.diskSpaceGb ?? null,
     bandwidthGb: pkg.bandwidthGb ?? null,
     emailAccounts: pkg.emailAccounts ?? null,
@@ -121,13 +117,11 @@ async function upsertProductPackage(productTypeId, pkg) {
     priceQuarterly: billingType === 'ONE_TIME' ? 0 : (pkg.priceQuarterly ?? 0),
     priceSemiAnnual: billingType === 'ONE_TIME' ? 0 : (pkg.priceSemiAnnual ?? 0),
     priceYearly: pkg.priceYearly ?? 0,
-    setupFee: pkg.setupFee ?? 0,
     sortOrder: pkg.sortOrder ?? 0,
   }
   if (existing[0]) {
     await sql`
       UPDATE "ProductPackage" SET
-        description = ${values.description},
         "diskSpaceGb" = ${values.diskSpaceGb},
         "bandwidthGb" = ${values.bandwidthGb},
         "emailAccounts" = ${values.emailAccounts},
@@ -138,7 +132,6 @@ async function upsertProductPackage(productTypeId, pkg) {
         "priceQuarterly" = ${values.priceQuarterly},
         "priceSemiAnnual" = ${values.priceSemiAnnual},
         "priceYearly" = ${values.priceYearly},
-        "setupFee" = ${values.setupFee},
         "sortOrder" = ${values.sortOrder},
         "updatedAt" = ${now}
       WHERE id = ${existing[0].id}
@@ -147,15 +140,15 @@ async function upsertProductPackage(productTypeId, pkg) {
   }
   await sql`
     INSERT INTO "ProductPackage" (
-      id, "productTypeId", name, description,
+      id, "productTypeId", name,
       "diskSpaceGb", "bandwidthGb", "emailAccounts", databases, "addonDomains",
       "billingType", "priceMonthly", "priceQuarterly", "priceSemiAnnual", "priceYearly",
-      "setupFee", active, "sortOrder", "createdAt", "updatedAt"
+      active, "sortOrder", "createdAt", "updatedAt"
     ) VALUES (
-      ${randomUUID()}, ${productTypeId}, ${pkg.name}, ${values.description},
+      ${randomUUID()}, ${productTypeId}, ${pkg.name},
       ${values.diskSpaceGb}, ${values.bandwidthGb}, ${values.emailAccounts}, ${values.databases}, ${values.addonDomains},
       ${values.billingType}, ${values.priceMonthly}, ${values.priceQuarterly}, ${values.priceSemiAnnual}, ${values.priceYearly},
-      ${values.setupFee}, true, ${values.sortOrder}, ${now}, ${now}
+      true, ${values.sortOrder}, ${now}, ${now}
     )
   `
 }

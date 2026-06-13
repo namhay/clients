@@ -12,7 +12,6 @@ export type OrderItemInput = {
   productPackageId: string | null
   name: string
   price: number
-  setupFee: number
   startDate: Date
   expiryDate: Date
   nextDueDate: Date | null
@@ -54,7 +53,6 @@ export async function parseOrderInput(body: Record<string, unknown>): Promise<Or
       productPackageId: serviceData.productPackageId,
       name: serviceData.name,
       price: serviceData.price,
-      setupFee: serviceData.setupFee,
       startDate: serviceData.startDate,
       expiryDate: serviceData.expiryDate,
       nextDueDate: serviceData.nextDueDate,
@@ -87,7 +85,7 @@ export async function fulfillOrder(
       expiryDate: item.expiryDate,
       nextDueDate: item.nextDueDate,
       price: item.price,
-      setupFee: item.setupFee,
+      setupFee: 0,
       recurring: item.recurring,
       period: item.period,
       status: 'ACTIVE',

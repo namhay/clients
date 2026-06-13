@@ -20,11 +20,9 @@ export interface ProductPackage {
   productTypeId: string
   productType?: ProductType
   name: string
-  description?: string | null
   billingType?: PackageBillingType
   priceMonthly: number
   priceYearly: number
-  setupFee: number
   active: boolean
 }
 

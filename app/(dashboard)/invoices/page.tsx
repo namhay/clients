@@ -344,18 +344,20 @@ export default function InvoicesPage() {
               <button onClick={() => { setShowModal(false); setEditId(null) }} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
             </div>
             <div className="p-5 space-y-4">
-              {editId && (
-                <div>
-                  <label className="label">Invoice Number *</label>
-                  <input className="input" value={form.invoiceNo} onChange={e => setForm(f => ({ ...f, invoiceNo: e.target.value }))} placeholder="e.g. 26-043 or INV-0001" />
+              <div className="flex flex-col gap-3 sm:flex-row">
+                {editId && (
+                  <div className="sm:w-[35%]">
+                    <label className="label">Invoice Number *</label>
+                    <input className="input" value={form.invoiceNo} onChange={e => setForm(f => ({ ...f, invoiceNo: e.target.value }))} placeholder="e.g. 26-043 or INV-0001" />
+                  </div>
+                )}
+                <div className={editId ? 'sm:w-[65%]' : 'w-full'}>
+                  <label className="label">Client *</label>
+                  <select className="input" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
+                    <option value="">Select...</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
                 </div>
-              )}
-              <div>
-                <label className="label">Client *</label>
-                <select className="input" value={form.clientId} onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}>
-                  <option value="">Select...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -367,14 +369,6 @@ export default function InvoicesPage() {
                   <input type="date" className="input" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
                 </div>
               </div>
-              {editId && (
-                <div>
-                  <label className="label">Status</label>
-                  <select className="input" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                    {['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-              )}
               <div>
                 <label className="label">Invoice Items</label>
                 <div className="space-y-2">
@@ -389,15 +383,23 @@ export default function InvoicesPage() {
                   <button className="btn-secondary text-xs py-1" onClick={() => setForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }] }))}>+ Add Item</button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="label">Tax (%)</label>
                   <input type="number" className="input" value={form.tax} onChange={e => setForm(f => ({ ...f, tax: e.target.value }))} />
                 </div>
-                <div>
-                  <label className="label">Notes</label>
-                  <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Bank transfer details..." />
-                </div>
+                {editId && (
+                  <div>
+                    <label className="label">Status</label>
+                    <select className="input" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                      {['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div>
+                <label className="label">Notes</label>
+                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Bank transfer details..." />
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">

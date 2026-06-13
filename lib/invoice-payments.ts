@@ -7,6 +7,7 @@ import {
 } from '@/lib/db/invoice-payments'
 import { parsePaidAtDate } from '@/lib/invoice-paid-date'
 import {
+  notifyPaymentReceivedEmail,
   notifyPaymentReceivedTelegram,
   renewServicesForPaidInvoice,
 } from '@/lib/invoices'
@@ -50,6 +51,8 @@ export async function recordInvoicePayment(
     amount: number
     paymentMethod: PaymentMethod
     paidAt: Date
+    telegramAlert?: boolean
+    emailAlert?: boolean
   },
 ) {
   const invoice = await getInvoiceById(invoiceId)
@@ -79,7 +82,12 @@ export async function recordInvoicePayment(
   if (fullyPaid) {
     await patchInvoice(invoiceId, { status: 'PAID', paidAt: input.paidAt })
     await renewServicesForPaidInvoice(invoiceId)
-    await notifyPaymentReceivedTelegram(invoiceId)
+    if (input.telegramAlert !== false) {
+      await notifyPaymentReceivedTelegram(invoiceId)
+    }
+    if (input.emailAlert !== false) {
+      await notifyPaymentReceivedEmail(invoiceId)
+    }
   }
 
   return {
@@ -99,6 +107,17 @@ export function parseRecordPaymentInput(body: Record<string, unknown>) {
   const amount = roundMoney(Number(body.amount))
   if (!Number.isFinite(amount)) throw new Error('Amount is required')
 
-  return { amount, paymentMethod, paidAt }
+  return {
+    amount,
+    paymentMethod,
+    paidAt,
+    telegramAlert: parsePaymentAlertFlag(body.telegramAlert),
+    emailAlert: parsePaymentAlertFlag(body.emailAlert),
+  }
+}
+
+function parsePaymentAlertFlag(value: unknown) {
+  if (value === false || value === 'false' || value === 0 || value === '0') return false
+  return true
 }
 
