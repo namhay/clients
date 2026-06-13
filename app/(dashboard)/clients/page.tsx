@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
 import { prefetchClientProfile } from '@/lib/list-cache'
 import ClientLink from '@/components/clients/ClientLink'
-import { formatRenewalTiming, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
+import { formatRenewalDaysShort, formatRenewalTiming, parseRenewalDaysBeforeExpiry, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
@@ -146,6 +146,9 @@ export default function ClientsPage() {
                             </svg>
                           </span>
                         )}
+                      </div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {formatRenewalDaysShort(parseRenewalDaysBeforeExpiry(c.renewalDaysBeforeExpiry))}
                       </div>
                     </div>
                   </ClientLink>

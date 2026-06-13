@@ -1,8 +1,9 @@
 import { Document, Page, Text, View, Image, StyleSheet } from '@react-pdf/renderer'
 import { subtractDays } from '@/lib/billing'
-import { formatDateValue, type DateFormatId } from '@/lib/date-format'
+import { formatDateValue, formatDateTimeValue, type DateFormatId } from '@/lib/date-format'
 import type { InvoiceCompanyProfile } from '@/lib/invoice-company'
 import { formatInvoiceItemDescription } from '@/lib/invoices'
+import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { pdfKhmerText } from '@/lib/pdf-khmer-text'
 
 // Column widths — Unit Price & Amount equal; Total row uses same grid
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
   table: { border: '0.5pt solid #000' },
   tableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000', alignItems: 'stretch' },
   tableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 28, alignItems: 'stretch' },
-  cell: { padding: 5, borderRight: '0.5pt solid #000', justifyContent: 'center' },
+  cell: { padding: 4, borderRight: '0.5pt solid #000', justifyContent: 'center' },
   cellCenter: { alignItems: 'center' },
   th: { fontSize: 10, textAlign: 'center' },
   td: { fontSize: 9 },
@@ -69,6 +70,17 @@ const styles = StyleSheet.create({
   },
   totalMergedLabel: { fontSize: 10, textAlign: 'right' },
   totalMergedAmount: { fontSize: 14, textAlign: 'center' },
+  paymentTable: { marginTop: 8, border: '0.5pt solid #000' },
+  paymentTableHeader: { flexDirection: 'row', borderBottom: '0.5pt solid #000', alignItems: 'stretch' },
+  paymentTableRow: { flexDirection: 'row', borderBottom: '0.5pt solid #000', minHeight: 22, alignItems: 'stretch' },
+  paymentCell: { padding: 3, borderRight: '0.5pt solid #000', justifyContent: 'center' },
+  paymentColDate: { width: '34%' },
+  paymentColMethod: { width: '22%' },
+  paymentColAmount: { width: '22%' },
+  paymentColBalance: { width: '22%' },
+  paymentTh: { fontSize: 10, textAlign: 'center' },
+  paymentTd: { fontSize: 9, textAlign: 'center' },
+  paymentBalance: { fontSize: 12, fontWeight: 700, textAlign: 'center' },
   paymentSection: { marginTop: 10, textAlign: 'center' },
   paymentRow: { flexDirection: 'row', marginBottom: 6 },
   paymentColLeft: { width: '50%' },
@@ -174,6 +186,11 @@ interface Props {
       address?: string | null
       vatTin?: string | null
     }
+    payments?: {
+      paidAt: string
+      paymentMethod: PaymentMethod
+      amount: number
+    }[]
   }
   company: InvoiceCompanyProfile
   dateFormat?: DateFormatId
@@ -190,8 +207,19 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
   const hasCompanyEn = Boolean(companyEn)
   const showCustomerFallback = !hasCompanyKh && !hasCompanyEn
   const formatInvoiceDate = (date: string | Date) => formatDateValue(date, dateFormat, timezone)
+  const formatInvoiceDateTime = (date: string | Date) => formatDateTimeValue(date, dateFormat, timezone)
   const invoiceDate = formatInvoiceDate(invoice.createdAt)
   const dueDate = formatInvoiceDate(invoice.dueDate)
+  const payments = invoice.payments ?? []
+
+  let paidRunning = 0
+  const paymentRows = payments.map(payment => {
+    paidRunning += payment.amount
+    return {
+      ...payment,
+      balance: Math.max(0, invoice.total - paidRunning),
+    }
+  })
 
   return (
     <Document>
@@ -309,6 +337,46 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
             </View>
           </View>
         </View>
+
+        {paymentRows.length > 0 && (
+          <View style={styles.paymentTable}>
+            <View style={styles.paymentTableHeader}>
+              <View style={[styles.paymentCell, styles.paymentColDate, styles.cellCenter]}>
+                <Text style={styles.paymentTh}>Payment Date</Text>
+              </View>
+              <View style={[styles.paymentCell, styles.paymentColMethod, styles.cellCenter]}>
+                <Text style={styles.paymentTh}>Payment Method</Text>
+              </View>
+              <View style={[styles.paymentCell, styles.paymentColAmount, styles.cellCenter]}>
+                <Text style={styles.paymentTh}>Amount</Text>
+              </View>
+              <View style={[styles.paymentCell, styles.paymentColBalance, styles.lastCol, styles.cellCenter]}>
+                <Text style={styles.paymentTh}>Balance</Text>
+              </View>
+            </View>
+            {paymentRows.map((payment, i) => (
+              <View
+                key={`${payment.paidAt}-${i}`}
+                style={[styles.paymentTableRow, i === paymentRows.length - 1 ? { borderBottom: 0 } : undefined]}
+              >
+                <View style={[styles.paymentCell, styles.paymentColDate, styles.cellCenter]}>
+                  <Text style={styles.paymentTd}>{formatInvoiceDateTime(payment.paidAt)}</Text>
+                </View>
+                <View style={[styles.paymentCell, styles.paymentColMethod, styles.cellCenter]}>
+                  <Text style={styles.paymentTd}>
+                    {PAYMENT_METHOD_LABELS[payment.paymentMethod] ?? payment.paymentMethod}
+                  </Text>
+                </View>
+                <View style={[styles.paymentCell, styles.paymentColAmount, styles.cellCenter]}>
+                  <Text style={styles.paymentTd}>${payment.amount.toFixed(2)}</Text>
+                </View>
+                <View style={[styles.paymentCell, styles.paymentColBalance, styles.lastCol, styles.cellCenter]}>
+                  <Text style={styles.paymentBalance}>${payment.balance.toFixed(2)}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* Payment below table */}
         <View style={styles.paymentSection}>

@@ -5,6 +5,7 @@ import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
 import { getInvoiceCompanyProfile } from '@/lib/invoice-company'
 import { registerInvoiceFontsForPdf } from '@/lib/invoice-fonts'
 import { getInvoiceForPdf } from '@/lib/db/invoices'
+import { listPaymentsForInvoice } from '@/lib/db/invoice-payments'
 import { enrichInvoiceItemsWithPeriods } from '@/lib/invoices'
 import { getBrandingAssetSrc } from '@/lib/branding-assets'
 
@@ -14,7 +15,10 @@ export async function getPaymentQrSrc() {
   return getBrandingAssetSrc('qr')
 }
 
-export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
+export function toPdfInvoicePayload(
+  invoice: InvoiceWithRelations,
+  payments: Awaited<ReturnType<typeof listPaymentsForInvoice>> = [],
+) {
   return {
     invoiceNo: invoice.invoiceNo,
     status: invoice.status,
@@ -41,6 +45,11 @@ export function toPdfInvoicePayload(invoice: InvoiceWithRelations) {
       address: invoice.client.address,
       vatTin: invoice.client.vatTin,
     },
+    payments: payments.map(p => ({
+      paidAt: p.paidAt.toISOString(),
+      paymentMethod: p.paymentMethod,
+      amount: p.amount,
+    })),
   }
 }
 
@@ -49,13 +58,14 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
 
   const invoice = await getInvoiceForPdf(invoiceId)
   if (!invoice) throw new Error('Invoice not found')
-  const [company, dateFormat, timezone, items] = await Promise.all([
+  const [company, dateFormat, timezone, items, payments] = await Promise.all([
     getInvoiceCompanyProfile(),
     getAppDateFormat(),
     getAppTimezone(),
     enrichInvoiceItemsWithPeriods(invoice),
+    listPaymentsForInvoice(invoiceId),
   ])
-  const pdfInvoice = toPdfInvoicePayload({ ...invoice, items })
+  const pdfInvoice = toPdfInvoicePayload({ ...invoice, items }, payments)
   const [paymentQrSrc, logoSrc, stampSrc] = await Promise.all([
     getBrandingAssetSrc('qr'),
     getBrandingAssetSrc('logo'),

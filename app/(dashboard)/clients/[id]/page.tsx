@@ -90,6 +90,8 @@ export default function ClientProfilePage() {
   } | null>(null)
   const [linkCopied, setLinkCopied] = useState(false)
   const [generatingInvoiceId, setGeneratingInvoiceId] = useState<string | null>(null)
+  const [generatingSelectedInvoices, setGeneratingSelectedInvoices] = useState(false)
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([])
   const [generatingRenewals, setGeneratingRenewals] = useState(false)
   const [editService, setEditService] = useState<any>(null)
   const [editInvoice, setEditInvoice] = useState<any>(null)
@@ -150,6 +152,12 @@ export default function ClientProfilePage() {
     load()
     loadTelegramConnect()
   }, [id])
+
+  useEffect(() => {
+    if (!client?.services) return
+    const valid = new Set(client.services.map((s: { id: string }) => s.id))
+    setSelectedServiceIds(prev => prev.filter(id => valid.has(id)))
+  }, [client?.services])
 
   const copyConnectLink = async () => {
     if (!telegramConnect?.link) return
@@ -216,6 +224,60 @@ export default function ClientProfilePage() {
       toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
     } finally {
       setGeneratingInvoiceId(null)
+    }
+  }
+
+  const serviceList = client?.services || []
+  const allServicesSelected = serviceList.length > 0
+    && serviceList.every((s: { id: string }) => selectedServiceIds.includes(s.id))
+
+  const toggleServiceSelection = (serviceId: string) => {
+    setSelectedServiceIds(prev => (
+      prev.includes(serviceId)
+        ? prev.filter(id => id !== serviceId)
+        : [...prev, serviceId]
+    ))
+  }
+
+  const toggleAllServices = () => {
+    if (allServicesSelected) {
+      setSelectedServiceIds([])
+      return
+    }
+    setSelectedServiceIds(serviceList.map((s: { id: string }) => s.id))
+  }
+
+  const generateSelectedInvoices = async () => {
+    if (!selectedServiceIds.length) return toast.error('Select at least one service')
+    const count = selectedServiceIds.length
+    if (!await toast.confirm(
+      count === 1
+        ? 'Generate invoice for the selected service?'
+        : `Generate one invoice for ${count} selected services?`,
+    )) return
+    const sendInvoice = await toast.confirm('Also send invoice to client (email + Telegram)?')
+    setGeneratingSelectedInvoices(true)
+    try {
+      const res = await fetch(`/api/clients/${id}/invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceIds: selectedServiceIds, sendInvoice }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
+      const parts = [`Invoice ${data.invoice.invoiceNo} created with ${count} service${count === 1 ? '' : 's'}.`]
+      if (sendInvoice) {
+        const sent = data.invoiceSent
+        if (sent?.email || sent?.telegram) parts.push('Sent to client.')
+        else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
+      }
+      toast.success(parts.join(' '))
+      setSelectedServiceIds([])
+      load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
+    } finally {
+      setGeneratingSelectedInvoices(false)
     }
   }
 
@@ -452,13 +514,34 @@ export default function ClientProfilePage() {
       </div>
 
       <div className="card mb-6">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Services</h2>
-          <span className="text-xs text-gray-400 dark:text-gray-500">{client.services?.length || 0} total</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            {selectedServiceIds.length > 0 && (
+              <button
+                className="btn-primary text-xs py-1.5"
+                disabled={generatingSelectedInvoices}
+                onClick={generateSelectedInvoices}
+              >
+                {generatingSelectedInvoices ? 'Creating…' : 'Create Invoice'}
+              </button>
+            )}
+            <span className="text-xs text-gray-400 dark:text-gray-500">{client.services?.length || 0} total</span>
+          </div>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/50">
             <tr>
+              <th className="w-10 px-4 py-2.5">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={allServicesSelected}
+                  onChange={toggleAllServices}
+                  disabled={!serviceList.length}
+                  aria-label="Select all services"
+                />
+              </th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Service</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
@@ -470,12 +553,25 @@ export default function ClientProfilePage() {
           </thead>
           <tbody>
             {!client.services?.length && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No services yet</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No services yet</td></tr>
             )}
             {client.services?.map((s: any) => {
               const d = daysUntil(s.expiryDate)
+              const selected = selectedServiceIds.includes(s.id)
               return (
-                <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <tr
+                  key={s.id}
+                  className={`border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50${selected ? ' bg-blue-50/50 dark:bg-blue-950/20' : ''}`}
+                >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300"
+                      checked={selected}
+                      onChange={() => toggleServiceSelection(s.id)}
+                      aria-label={`Select ${s.name}`}
+                    />
+                  </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900 dark:text-gray-100">{s.name}</div>
                     {s.productPackage && <div className="text-xs text-gray-400 dark:text-gray-500">{s.productPackage.name}</div>}

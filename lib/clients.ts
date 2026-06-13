@@ -14,6 +14,12 @@ export function formatRenewalTiming(days: number): string {
   return '14 days before renewal date'
 }
 
+export function formatRenewalDaysShort(days: number): string {
+  if (days === 0) return '0 day'
+  if (days === 7) return '7 days'
+  return '14 days'
+}
+
 export function parseClientInput(body: Record<string, unknown>) {
   const name = String(body.name || '').trim()
   if (!name) throw new Error('Name is required')
