@@ -141,12 +141,7 @@ export default function ServicesPage() {
                       {d < 0 ? `${Math.abs(d)} days overdue` : `${d} days left`}
                     </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div>{formatCurrency(s.price)}</div>
-                    {s.setupFee > 0 && (
-                      <div className="text-xs text-gray-400 dark:text-gray-500">+{formatCurrency(s.setupFee)} setup</div>
-                    )}
-                  </td>
+                  <td className="px-4 py-3">{formatCurrency(s.price)}</td>
                   <td className="px-4 py-3">
                     <span className={`badge ${s.status === 'ACTIVE' ? 'badge-active' : 'badge-expired'}`}>
                       {s.status}

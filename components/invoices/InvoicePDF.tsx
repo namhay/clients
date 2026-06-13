@@ -167,7 +167,6 @@ interface Props {
     createdAt: string
     total: number
     subtotal: number
-    tax: number
     notes?: string | null
     items: {
       description: string

@@ -93,7 +93,6 @@ export async function POST(req: NextRequest) {
     if (generateInvoice) {
       invoice = await createInvoiceForService(
         serviceRecordToInvoiceInput(service),
-        0,
         { periodMode: 'form' },
       )
       if (sendInvoice && invoice) {

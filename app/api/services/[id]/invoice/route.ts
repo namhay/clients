@@ -17,8 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const invoice = await createInvoiceForService(
       serviceRecordToInvoiceInput(service),
-      0,
-      { periodMode: 'renewal', includeSetupFee: false },
+      { periodMode: 'renewal' },
     )
     let invoiceSent = null
     if (sendInvoice) {

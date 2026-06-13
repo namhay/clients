@@ -12,13 +12,11 @@ const emptyForm = () => ({
   productPackageId: '',
   name: '',
   price: '',
-  setupFee: '',
   startDate: new Date().toISOString().split('T')[0],
   expiryDate: '',
   recurring: true,
   period: 'YEARLY',
   status: 'ACTIVE',
-  notes: '',
 })
 
 type ServiceFormModalProps = {
@@ -114,13 +112,11 @@ export default function ServiceFormModal({
         productPackageId: service.productPackageId || service.productPackage?.id || '',
         name: service.name,
         price: String(service.price),
-        setupFee: String(service.setupFee ?? 0),
         startDate: toDateInput(service.startDate),
         expiryDate: toDateInput(service.expiryDate),
         recurring: service.recurring,
         period: service.period || 'YEARLY',
         status: service.status,
-        notes: service.notes || '',
       })
     } else {
       const base = applyBillingDates({
@@ -159,13 +155,11 @@ export default function ServiceFormModal({
           productPackageId: form.productPackageId,
           name: form.name,
           price: parseFloat(form.price) || 0,
-          setupFee: parseFloat(form.setupFee) || 0,
           startDate: form.startDate,
           expiryDate: form.expiryDate,
           recurring: form.recurring,
           period: form.recurring ? form.period : null,
           status: form.status,
-          notes: form.notes,
         }),
       })
       const result = await res.json()
@@ -273,16 +267,6 @@ export default function ServiceFormModal({
                   {' — '}{selectedPkg.diskSpaceGb}GB disk · {selectedPkg.bandwidthGb}GB bandwidth · {selectedPkg.emailAccounts} emails · {selectedPkg.databases} DB
                 </div>
               )}
-              <div>
-                <label className="label">Status</label>
-                <select className="input" value={form.status} onChange={e => updateForm({ status: e.target.value })}>
-                  {['ACTIVE', 'EXPIRED', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label className="label">Notes</label>
-                <textarea className="input" rows={2} value={form.notes} onChange={e => updateForm({ notes: e.target.value })} placeholder="Internal notes..." />
-              </div>
             </div>
           </div>
 
@@ -320,8 +304,10 @@ export default function ServiceFormModal({
                 <input type="number" min="0" step="0.01" className="input" value={form.price} onChange={e => updateForm({ price: e.target.value })} />
               </div>
               <div>
-                <label className="label">Setup Fee (USD)</label>
-                <input type="number" min="0" step="0.01" className="input" value={form.setupFee} onChange={e => updateForm({ setupFee: e.target.value })} />
+                <label className="label">Status</label>
+                <select className="input" value={form.status} onChange={e => updateForm({ status: e.target.value })}>
+                  {['ACTIVE', 'EXPIRED', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
             </div>
           </div>

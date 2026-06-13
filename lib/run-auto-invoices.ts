@@ -109,13 +109,12 @@ async function createInvoicesForPlanGroups(
 
     const options = group.kind === 'first'
       ? { periodMode: 'form' as const }
-      : { periodMode: 'renewal' as const, includeSetupFee: false }
+      : { periodMode: 'renewal' as const }
 
     try {
       const invoice = await createInvoiceForServices(
         group.services,
         group.clientId,
-        0,
         group.expiryDate,
         options,
       )

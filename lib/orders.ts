@@ -28,7 +28,6 @@ export type OrderInput = {
 export type FulfillOrderOptions = {
   generateInvoice?: boolean
   sendInvoice?: boolean
-  tax?: number
 }
 
 export async function parseOrderInput(body: Record<string, unknown>): Promise<OrderInput> {
@@ -45,7 +44,6 @@ export async function parseOrderInput(body: Record<string, unknown>): Promise<Or
       ...row,
       clientId,
       status: 'ACTIVE',
-      notes: null,
     })
     items.push({
       productTypeId: serviceData.productTypeId,
@@ -70,7 +68,7 @@ export async function fulfillOrder(
   order: OrderInput,
   options: FulfillOrderOptions = {},
 ) {
-  const { generateInvoice = true, sendInvoice = false, tax = 0 } = options
+  const { generateInvoice = true, sendInvoice = false } = options
   const createdServices = []
 
   for (const item of order.items) {
@@ -82,11 +80,9 @@ export async function fulfillOrder(
       startDate: item.startDate,
       expiryDate: item.expiryDate,
       price: item.price,
-      setupFee: 0,
       recurring: item.recurring,
       period: item.period,
       status: 'ACTIVE',
-      notes: order.notes,
     }))
     createdServices.push(service)
   }
@@ -98,7 +94,6 @@ export async function fulfillOrder(
     invoice = await createInvoiceForServices(
       createdServices.map(serviceRecordToInvoiceInput),
       order.clientId,
-      tax,
       undefined,
       { periodMode: 'form' },
     )

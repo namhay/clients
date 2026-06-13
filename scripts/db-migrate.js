@@ -3,6 +3,10 @@
  * Run: npm run db:migrate
  */
 const { neon } = require('@neondatabase/serverless')
+const { loadEnv } = require('./load-env')
+const { hasColumn } = require('./db-utils')
+
+loadEnv()
 
 async function main() {
   const url = process.env.DATABASE_URL
@@ -193,15 +197,18 @@ async function main() {
   console.log('✓ ProductPackage description/setupFee columns removed')
   console.log('✓ OrderItem setupFee column removed')
 
-  await sql`
-    UPDATE "Service"
-    SET "expiryDate" = COALESCE("nextDueDate", "expiryDate")
-    WHERE "nextDueDate" IS NOT NULL
-  `
-  await sql`
-    ALTER TABLE "Service"
-    DROP COLUMN IF EXISTS "nextDueDate"
-  `
+  if (await hasColumn(sql, 'Service', 'nextDueDate')) {
+    await sql`
+      UPDATE "Service"
+      SET "expiryDate" = COALESCE("nextDueDate", "expiryDate")
+      WHERE "nextDueDate" IS NOT NULL
+    `
+    await sql`ALTER TABLE "Service" DROP COLUMN "nextDueDate"`
+    console.log('✓ Service nextDueDate migrated to expiryDate and column removed')
+  } else {
+    console.log('✓ Service nextDueDate column already removed')
+  }
+
   await sql`
     ALTER TABLE "OrderItem"
     DROP COLUMN IF EXISTS "nextDueDate"
@@ -218,10 +225,23 @@ async function main() {
     ALTER TABLE "ProductType"
     DROP COLUMN IF EXISTS "autoInvoiceDaysBeforeExpiry"
   `
+  await sql`
+    ALTER TABLE "Invoice"
+    DROP COLUMN IF EXISTS tax
+  `
+  await sql`
+    ALTER TABLE "Service"
+    DROP COLUMN IF EXISTS "setupFee"
+  `
+  await sql`
+    ALTER TABLE "Service"
+    DROP COLUMN IF EXISTS notes
+  `
 
-  console.log('✓ Service nextDueDate column removed')
   console.log('✓ OrderItem nextDueDate column removed')
   console.log('✓ ProductType reminder columns removed')
+  console.log('✓ Invoice tax column removed')
+  console.log('✓ Service setupFee and notes columns removed')
 }
 
 main().catch(e => {

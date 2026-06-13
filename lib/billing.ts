@@ -23,6 +23,13 @@ export function subtractDays(date: Date | string, days: number): Date {
   return result
 }
 
+export function addDays(date: Date | string, days: number): Date {
+  const d = new Date(date)
+  const result = new Date(d)
+  result.setDate(result.getDate() + days)
+  return result
+}
+
 export function getBillingMonths(period: string | null | undefined): number | null {
   const cycle = BILLING_CYCLES.find(c => c.value === period)
   return cycle?.months ?? null

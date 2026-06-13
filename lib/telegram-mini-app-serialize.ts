@@ -25,7 +25,6 @@ export type MiniAppInvoice = {
   invoiceNo: string
   status: string
   subtotal: number
-  tax: number
   total: number
   dueDate: string
   paidAt: string | null
@@ -77,7 +76,6 @@ export function serializeMiniAppInvoice(
     invoiceNo: invoice.invoiceNo,
     status: invoice.status,
     subtotal: invoice.subtotal,
-    tax: invoice.tax,
     total: invoice.total,
     dueDate: formatDate(invoice.dueDate),
     paidAt: invoice.paidAt ? formatDate(invoice.paidAt) : null,

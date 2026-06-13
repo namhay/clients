@@ -97,6 +97,7 @@ export default function ClientProfilePage() {
   const [generatingRenewals, setGeneratingRenewals] = useState(false)
   const [editService, setEditService] = useState<any>(null)
   const [editInvoice, setEditInvoice] = useState<any>(null)
+  const [showNewInvoice, setShowNewInvoice] = useState(false)
   const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null)
 
@@ -610,10 +611,7 @@ export default function ClientProfilePage() {
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500">{d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`}</div>
                   </td>
-                  <td className="px-4 py-3">
-                    <div>{formatCurrency(s.price)}</div>
-                    {s.setupFee > 0 && <div className="text-xs text-gray-400 dark:text-gray-500">+{formatCurrency(s.setupFee)} setup</div>}
-                  </td>
+                  <td className="px-4 py-3">{formatCurrency(s.price)}</td>
                   <td className="px-4 py-3">
                     <span className={`badge ${s.status === 'ACTIVE' ? 'badge-active' : 'badge-expired'}`}>{s.status}</span>
                   </td>
@@ -638,9 +636,18 @@ export default function ClientProfilePage() {
       </div>
 
       <div className="card mb-6">
-        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between gap-3">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Invoices</h2>
-          <Link href="/invoices" className="text-xs text-blue-700 dark:text-blue-300 hover:underline">View all invoices →</Link>
+          <button
+            type="button"
+            className="btn-primary text-xs py-1.5 px-3"
+            onClick={() => {
+              setEditInvoice(null)
+              setShowNewInvoice(true)
+            }}
+          >
+            New Invoice
+          </button>
         </div>
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-gray-800/50">
@@ -675,7 +682,7 @@ export default function ClientProfilePage() {
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 flex-wrap">
-                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => setEditInvoice(inv)}>Edit</button>
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => { setShowNewInvoice(false); setEditInvoice(inv) }}>Edit</button>
                     {inv.status !== 'PAID' && (
                       <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openRecordPayment(inv)}>Pay</button>
                     )}
@@ -810,10 +817,17 @@ export default function ClientProfilePage() {
       />
 
       <InvoiceFormModal
-        open={Boolean(editInvoice)}
-        onClose={() => setEditInvoice(null)}
-        onSaved={load}
-        invoice={editInvoice}
+        open={showNewInvoice || Boolean(editInvoice)}
+        onClose={() => {
+          setShowNewInvoice(false)
+          setEditInvoice(null)
+        }}
+        onSaved={() => {
+          setShowNewInvoice(false)
+          setEditInvoice(null)
+          load()
+        }}
+        invoice={editInvoice ?? undefined}
         defaultClientId={client.id}
         lockClient
       />

@@ -205,10 +205,7 @@ export default function OrderFormModal({
           </div>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</h3>
-              <button type="button" className="btn-secondary text-xs py-1 px-2" onClick={addLine}>+ Add Product</button>
-            </div>
+            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Products</h3>
 
             {lines.map((line, index) => {
               const selectedType = productTypes.find(t => t.id === line.productTypeId)
@@ -301,34 +298,39 @@ export default function OrderFormModal({
                 </div>
               )
             })}
+
+            <button type="button" className="btn-secondary text-xs py-1.5 px-3 w-full sm:w-auto" onClick={addLine}>
+              + Add Product
+            </button>
           </div>
 
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-4 space-y-3">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">Invoice</h3>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="rounded border-gray-300"
-                checked={generateInvoice}
-                onChange={e => {
-                  setGenerateInvoice(e.target.checked)
-                  if (!e.target.checked) setSendInvoice(false)
-                }}
-              />
-              <span className="text-sm text-gray-700 dark:text-gray-300">Generate one combined invoice</span>
-            </label>
-            {generateInvoice && (
-              <>
-                <label className="flex items-center gap-2 cursor-pointer ml-6">
-                  <input type="checkbox" className="rounded border-gray-300" checked={sendInvoice} onChange={e => setSendInvoice(e.target.checked)} />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Send invoice</span>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">(email + Telegram)</span>
-                </label>
-                <p className="text-xs text-gray-400 dark:text-gray-500 ml-6">
-                  All products are added as line items on a single invoice. Each product also creates a service record.
-                </p>
-              </>
-            )}
+          <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={generateInvoice}
+                  onChange={e => {
+                    setGenerateInvoice(e.target.checked)
+                    if (!e.target.checked) setSendInvoice(false)
+                  }}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Generate Invoice</span>
+              </label>
+              <label
+                className={`flex items-center gap-2 ${generateInvoice ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300"
+                  checked={sendInvoice}
+                  disabled={!generateInvoice}
+                  onChange={e => setSendInvoice(e.target.checked)}
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">Send invoice</span>
+              </label>
+            </div>
           </div>
         </div>
 

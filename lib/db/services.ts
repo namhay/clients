@@ -71,8 +71,8 @@ const SERVICE_JOIN = `
 
 const SERVICE_SELECT = `
   s.id, s."clientId", s."productTypeId", s."productPackageId", s.name,
-  s."startDate", s."expiryDate", s.price, s."setupFee",
-  s.recurring, s.period, s.status, s.notes, s."createdAt", s."updatedAt",
+  s."startDate", s."expiryDate", s.price,
+  s.recurring, s.period, s.status, s."createdAt", s."updatedAt",
   c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone AS c_phone,
   c.company AS c_company, c."companyKhmer" AS c_companyKhmer, c.address AS c_address, c."vatTin" AS c_vatTin,
   c."telegramId" AS c_telegramId, c.notes AS c_notes, c."renewalDaysBeforeExpiry" AS c_renewalDaysBeforeExpiry,
@@ -156,11 +156,9 @@ export function mapServiceWithRelations(row: Record<string, unknown>): ServiceWi
     startDate: new Date(row.startDate as string),
     expiryDate: new Date(row.expiryDate as string),
     price: Number(row.price),
-    setupFee: Number(row.setupFee ?? 0),
     recurring: Boolean(row.recurring),
     period: row.period != null ? String(row.period) : null,
     status: String(row.status),
-    notes: row.notes != null ? String(row.notes) : null,
     createdAt: new Date(row.createdAt as string),
     updatedAt: new Date(row.updatedAt as string),
     client: mapClientNested(row),
@@ -328,12 +326,12 @@ export async function createService(data: ServiceInput): Promise<ServiceWithRela
   await sql`
     INSERT INTO "Service" (
       id, "clientId", "productTypeId", "productPackageId", name,
-      "startDate", "expiryDate", price, "setupFee",
-      recurring, period, status, notes, "createdAt", "updatedAt"
+      "startDate", "expiryDate", price,
+      recurring, period, status, "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.clientId}, ${data.productTypeId}, ${data.productPackageId}, ${data.name},
-      ${data.startDate}, ${data.expiryDate}, ${data.price}, ${data.setupFee},
-      ${data.recurring}, ${data.period}, ${data.status}, ${data.notes}, ${now}, ${now}
+      ${data.startDate}, ${data.expiryDate}, ${data.price},
+      ${data.recurring}, ${data.period}, ${data.status}, ${now}, ${now}
     )
   `
   const service = await getServiceById(id)
@@ -353,11 +351,9 @@ export async function updateService(id: string, data: ServiceInput): Promise<Ser
       "startDate" = ${data.startDate},
       "expiryDate" = ${data.expiryDate},
       price = ${data.price},
-      "setupFee" = ${data.setupFee},
       recurring = ${data.recurring},
       period = ${data.period},
       status = ${data.status},
-      notes = ${data.notes},
       "updatedAt" = ${now}
     WHERE id = ${id}
     RETURNING id

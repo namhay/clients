@@ -44,9 +44,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const invoice = await createInvoiceForServices(
       services.map(serviceRecordToInvoiceInput),
       params.id,
-      0,
       undefined,
-      { periodMode: 'renewal', includeSetupFee: false },
+      { periodMode: 'renewal' },
     )
 
     let invoiceSent = null

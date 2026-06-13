@@ -13,11 +13,9 @@ export type ServiceInput = {
   startDate: Date
   expiryDate: Date
   price: number
-  setupFee: number
   recurring: boolean
   period: string | null
   status: string
-  notes: string | null
 }
 
 export async function parseServiceInput(body: Record<string, unknown>): Promise<ServiceInput> {
@@ -84,11 +82,9 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
     startDate,
     expiryDate,
     price: parseFloat(String(body.price)) || 0,
-    setupFee: parseFloat(String(body.setupFee)) || 0,
     recurring,
     period,
     status,
-    notes: body.notes ? String(body.notes).trim() : null,
   }
 }
 

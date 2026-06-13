@@ -25,7 +25,6 @@ export type InvoiceRow = {
   clientId: string
   invoiceNo: string
   subtotal: number
-  tax: number
   total: number
   status: string
   dueDate: Date
@@ -65,7 +64,6 @@ export function mapInvoiceRow(row: Record<string, unknown>): InvoiceRow {
     clientId: String(row.clientId),
     invoiceNo: String(row.invoiceNo),
     subtotal: Number(row.subtotal),
-    tax: Number(row.tax ?? 0),
     total: Number(row.total),
     status: String(row.status),
     dueDate: new Date(row.dueDate as string),
@@ -570,9 +568,9 @@ export async function createInvoice(
   const createdAt = data.invoiceDate ?? now
   await sql`
     INSERT INTO "Invoice" (
-      id, "clientId", "invoiceNo", subtotal, tax, total, status, "dueDate", "paidAt", notes, "createdAt", "updatedAt"
+      id, "clientId", "invoiceNo", subtotal, total, status, "dueDate", "paidAt", notes, "createdAt", "updatedAt"
     ) VALUES (
-      ${id}, ${data.clientId}, ${data.invoiceNo}, ${data.subtotal}, ${data.tax}, ${data.total},
+      ${id}, ${data.clientId}, ${data.invoiceNo}, ${data.subtotal}, ${data.total},
       ${data.status}, ${data.dueDate}, ${null}, ${data.notes || null}, ${createdAt}, ${now}
     )
   `
@@ -605,7 +603,6 @@ export async function updateInvoiceRecord(
         "clientId" = ${data.clientId},
         "dueDate" = ${data.dueDate},
         notes = ${data.notes || null},
-        tax = ${data.tax},
         status = ${data.status},
         subtotal = ${data.subtotal},
         total = ${data.total},
@@ -621,7 +618,6 @@ export async function updateInvoiceRecord(
         "clientId" = ${data.clientId},
         "dueDate" = ${data.dueDate},
         notes = ${data.notes || null},
-        tax = ${data.tax},
         status = ${data.status},
         subtotal = ${data.subtotal},
         total = ${data.total},
@@ -659,7 +655,6 @@ export async function patchInvoice(
       "invoiceNo" = ${data.invoiceNo ?? existing.invoiceNo},
       "clientId" = ${data.clientId ?? existing.clientId},
       subtotal = ${data.subtotal ?? existing.subtotal},
-      tax = ${data.tax ?? existing.tax},
       total = ${data.total ?? existing.total},
       status = ${data.status ?? existing.status},
       "dueDate" = ${data.dueDate ?? existing.dueDate},

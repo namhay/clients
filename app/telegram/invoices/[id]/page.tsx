@@ -17,7 +17,6 @@ type InvoiceDetail = {
   invoiceNo: string
   status: string
   subtotal: number
-  tax: number
   total: number
   dueDate: string
   paidAt: string | null
@@ -177,8 +176,6 @@ export default function TelegramInvoiceDetailPage() {
           ))}
         </ul>
         <div className="px-4 py-3 space-y-1 text-sm border-t border-gray-200/70 dark:border-gray-700/70">
-          <Row label="Subtotal" value={formatMoney(invoice.subtotal)} />
-          {invoice.tax > 0 && <Row label="Tax" value={formatMoney(invoice.tax)} />}
           <Row label="Total" value={formatMoney(invoice.total)} strong />
         </div>
       </div>

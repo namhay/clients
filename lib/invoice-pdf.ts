@@ -26,7 +26,6 @@ export function toPdfInvoicePayload(
     createdAt: invoice.createdAt.toISOString(),
     total: invoice.total,
     subtotal: invoice.subtotal,
-    tax: invoice.tax,
     notes: invoice.notes,
     items: invoice.items.map(i => ({
       description: i.description,

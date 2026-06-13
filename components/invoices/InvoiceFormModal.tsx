@@ -1,7 +1,14 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { addDays, toDateInput } from '@/lib/billing'
 import { CLIENTS_ALL_URL, fetchCachedList } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
+
+const DEFAULT_DUE_DAYS = 14
+
+function defaultDueDate(invoiceDate: string) {
+  return toDateInput(addDays(invoiceDate, DEFAULT_DUE_DAYS))
+}
 
 const emptyForm = () => ({
   invoiceNo: '',
@@ -9,7 +16,6 @@ const emptyForm = () => ({
   invoiceDate: '',
   dueDate: '',
   notes: '',
-  tax: '0',
   status: 'UNPAID',
   items: [{ description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }],
 })
@@ -50,7 +56,6 @@ export default function InvoiceFormModal({
         invoiceDate: new Date(invoice.createdAt).toISOString().split('T')[0],
         dueDate: new Date(invoice.dueDate).toISOString().split('T')[0],
         notes: invoice.notes || '',
-        tax: String(invoice.tax ?? 0),
         status: invoice.status || 'UNPAID',
         items: invoice.items?.length
           ? invoice.items.map((item: any) => ({
@@ -65,14 +70,12 @@ export default function InvoiceFormModal({
       })
       return
     }
-    const today = new Date().toISOString().split('T')[0]
-    const d = new Date()
-    d.setDate(d.getDate() + 30)
+    const today = toDateInput(new Date())
     setForm({
       ...emptyForm(),
       clientId: defaultClientId || '',
       invoiceDate: today,
-      dueDate: d.toISOString().split('T')[0],
+      dueDate: defaultDueDate(today),
     })
   }, [open, invoice, defaultClientId])
 
@@ -106,7 +109,6 @@ export default function InvoiceFormModal({
     try {
       const payload = {
         ...form,
-        tax: Number(form.tax) || 0,
         items,
         ...(editId && { invoiceNo: form.invoiceNo.trim() }),
       }
@@ -161,7 +163,19 @@ export default function InvoiceFormModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">Invoice Date *</label>
-              <input type="date" className="input" value={form.invoiceDate} onChange={e => setForm(f => ({ ...f, invoiceDate: e.target.value }))} />
+              <input
+                type="date"
+                className="input"
+                value={form.invoiceDate}
+                onChange={e => {
+                  const invoiceDate = e.target.value
+                  setForm(f => ({
+                    ...f,
+                    invoiceDate,
+                    dueDate: editId ? f.dueDate : defaultDueDate(invoiceDate),
+                  }))
+                }}
+              />
             </div>
             <div>
               <label className="label">Due Date *</label>
@@ -182,20 +196,14 @@ export default function InvoiceFormModal({
               <button className="btn-secondary text-xs py-1" onClick={() => setForm(f => ({ ...f, items: [...f.items, { description: '', quantity: 1, unitPrice: '', total: 0, periodStart: '', periodEnd: '' }] }))}>+ Add Item</button>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {editId && (
             <div>
-              <label className="label">Tax (%)</label>
-              <input type="number" className="input" value={form.tax} onChange={e => setForm(f => ({ ...f, tax: e.target.value }))} />
+              <label className="label">Status</label>
+              <select className="input" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
+                {['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
-            {editId && (
-              <div>
-                <label className="label">Status</label>
-                <select className="input" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
-                  {['UNPAID', 'PAID', 'OVERDUE', 'CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            )}
-          </div>
+          )}
           <div>
             <label className="label">Notes</label>
             <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Bank transfer details..." />

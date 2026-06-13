@@ -82,7 +82,6 @@ export type InvoiceInput = {
   dueDate: Date
   invoiceDate?: Date | null
   notes: string
-  tax: number
   status: string
   subtotal: number
   total: number
@@ -128,9 +127,8 @@ export function parseInvoiceInput(body: Record<string, unknown>): InvoiceInput {
 
   if (!items.length) throw new Error('Add at least one invoice item')
 
-  const tax = Math.max(0, parseFloat(String(body.tax)) || 0)
   const subtotal = items.reduce((sum, item) => sum + item.total, 0)
-  const total = subtotal + (subtotal * tax / 100)
+  const total = subtotal
 
   const status = String(body.status || 'UNPAID').toUpperCase()
   if (!INVOICE_STATUSES.includes(status as typeof INVOICE_STATUSES[number])) {
@@ -143,7 +141,6 @@ export function parseInvoiceInput(body: Record<string, unknown>): InvoiceInput {
     dueDate,
     invoiceDate,
     notes: String(body.notes || '').trim(),
-    tax,
     status,
     subtotal,
     total,
@@ -208,7 +205,6 @@ export type ServiceForInvoice = {
   typeName: string
   name: string
   price: number
-  setupFee: number
   recurring: boolean
   period: string | null
   startDate: Date
@@ -220,7 +216,6 @@ export function serviceRecordToInvoiceInput(service: {
   clientId: string
   name: string
   price: number
-  setupFee: number
   recurring: boolean
   period: string | null
   startDate: Date
@@ -233,23 +228,12 @@ export function serviceRecordToInvoiceInput(service: {
     typeName: service.productType.name,
     name: service.name,
     price: service.price,
-    setupFee: service.setupFee,
     recurring: service.recurring,
     period: service.period,
     startDate: service.startDate,
     expiryDate: service.expiryDate,
     productPackage: service.productPackage,
   }
-}
-
-function expandServicesForInvoiceItems(services: ServiceForInvoice[]): ServiceForInvoice[] {
-  const result: ServiceForInvoice[] = []
-  for (const service of services) {
-    if (service.price > 0) result.push(service)
-    if (service.setupFee > 0) result.push(service)
-    if (service.price <= 0 && service.setupFee <= 0) result.push(service)
-  }
-  return result
 }
 
 function servicesMatch(a: ServiceForInvoice, b: ServiceForInvoice): boolean {
@@ -290,7 +274,7 @@ async function resolveInvoiceItemsToServices(
     ? linked
     : await listServices({ clientId: invoice.clientId })
   const inputs = pool.map(serviceRecordToInvoiceInput)
-  const byIndex = linked.length ? expandServicesForInvoiceItems(inputs) : []
+  const byIndex = linked.length ? inputs : []
 
   const result: { service: ServiceWithRelations; item: InvoiceItemRow }[] = []
   const seen = new Set<string>()
@@ -344,11 +328,9 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
       startDate: service.startDate,
       expiryDate: extension.expiryDate,
       price: service.price,
-      setupFee: service.setupFee,
       recurring: service.recurring,
       period: service.period,
       status: service.status === 'CANCELLED' ? 'CANCELLED' : 'ACTIVE',
-      notes: service.notes,
     }))
   }
 }
@@ -437,11 +419,9 @@ export async function revertServicesForUnpaidInvoice(invoiceId: string) {
       startDate: service.startDate,
       expiryDate: reverted.expiryDate,
       price: service.price,
-      setupFee: service.setupFee,
       recurring: service.recurring,
       period: service.period,
       status: service.status === 'CANCELLED' ? 'CANCELLED' : 'ACTIVE',
-      notes: service.notes,
     }))
   }
 }
@@ -456,7 +436,7 @@ export async function enrichInvoiceItemsWithPeriods(
     : await listServices({ clientId: invoice.clientId })
   ).map(serviceRecordToInvoiceInput)
 
-  const servicesByItemIndex = linked.length ? expandServicesForInvoiceItems(services) : []
+  const servicesByItemIndex = linked.length ? services : []
 
   return invoice.items.map((item, index) => {
     if (item.periodStart && item.periodEnd) return item
@@ -471,8 +451,6 @@ export async function enrichInvoiceItemsWithPeriods(
 }
 
 export type ServiceInvoiceOptions = {
-  /** Renewal invoices should not re-bill setup fees. Default true for manual invoices. */
-  includeSetupFee?: boolean
   /** `form` = order (start → start + 1 cycle on invoice). `new` = today → +1 cycle. `renewal` = existing service (expiry → +1 cycle). */
   periodMode?: 'form' | 'new' | 'renewal'
 }
@@ -481,7 +459,6 @@ export function buildServiceInvoiceItems(
   service: ServiceForInvoice,
   options: ServiceInvoiceOptions = {},
 ) {
-  const includeSetupFee = options.includeSetupFee !== false
   const label = buildServiceInvoiceLabel(
     service.typeName,
     service.name,
@@ -503,19 +480,7 @@ export function buildServiceInvoiceItems(
       total: service.price,
       ...period,
     })
-  }
-
-  if (includeSetupFee && service.setupFee > 0) {
-    items.push({
-      description: `Setup fee — ${service.name}`,
-      quantity: 1,
-      unitPrice: service.setupFee,
-      total: service.setupFee,
-      ...period,
-    })
-  }
-
-  if (!items.length) {
+  } else {
     items.push({ description: label, quantity: 1, unitPrice: 0, total: 0, ...period })
   }
 
@@ -524,16 +489,14 @@ export function buildServiceInvoiceItems(
 
 export async function createInvoiceForService(
   service: ServiceForInvoice,
-  tax = 0,
   options?: ServiceInvoiceOptions,
 ) {
-  return createInvoiceForServices([service], service.clientId, tax, undefined, options)
+  return createInvoiceForServices([service], service.clientId, undefined, options)
 }
 
 export async function createInvoiceForServices(
   services: ServiceForInvoice[],
   clientId: string,
-  tax = 0,
   dueDate?: Date,
   options?: ServiceInvoiceOptions,
 ) {
@@ -541,7 +504,7 @@ export async function createInvoiceForServices(
 
   const items = services.flatMap(s => buildServiceInvoiceItems(s, options))
   const subtotal = items.reduce((s, i) => s + i.total, 0)
-  const total = subtotal + (subtotal * tax / 100)
+  const total = subtotal
   const invoiceNo = await getNextInvoiceNo()
 
   const dueDates = services.map(s => s.expiryDate)
@@ -553,7 +516,6 @@ export async function createInvoiceForServices(
     clientId,
     invoiceNo,
     subtotal,
-    tax,
     total,
     dueDate: invoiceDueDate,
     notes: '',

@@ -73,7 +73,6 @@ export interface Invoice {
   invoiceNo: string
   items: InvoiceItem[]
   subtotal: number
-  tax: number
   total: number
   status: InvoiceStatus
   dueDate: Date

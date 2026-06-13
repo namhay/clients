@@ -1,6 +1,9 @@
 const { neon } = require('@neondatabase/serverless')
 const bcrypt = require('bcryptjs')
 const { randomUUID } = require('crypto')
+const { loadEnv } = require('./load-env')
+
+loadEnv()
 
 const sql = neon(process.env.DATABASE_URL)
 

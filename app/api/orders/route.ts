@@ -30,7 +30,6 @@ export async function POST(req: NextRequest) {
     const result = await fulfillOrder(order, {
       generateInvoice: Boolean(body.generateInvoice),
       sendInvoice: Boolean(body.sendInvoice),
-      tax: parseFloat(String(body.tax)) || 0,
     })
     return NextResponse.json(result, { status: 201 })
   } catch (e) {
