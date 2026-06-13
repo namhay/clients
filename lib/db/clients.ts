@@ -15,6 +15,7 @@ export type ClientRow = {
   vatTin: string | null
   telegramId: string | null
   notes: string | null
+  renewalDaysBeforeExpiry: number
   createdAt: Date
   updatedAt: Date
 }
@@ -39,6 +40,7 @@ export type ClientInput = {
   vatTin?: string | null
   telegramId?: string | null
   notes?: string | null
+  renewalDaysBeforeExpiry?: number
 }
 
 function mapClient(row: Record<string, unknown>): ClientRow {
@@ -53,6 +55,7 @@ function mapClient(row: Record<string, unknown>): ClientRow {
     vatTin: row.vatTin != null ? String(row.vatTin) : null,
     telegramId: row.telegramId != null ? String(row.telegramId) : null,
     notes: row.notes != null ? String(row.notes) : null,
+    renewalDaysBeforeExpiry: Number(row.renewalDaysBeforeExpiry ?? 14),
     createdAt: new Date(row.createdAt as string),
     updatedAt: new Date(row.updatedAt as string),
   }
@@ -189,11 +192,12 @@ export async function createClient(data: ClientInput): Promise<ClientRow> {
   const now = new Date()
   const rows = await sql`
     INSERT INTO "Client" (
-      id, name, email, phone, company, "companyKhmer", address, "vatTin", "telegramId", notes, "createdAt", "updatedAt"
+      id, name, email, phone, company, "companyKhmer", address, "vatTin", "telegramId", notes,
+      "renewalDaysBeforeExpiry", "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.name}, ${data.email}, ${data.phone ?? null}, ${data.company ?? null},
       ${data.companyKhmer ?? null}, ${data.address ?? null}, ${data.vatTin ?? null}, ${data.telegramId ?? null}, ${data.notes ?? null},
-      ${now}, ${now}
+      ${data.renewalDaysBeforeExpiry ?? 14}, ${now}, ${now}
     )
     RETURNING *
   `
@@ -216,6 +220,7 @@ export async function updateClient(id: string, data: Partial<ClientInput>): Prom
       "vatTin" = ${data.vatTin !== undefined ? data.vatTin : existing.vatTin},
       "telegramId" = ${data.telegramId !== undefined ? data.telegramId : existing.telegramId},
       notes = ${data.notes !== undefined ? data.notes : existing.notes},
+      "renewalDaysBeforeExpiry" = ${data.renewalDaysBeforeExpiry !== undefined ? data.renewalDaysBeforeExpiry : existing.renewalDaysBeforeExpiry},
       "updatedAt" = ${now}
     WHERE id = ${id}
     RETURNING *
@@ -238,4 +243,12 @@ export async function deleteClient(id: string) {
 
 export async function linkClientTelegram(clientId: string, chatId: string): Promise<ClientRow> {
   return updateClient(clientId, { telegramId: chatId })
+}
+
+export async function getMaxRenewalWindow(): Promise<number> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT COALESCE(MAX("renewalDaysBeforeExpiry"), 14)::int AS max_days FROM "Client"
+  `
+  return Math.max(Number((rows[0] as { max_days: number }).max_days ?? 14), 0)
 }

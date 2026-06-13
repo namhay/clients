@@ -74,7 +74,6 @@ function mapOrderItem(row: Record<string, unknown>): OrderItemRow {
     price: Number(row.price),
     startDate: new Date(row.startDate as string),
     expiryDate: new Date(row.expiryDate as string),
-    nextDueDate: row.nextDueDate != null ? new Date(row.nextDueDate as string) : null,
     recurring: Boolean(row.recurring),
     period: row.period != null ? String(row.period) : null,
     sortOrder: Number(row.sortOrder ?? 0),
@@ -227,11 +226,11 @@ export async function createOrderItem(
   await sql`
     INSERT INTO "OrderItem" (
       id, "orderId", "serviceId", "productTypeId", "productPackageId", name,
-      price, "startDate", "expiryDate", "nextDueDate",
+      price, "startDate", "expiryDate",
       recurring, period, "sortOrder", "createdAt"
     ) VALUES (
       ${id}, ${orderId}, ${serviceId}, ${item.productTypeId}, ${item.productPackageId}, ${item.name},
-      ${item.price}, ${item.startDate}, ${item.expiryDate}, ${item.nextDueDate},
+      ${item.price}, ${item.startDate}, ${item.expiryDate},
       ${item.recurring}, ${item.period}, ${sortOrder}, ${now}
     )
   `

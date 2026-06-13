@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { createClient, listClients, listClientsPaginated } from '@/lib/db/clients'
+import { parseClientInput } from '@/lib/clients'
 import { isPaginatedRequest, parsePageParams } from '@/lib/pagination'
 
 export async function GET(req: NextRequest) {
@@ -24,6 +25,11 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  const client = await createClient(body)
-  return NextResponse.json(client, { status: 201 })
+  try {
+    const client = await createClient(parseClientInput(body))
+    return NextResponse.json(client, { status: 201 })
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Invalid client data'
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 }

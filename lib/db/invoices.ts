@@ -426,6 +426,27 @@ export async function hasOpenRenewalInvoice(
   return rows.length > 0
 }
 
+/** True when any non-cancelled invoice exists for this service period. */
+export async function hasInvoiceForPeriod(
+  clientId: string,
+  itemDescription: string,
+  periodStart: Date,
+): Promise<boolean> {
+  const sql = getSql()
+  const day = periodStart.toISOString().slice(0, 10)
+  const rows = await sql`
+    SELECT 1
+    FROM "InvoiceItem" ii
+    INNER JOIN "Invoice" i ON i.id = ii."invoiceId"
+    WHERE i."clientId" = ${clientId}
+      AND i.status != 'CANCELLED'
+      AND ii.description = ${itemDescription}
+      AND ii."periodStart"::date = ${day}::date
+    LIMIT 1
+  `
+  return rows.length > 0
+}
+
 export async function getPaidInvoices(): Promise<InvoiceRow[]> {
   const sql = getSql()
   const rows = await sql`SELECT * FROM "Invoice" WHERE status = 'PAID'`

@@ -14,7 +14,6 @@ export type OrderItemInput = {
   price: number
   startDate: Date
   expiryDate: Date
-  nextDueDate: Date | null
   recurring: boolean
   period: string | null
   sortOrder?: number
@@ -55,7 +54,6 @@ export async function parseOrderInput(body: Record<string, unknown>): Promise<Or
       price: serviceData.price,
       startDate: serviceData.startDate,
       expiryDate: serviceData.expiryDate,
-      nextDueDate: serviceData.nextDueDate,
       recurring: serviceData.recurring,
       period: serviceData.period,
     })
@@ -83,7 +81,6 @@ export async function fulfillOrder(
       name: item.name,
       startDate: item.startDate,
       expiryDate: item.expiryDate,
-      nextDueDate: item.nextDueDate,
       price: item.price,
       setupFee: 0,
       recurring: item.recurring,

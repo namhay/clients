@@ -7,6 +7,7 @@ import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
 import { prefetchClientProfile } from '@/lib/list-cache'
 import ClientLink from '@/components/clients/ClientLink'
+import { formatRenewalTiming, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 
@@ -27,8 +28,30 @@ export default function ClientsPage() {
   } = usePaginatedList<any>({ endpoint: '/api/clients' })
 
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' })
-  const emptyForm = { name:'', email:'', phone:'', company:'', companyKhmer:'', address:'', vatTin:'', telegramId:'', notes:'' }
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    companyKhmer: '',
+    address: '',
+    vatTin: '',
+    telegramId: '',
+    notes: '',
+    renewalDaysBeforeExpiry: 14,
+  })
+  const emptyForm = {
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    companyKhmer: '',
+    address: '',
+    vatTin: '',
+    telegramId: '',
+    notes: '',
+    renewalDaysBeforeExpiry: 14,
+  }
   const [editId, setEditId] = useState<string|null>(null)
   const [showOrderModal, setShowOrderModal] = useState(false)
   const [orderClient, setOrderClient] = useState<{ id: string; name: string } | null>(null)
@@ -53,8 +76,20 @@ export default function ClientsPage() {
   }
 
   const edit = (c: any) => {
-    setForm({ name:c.name,email:c.email,phone:c.phone||'',company:c.company||'',companyKhmer:c.companyKhmer||'',address:c.address||'',vatTin:c.vatTin||'',telegramId:c.telegramId||'',notes:c.notes||'' })
-    setEditId(c.id); setShowModal(true)
+    setForm({
+      name: c.name,
+      email: c.email,
+      phone: c.phone || '',
+      company: c.company || '',
+      companyKhmer: c.companyKhmer || '',
+      address: c.address || '',
+      vatTin: c.vatTin || '',
+      telegramId: c.telegramId || '',
+      notes: c.notes || '',
+      renewalDaysBeforeExpiry: c.renewalDaysBeforeExpiry ?? 14,
+    })
+    setEditId(c.id)
+    setShowModal(true)
   }
 
   const addOrder = (c: any) => {
@@ -192,6 +227,18 @@ export default function ClientsPage() {
               <div className="col-span-2">
                 <label className="label">Notes</label>
                 <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+              <div className="col-span-2 border-t border-gray-100 dark:border-gray-800 pt-4">
+                <label className="label">Generate Invoice & Send Reminder</label>
+                <select
+                  className="input"
+                  value={form.renewalDaysBeforeExpiry}
+                  onChange={e => setForm(f => ({ ...f, renewalDaysBeforeExpiry: parseInt(e.target.value) }))}
+                >
+                  {RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS.map(days => (
+                    <option key={days} value={days}>{formatRenewalTiming(days)}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">

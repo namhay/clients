@@ -1,6 +1,7 @@
-import { hasOpenRenewalInvoice } from '@/lib/db/invoices'
+import { hasInvoiceForPeriod, hasOpenRenewalInvoice } from '@/lib/db/invoices'
 import { listServices } from '@/lib/db/services'
 import type { ServiceWithRelations } from '@/lib/db/services'
+import type { ServiceForInvoice } from '@/lib/invoices'
 import {
   buildServiceInvoiceLabel,
   createInvoiceForServices,
@@ -21,23 +22,80 @@ export type AutoInvoiceRunResult = {
   invoices: { id: string; invoiceNo: string }[]
 }
 
-function groupKey(clientId: string, expiryDate: Date) {
-  return `${clientId}:${expiryDate.toISOString().slice(0, 10)}`
+type InvoiceKind = 'first' | 'renewal'
+
+type InvoicePlanGroup = {
+  clientId: string
+  clientName: string
+  expiryDate: Date
+  kind: InvoiceKind
+  services: ServiceForInvoice[]
 }
 
-function groupServicesByClientExpiry(services: ServiceWithRelations[]) {
-  const groups = new Map<string, ServiceWithRelations[]>()
-  for (const svc of services) {
-    const key = groupKey(svc.clientId, svc.expiryDate)
-    const list = groups.get(key) || []
-    list.push(svc)
-    groups.set(key, list)
+function groupKey(clientId: string, expiryDate: Date, kind: InvoiceKind) {
+  return `${clientId}:${expiryDate.toISOString().slice(0, 10)}:${kind}`
+}
+
+async function resolveServiceInvoicePlan(
+  svc: ServiceWithRelations,
+): Promise<{ kind: InvoiceKind; input: ServiceForInvoice } | null> {
+  const label = buildServiceInvoiceLabel(
+    svc.productType.name,
+    svc.name,
+    svc.productPackage?.name,
+  )
+
+  const hasFirst = await hasInvoiceForPeriod(svc.clientId, label, svc.startDate)
+  if (!hasFirst) {
+    return { kind: 'first', input: serviceRecordToInvoiceInput(svc) }
   }
-  return Array.from(groups.values())
+
+  const hasRenewal = await hasOpenRenewalInvoice(svc.clientId, label, svc.expiryDate)
+  if (hasRenewal) return null
+
+  return { kind: 'renewal', input: serviceRecordToInvoiceInput(svc) }
 }
 
-async function createInvoicesForServiceGroups(
-  groups: ServiceWithRelations[][],
+async function buildInvoicePlanGroups(
+  services: ServiceWithRelations[],
+): Promise<{ groups: InvoicePlanGroup[]; skipped: number; errors: string[] }> {
+  const groups = new Map<string, InvoicePlanGroup>()
+  let skipped = 0
+  const errors: string[] = []
+
+  for (const svc of services) {
+    try {
+      const plan = await resolveServiceInvoicePlan(svc)
+      if (!plan) {
+        skipped++
+        continue
+      }
+
+      const key = groupKey(svc.clientId, svc.expiryDate, plan.kind)
+      const existing = groups.get(key)
+      if (existing) {
+        existing.services.push(plan.input)
+      } else {
+        groups.set(key, {
+          clientId: svc.clientId,
+          clientName: svc.client.name,
+          expiryDate: svc.expiryDate,
+          kind: plan.kind,
+          services: [plan.input],
+        })
+      }
+    } catch (e) {
+      errors.push(
+        `${svc.client.name} — ${svc.name}: ${e instanceof Error ? e.message : 'failed'}`,
+      )
+    }
+  }
+
+  return { groups: Array.from(groups.values()), skipped, errors }
+}
+
+async function createInvoicesForPlanGroups(
+  planGroups: InvoicePlanGroup[],
 ): Promise<Pick<AutoInvoiceRunResult, 'created' | 'skipped' | 'errors' | 'invoices'>> {
   const result = {
     created: 0,
@@ -46,45 +104,26 @@ async function createInvoicesForServiceGroups(
     invoices: [] as { id: string; invoiceNo: string }[],
   }
 
-  for (const group of groups) {
-    const toInvoice = []
+  for (const group of planGroups) {
+    if (!group.services.length) continue
 
-    for (const svc of group) {
-      const label = buildServiceInvoiceLabel(
-        svc.productType.name,
-        svc.name,
-        svc.productPackage?.name,
-      )
-
-      try {
-        const exists = await hasOpenRenewalInvoice(svc.clientId, label, svc.expiryDate)
-        if (exists) {
-          result.skipped++
-          continue
-        }
-        toInvoice.push(serviceRecordToInvoiceInput(svc))
-      } catch (e) {
-        result.errors.push(
-          `${svc.client.name} — ${svc.name}: ${e instanceof Error ? e.message : 'failed'}`,
-        )
-      }
-    }
-
-    if (!toInvoice.length) continue
+    const options = group.kind === 'first'
+      ? { periodMode: 'form' as const }
+      : { periodMode: 'renewal' as const, includeSetupFee: false }
 
     try {
       const invoice = await createInvoiceForServices(
-        toInvoice,
-        group[0].clientId,
+        group.services,
+        group.clientId,
         0,
-        group[0].expiryDate,
-        { includeSetupFee: false, periodMode: 'renewal' },
+        group.expiryDate,
+        options,
       )
       result.created++
       result.invoices.push({ id: invoice.id, invoiceNo: invoice.invoiceNo })
     } catch (e) {
       result.errors.push(
-        `${group[0].client.name}: ${e instanceof Error ? e.message : 'failed'}`,
+        `${group.clientName}: ${e instanceof Error ? e.message : 'failed'}`,
       )
     }
   }
@@ -99,12 +138,16 @@ export async function runAutoInvoicesForClient(clientId: string): Promise<AutoIn
   const eligible = filterServicesDueForAutoInvoice(recurring)
   const tooEarly = recurring.length - eligible.length
 
-  const created = await createInvoicesForServiceGroups(groupServicesByClientExpiry(eligible))
+  const { groups, skipped, errors } = await buildInvoicePlanGroups(eligible)
+  const created = await createInvoicesForPlanGroups(groups)
 
   return {
     processed: recurring.length,
     tooEarly,
-    ...created,
+    skipped: skipped + created.skipped,
+    errors: [...errors, ...created.errors],
+    created: created.created,
+    invoices: created.invoices,
   }
 }
 
@@ -119,11 +162,15 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
   const eligible = filterServicesDueForAutoInvoice(recurring)
   const tooEarly = recurring.length - eligible.length
 
-  const created = await createInvoicesForServiceGroups(groupServicesByClientExpiry(eligible))
+  const { groups, skipped, errors } = await buildInvoicePlanGroups(eligible)
+  const created = await createInvoicesForPlanGroups(groups)
 
   return {
     processed: recurring.length,
     tooEarly,
-    ...created,
+    skipped: skipped + created.skipped,
+    errors: [...errors, ...created.errors],
+    created: created.created,
+    invoices: created.invoices,
   }
 }

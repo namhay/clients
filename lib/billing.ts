@@ -1,3 +1,5 @@
+import { DEFAULT_TIMEZONE, readZonedParts } from '@/lib/date-format'
+
 export const BILLING_CYCLES = [
   { value: 'MONTHLY', label: 'Monthly', months: 1 },
   { value: 'QUARTERLY', label: 'Quarterly', months: 3 },
@@ -81,9 +83,9 @@ export function formatBillingCycle(period: string | null | undefined, recurring?
 
 export function calculateBillingDates(startDate: Date | string, period: string) {
   const months = getBillingMonths(period)
-  if (!months) return { nextDueDate: null as Date | null, expiryDate: null as Date | null }
-  const nextDueDate = addMonths(startDate, months)
-  return { nextDueDate, expiryDate: nextDueDate }
+  if (!months) return { expiryDate: null as Date | null }
+  const expiryDate = addMonths(startDate, months)
+  return { expiryDate }
 }
 
 /** Advance recurring service dates by one billing cycle from the current expiry. */
@@ -91,12 +93,11 @@ export function extendServiceByBillingCycle(service: {
   recurring: boolean
   period: string | null
   expiryDate: Date
-}): { expiryDate: Date; nextDueDate: Date } | null {
+}): { expiryDate: Date } | null {
   if (!service.recurring || !service.period) return null
   const months = getBillingMonths(service.period)
   if (!months) return null
-  const expiryDate = addMonths(service.expiryDate, months)
-  return { expiryDate, nextDueDate: expiryDate }
+  return { expiryDate: addMonths(service.expiryDate, months) }
 }
 
 /** Roll back recurring service dates by one billing cycle from the current expiry. */
@@ -104,15 +105,19 @@ export function revertServiceByBillingCycle(service: {
   recurring: boolean
   period: string | null
   expiryDate: Date
-}): { expiryDate: Date; nextDueDate: Date } | null {
+}): { expiryDate: Date } | null {
   if (!service.recurring || !service.period) return null
   const months = getBillingMonths(service.period)
   if (!months) return null
-  const expiryDate = addMonths(service.expiryDate, -months)
-  return { expiryDate, nextDueDate: expiryDate }
+  return { expiryDate: addMonths(service.expiryDate, -months) }
 }
 
-export function toDateInput(date: Date | string | null | undefined): string {
+export function toDateInput(
+  date: Date | string | null | undefined,
+  timeZone: string = DEFAULT_TIMEZONE,
+): string {
   if (!date) return ''
-  return new Date(date).toISOString().split('T')[0]
+  const zoned = readZonedParts(date, timeZone)
+  if (!zoned) return ''
+  return `${zoned.year}-${String(zoned.month).padStart(2, '0')}-${String(zoned.day).padStart(2, '0')}`
 }

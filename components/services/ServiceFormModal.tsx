@@ -14,7 +14,6 @@ const emptyForm = () => ({
   setupFee: '',
   startDate: new Date().toISOString().split('T')[0],
   expiryDate: '',
-  nextDueDate: '',
   recurring: true,
   period: 'YEARLY',
   status: 'ACTIVE',
@@ -46,19 +45,15 @@ export default function ServiceFormModal({
   const [productPackages, setProductPackages] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
-  const [generateInvoice, setGenerateInvoice] = useState(true)
-  const [sendInvoice, setSendInvoice] = useState(false)
-  const [generatingInvoice, setGeneratingInvoice] = useState(false)
 
   const selectedType = productTypes.find(t => t.id === form.productTypeId)
 
   const applyBillingDates = (next: ReturnType<typeof emptyForm>) => {
     if (!next.recurring || !next.period || !next.startDate) return next
-    const { nextDueDate, expiryDate } = calculateBillingDates(next.startDate, next.period)
+    const { expiryDate } = calculateBillingDates(next.startDate, next.period)
     return {
       ...next,
-      nextDueDate: toDateInput(nextDueDate),
-      expiryDate: toDateInput(expiryDate),
+      expiryDate: expiryDate ? toDateInput(expiryDate) : '',
     }
   }
 
@@ -86,7 +81,7 @@ export default function ServiceFormModal({
         next = applyPackagePricing(next, patch.productPackageId)
       }
       if (recalcDates && next.recurring) next = applyBillingDates(next)
-      if (!next.recurring) next = { ...next, period: 'YEARLY', nextDueDate: '' }
+      if (!next.recurring) next = { ...next, period: 'YEARLY' }
       if (next.productPackageId && (patch.period || patch.recurring !== undefined)) {
         next = applyPackagePricing(next)
       }
@@ -124,22 +119,17 @@ export default function ServiceFormModal({
         setupFee: String(service.setupFee ?? 0),
         startDate: toDateInput(service.startDate),
         expiryDate: toDateInput(service.expiryDate),
-        nextDueDate: toDateInput(service.nextDueDate || service.expiryDate),
         recurring: service.recurring,
         period: service.period || 'YEARLY',
         status: service.status,
         notes: service.notes || '',
       })
-      setGenerateInvoice(false)
-      setSendInvoice(false)
     } else {
       const base = applyBillingDates({
         ...emptyForm(),
         clientId: defaultClientId || '',
       })
       setForm(base)
-      setGenerateInvoice(true)
-      setSendInvoice(false)
     }
   }, [open, service, defaultClientId])
 
@@ -176,13 +166,8 @@ export default function ServiceFormModal({
           expiryDate: form.expiryDate,
           recurring: form.recurring,
           period: form.recurring ? form.period : null,
-          nextDueDate: form.recurring ? form.nextDueDate || form.expiryDate : null,
           status: form.status,
           notes: form.notes,
-          ...(!editId && {
-            generateInvoice,
-            sendInvoice: generateInvoice && sendInvoice,
-          }),
         }),
       })
       const result = await res.json()
@@ -192,50 +177,12 @@ export default function ServiceFormModal({
           : (result.error || 'Failed to save service')
         return toast.error(message)
       }
-      if (!editId && result.invoice) {
-        const parts = [`Invoice ${result.invoice.invoiceNo} created.`]
-        if (result.invoiceSent) {
-          if (result.invoiceSent.email) parts.push('Email sent.')
-          if (result.invoiceSent.telegram) parts.push('Telegram sent.')
-          if (result.invoiceSent.errors?.length) parts.push(`Warnings: ${result.invoiceSent.errors.join('; ')}`)
-        }
-        toast.success(parts.join(' '))
-      }
       onClose()
       onSaved()
     } catch {
       toast.error('Failed to save service. Please check your connection and try again.')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const generateInvoiceNow = async () => {
-    if (!editId) return
-    const label = form.name || service?.name || 'this service'
-    if (!await toast.confirm(`Generate invoice for "${label}"?`)) return
-    const send = await toast.confirm('Also send invoice to client (email + Telegram)?')
-    setGeneratingInvoice(true)
-    try {
-      const res = await fetch(`/api/services/${editId}/invoice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sendInvoice: send }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to generate invoice')
-      const parts = [`Invoice ${data.invoice.invoiceNo} created.`]
-      if (send) {
-        const sent = data.invoiceSent
-        if (sent?.email || sent?.telegram) parts.push('Sent to client.')
-        else if (sent?.errors?.length) parts.push(`Send issues: ${sent.errors.join(', ')}`)
-      }
-      toast.success(parts.join(' '))
-      onSaved()
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Failed to generate invoice')
-    } finally {
-      setGeneratingInvoice(false)
     }
   }
 
@@ -393,19 +340,10 @@ export default function ServiceFormModal({
                   onChange={e => updateForm({ startDate: e.target.value }, form.recurring)}
                 />
               </div>
-              {form.recurring && (
-                <div>
-                  <label className="label">Next Due Date</label>
-                  <input
-                    type="date"
-                    className="input"
-                    value={form.nextDueDate}
-                    onChange={e => updateForm({ nextDueDate: e.target.value, expiryDate: e.target.value })}
-                  />
-                </div>
-              )}
               <div className={form.recurring ? '' : 'col-span-2'}>
-                <label className="label">{form.recurring ? 'Renewal / Expiry Date *' : 'Expiry Date *'}</label>
+                <label className="label">
+                  {form.recurring ? 'Due / Renewal Date *' : 'Expiry Date *'}
+                </label>
                 <input
                   type="date"
                   className="input"
@@ -416,62 +354,8 @@ export default function ServiceFormModal({
             </div>
             {form.recurring && (
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
-                Dates auto-calculate from billing cycle. You can override next due and renewal dates manually.
+                When the current billing period ends and payment is due. Auto-calculated from registration date and billing cycle; you can override manually.
               </p>
-            )}
-          </div>
-
-          <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-            <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Invoice</h3>
-            {!editId ? (
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300"
-                    checked={generateInvoice}
-                    onChange={e => {
-                      setGenerateInvoice(e.target.checked)
-                      if (!e.target.checked) setSendInvoice(false)
-                    }}
-                  />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Generate Invoice</span>
-                </label>
-                {generateInvoice && (
-                  <label className="flex items-center gap-2 cursor-pointer ml-6">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300"
-                      checked={sendInvoice}
-                      onChange={e => setSendInvoice(e.target.checked)}
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Send Invoice</span>
-                    <span className="text-xs text-gray-400 dark:text-gray-500">(email + Telegram if configured)</span>
-                  </label>
-                )}
-                {generateInvoice && (
-                  <p className="text-xs text-gray-400 dark:text-gray-500 ml-6">
-                    Invoice due date uses the service next due / expiry date. Line items include recurring price and setup fee.
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 dark:text-gray-300">
-                  Generate an invoice from this service&apos;s current price and setup fee.
-                </p>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={generatingInvoice || saving}
-                  onClick={generateInvoiceNow}
-                >
-                  {generatingInvoice ? 'Generating...' : 'Generate Invoice'}
-                </button>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Save changes first — invoice uses the saved service data. Due date uses next due / expiry.
-                </p>
-              </div>
             )}
           </div>
         </div>

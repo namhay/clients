@@ -98,7 +98,7 @@ export default function ServicesPage() {
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Service</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Next Due</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Renewal Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="px-4 py-2.5" />
@@ -112,8 +112,7 @@ export default function ServicesPage() {
               </td></tr>
             )}
             {services.map(s => {
-              const dueDate = s.nextDueDate || s.expiryDate
-              const d = daysUntil(dueDate)
+              const d = daysUntil(s.expiryDate)
               return (
                 <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
@@ -138,7 +137,7 @@ export default function ServicesPage() {
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatBillingCycle(s.period, s.recurring)}</td>
                   <td className="px-4 py-3">
                     <div className={d < 0 ? 'text-red-600 dark:text-red-400' : d < 30 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}>
-                      {formatDate(dueDate)}
+                      {formatDate(s.expiryDate)}
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500">
                       {d < 0 ? `${Math.abs(d)} days overdue` : `${d} days left`}

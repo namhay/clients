@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
+import { formatRenewalTiming, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
@@ -44,6 +45,7 @@ function clientFormFromData(data: {
   vatTin?: string | null
   telegramId?: string | null
   notes?: string | null
+  renewalDaysBeforeExpiry?: number | null
 }) {
   return {
     name: data.name,
@@ -55,6 +57,7 @@ function clientFormFromData(data: {
     vatTin: data.vatTin || '',
     telegramId: data.telegramId || '',
     notes: data.notes || '',
+    renewalDaysBeforeExpiry: data.renewalDaysBeforeExpiry ?? 14,
   }
 }
 
@@ -67,7 +70,18 @@ export default function ClientProfilePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showOrderModal, setShowOrderModal] = useState(false)
-  const [form, setForm] = useState({ name: '', email: '', phone: '', company: '', companyKhmer: '', address: '', vatTin: '', telegramId: '', notes: '' })
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    company: '',
+    companyKhmer: '',
+    address: '',
+    vatTin: '',
+    telegramId: '',
+    notes: '',
+    renewalDaysBeforeExpiry: 14,
+  })
   const [telegramConnect, setTelegramConnect] = useState<{
     link: string
     botUsername: string
@@ -353,6 +367,10 @@ export default function ClientProfilePage() {
                   )}
                 </div>
                 <div><span className="text-gray-400 dark:text-gray-500">Joined:</span> {formatDate(client.createdAt)}</div>
+                <div className="col-span-2 sm:col-span-1">
+                  <span className="text-gray-400 dark:text-gray-500">Invoice & Reminder:</span>{' '}
+                  {formatRenewalTiming(client.renewalDaysBeforeExpiry ?? 14)}
+                </div>
               </div>
               {client.notes && (
                 <p className="mt-3 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">{client.notes}</p>
@@ -444,7 +462,7 @@ export default function ClientProfilePage() {
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Service</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Next Due</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Renewal Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Status</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Actions</th>
@@ -455,8 +473,7 @@ export default function ClientProfilePage() {
               <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 dark:text-gray-500">No services yet</td></tr>
             )}
             {client.services?.map((s: any) => {
-              const dueDate = s.nextDueDate || s.expiryDate
-              const d = daysUntil(dueDate)
+              const d = daysUntil(s.expiryDate)
               return (
                 <tr key={s.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                   <td className="px-4 py-3">
@@ -469,7 +486,7 @@ export default function ClientProfilePage() {
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatBillingCycle(s.period, s.recurring)}</td>
                   <td className="px-4 py-3">
                     <div className={d < 0 ? 'text-red-600 dark:text-red-400' : d < 30 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-700 dark:text-gray-300'}>
-                      {formatDate(dueDate)}
+                      {formatDate(s.expiryDate)}
                     </div>
                     <div className="text-xs text-gray-400 dark:text-gray-500">{d < 0 ? `${Math.abs(d)}d overdue` : `${d}d left`}</div>
                   </td>
@@ -738,6 +755,21 @@ export default function ClientProfilePage() {
               <div className="col-span-2">
                 <label className="label">Notes</label>
                 <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              </div>
+              <div className="col-span-2 border-t border-gray-100 dark:border-gray-800 pt-4">
+                <label className="label">Generate Invoice & Send Reminder</label>
+                <select
+                  className="input"
+                  value={form.renewalDaysBeforeExpiry}
+                  onChange={e => setForm(f => ({ ...f, renewalDaysBeforeExpiry: parseInt(e.target.value) }))}
+                >
+                  {RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS.map(days => (
+                    <option key={days} value={days}>{formatRenewalTiming(days)}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                  Applies to auto-generated invoices and renewal reminders for this client&apos;s services.
+                </p>
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">

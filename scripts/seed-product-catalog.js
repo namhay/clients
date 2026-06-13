@@ -4,10 +4,10 @@ const { randomUUID } = require('crypto')
 const sql = neon(process.env.DATABASE_URL)
 
 const PRODUCT_TYPES = [
-  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
-  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4, reminderDaysBeforeExpiry: 14, reminderTiming: 'BEFORE', autoInvoiceDaysBeforeExpiry: 14 },
+  { name: 'Domain', slug: 'DOMAIN', color: 'blue', hasHostingSpecs: false, sortOrder: 1 },
+  { name: 'Hosting', slug: 'HOSTING', color: 'green', hasHostingSpecs: true, sortOrder: 2 },
+  { name: 'SSL', slug: 'SSL', color: 'orange', hasHostingSpecs: false, sortOrder: 3 },
+  { name: 'Design', slug: 'DESIGN', color: 'pink', hasHostingSpecs: false, sortOrder: 4 },
 ]
 
 const PACKAGES_BY_SLUG = {
@@ -76,9 +76,6 @@ async function upsertProductType(t) {
         color = ${t.color},
         "hasHostingSpecs" = ${t.hasHostingSpecs},
         "sortOrder" = ${t.sortOrder},
-        "reminderDaysBeforeExpiry" = ${t.reminderDaysBeforeExpiry},
-        "reminderTiming" = ${t.reminderTiming || 'BEFORE'},
-        "autoInvoiceDaysBeforeExpiry" = ${t.autoInvoiceDaysBeforeExpiry},
         "updatedAt" = ${now}
       WHERE slug = ${t.slug}
     `
@@ -87,12 +84,10 @@ async function upsertProductType(t) {
   const id = randomUUID()
   await sql`
     INSERT INTO "ProductType" (
-      id, name, slug, color, "hasHostingSpecs", active, "sortOrder",
-      "reminderDaysBeforeExpiry", "reminderTiming", "autoInvoiceDaysBeforeExpiry", "createdAt", "updatedAt"
+      id, name, slug, color, "hasHostingSpecs", active, "sortOrder", "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${t.name}, ${t.slug}, ${t.color}, ${t.hasHostingSpecs}, true,
-      ${t.sortOrder}, ${t.reminderDaysBeforeExpiry}, ${t.reminderTiming || 'BEFORE'}, ${t.autoInvoiceDaysBeforeExpiry},
-      ${now}, ${now}
+      ${t.sortOrder}, ${now}, ${now}
     )
   `
   return { id, name: t.name }

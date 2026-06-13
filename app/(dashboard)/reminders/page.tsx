@@ -6,7 +6,7 @@ import ReminderSendButtons from '@/components/reminders/ReminderSendButtons'
 import StatCard from '@/components/dashboard/StatCard'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
-import { formatReminderRule, parseReminderTiming } from '@/lib/product-types'
+import { formatRenewalTiming } from '@/lib/clients'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { useCachedJson } from '@/lib/use-cached-json'
 import { daysUntil, formatCurrency } from '@/lib/utils'
@@ -32,12 +32,10 @@ type RemindersPageData = {
     clientId: string
     name: string
     expiryDate: string
-    client?: { name: string; email?: string | null; telegramId?: string | null } | null
+    client?: { name: string; email?: string | null; telegramId?: string | null; renewalDaysBeforeExpiry?: number | null } | null
     productType?: {
       name: string
       color: string
-      reminderDaysBeforeExpiry?: number | null
-      reminderTiming?: string | null
     } | null
   }>
   recentLogs: Array<{
@@ -220,15 +218,14 @@ export default function RemindersPage() {
               {expiringServices.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
-                    No services due for reminder based on each product type&apos;s settings
+                    No services due for reminder based on each client&apos;s settings
                   </td>
                 </tr>
               )}
               {expiringServices.map(svc => {
                 const d = daysUntil(svc.expiryDate)
-                const remindDays = svc.productType?.reminderDaysBeforeExpiry ?? 14
-                const remindTiming = parseReminderTiming(svc.productType?.reminderTiming)
-                const remindRule = formatReminderRule(remindDays, remindTiming)
+                const remindDays = svc.client?.renewalDaysBeforeExpiry ?? 14
+                const remindRule = formatRenewalTiming(remindDays)
                 return (
                   <tr key={svc.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                     <td className="truncate font-medium" title={svc.client?.name}>

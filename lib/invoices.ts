@@ -212,7 +212,6 @@ export type ServiceForInvoice = {
   recurring: boolean
   period: string | null
   startDate: Date
-  nextDueDate: Date | null
   expiryDate: Date
   productPackage?: { name: string } | null
 }
@@ -225,7 +224,6 @@ export function serviceRecordToInvoiceInput(service: {
   recurring: boolean
   period: string | null
   startDate: Date
-  nextDueDate: Date | null
   expiryDate: Date
   productType: { name: string }
   productPackage?: { name: string } | null
@@ -239,7 +237,6 @@ export function serviceRecordToInvoiceInput(service: {
     recurring: service.recurring,
     period: service.period,
     startDate: service.startDate,
-    nextDueDate: service.nextDueDate,
     expiryDate: service.expiryDate,
     productPackage: service.productPackage,
   }
@@ -335,7 +332,7 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
   const pairs = await resolveInvoiceItemsToServices(invoice)
   for (const { service, item } of pairs) {
     const extension = item.periodEnd
-      ? { expiryDate: item.periodEnd, nextDueDate: item.periodEnd }
+      ? { expiryDate: item.periodEnd }
       : extendServiceByBillingCycle(service)
     if (!extension) continue
 
@@ -346,7 +343,6 @@ export async function renewServicesForPaidInvoice(invoiceId: string) {
       name: service.name,
       startDate: service.startDate,
       expiryDate: extension.expiryDate,
-      nextDueDate: extension.nextDueDate,
       price: service.price,
       setupFee: service.setupFee,
       recurring: service.recurring,
@@ -429,7 +425,7 @@ export async function revertServicesForUnpaidInvoice(invoiceId: string) {
   const pairs = await resolveInvoiceItemsToServices(invoice)
   for (const { service, item } of pairs) {
     const reverted = item.periodStart
-      ? { expiryDate: item.periodStart, nextDueDate: item.periodStart }
+      ? { expiryDate: item.periodStart }
       : revertServiceByBillingCycle(service)
     if (!reverted) continue
 
@@ -440,7 +436,6 @@ export async function revertServicesForUnpaidInvoice(invoiceId: string) {
       name: service.name,
       startDate: service.startDate,
       expiryDate: reverted.expiryDate,
-      nextDueDate: reverted.nextDueDate,
       price: service.price,
       setupFee: service.setupFee,
       recurring: service.recurring,
@@ -549,7 +544,7 @@ export async function createInvoiceForServices(
   const total = subtotal + (subtotal * tax / 100)
   const invoiceNo = await getNextInvoiceNo()
 
-  const dueDates = services.map(s => s.nextDueDate || s.expiryDate)
+  const dueDates = services.map(s => s.expiryDate)
   const invoiceDueDate = dueDate || dueDates.reduce((earliest, d) => (
     d < earliest ? d : earliest
   ), dueDates[0])

@@ -15,12 +15,10 @@ type OrderLine = {
   period: string
   startDate: string
   expiryDate: string
-  nextDueDate: string
 }
 
 const syncLineDates = (date: string) => ({
   startDate: date,
-  nextDueDate: date,
   expiryDate: date,
 })
 
@@ -103,12 +101,12 @@ export default function OrderFormModal({
           }
         }
       }
-      if (patch.startDate || patch.nextDueDate || patch.expiryDate) {
-        const date = patch.startDate || patch.nextDueDate || patch.expiryDate || next.startDate
+      if (patch.startDate || patch.expiryDate) {
+        const date = patch.startDate || patch.expiryDate || next.startDate
         next = { ...next, ...syncLineDates(date) }
       }
       if (patch.recurring === false) {
-        next = { ...next, period: 'YEARLY', nextDueDate: '' }
+        next = { ...next, period: 'YEARLY' }
       }
       return next
     }))
@@ -127,7 +125,7 @@ export default function OrderFormModal({
       if (!line.productTypeId) return toast.error(`Product ${i + 1}: select a product type`)
       if (!line.productPackageId) return toast.error(`Product ${i + 1}: select a package`)
       if (!line.name.trim()) return toast.error(`Product ${i + 1}: enter a name`)
-      if (!line.expiryDate) return toast.error(`Product ${i + 1}: enter expiry date`)
+      if (!line.expiryDate) return toast.error(`Product ${i + 1}: enter renewal date`)
     }
 
     setSaving(true)
@@ -146,7 +144,6 @@ export default function OrderFormModal({
             price: parseFloat(line.price) || 0,
             startDate: line.startDate,
             expiryDate: line.expiryDate,
-            nextDueDate: line.recurring ? line.nextDueDate || line.expiryDate : null,
             recurring: line.recurring,
             period: line.recurring ? line.period : null,
           })),
@@ -295,19 +292,8 @@ export default function OrderFormModal({
                       <label className="label">Start Date</label>
                       <input type="date" className="input" value={line.startDate} onChange={e => updateLine(line.key, { startDate: e.target.value })} />
                     </div>
-                    {line.recurring && (
-                      <div>
-                        <label className="label">Next Due Date</label>
-                        <input
-                          type="date"
-                          className="input"
-                          value={line.nextDueDate}
-                          onChange={e => updateLine(line.key, { nextDueDate: e.target.value })}
-                        />
-                      </div>
-                    )}
                     <div className={line.recurring ? '' : 'col-span-2'}>
-                      <label className="label">Expiry Date *</label>
+                      <label className="label">{line.recurring ? 'Renewal Date *' : 'Expiry Date *'}</label>
                       <input type="date" className="input" value={line.expiryDate} onChange={e => updateLine(line.key, { expiryDate: e.target.value })} />
                     </div>
                   </div>

@@ -1,9 +1,5 @@
-import { getMaxReminderWindow } from '@/lib/db/product-types'
-import type { ReminderTiming } from '@/lib/product-types'
+import { getMaxRenewalWindow } from '@/lib/db/clients'
 import { daysUntil } from '@/lib/utils'
-
-export type { ReminderTiming } from '@/lib/product-types'
-export { formatReminderRule, parseReminderTiming } from '@/lib/product-types'
 
 export function isDueBeforeExpiry(expiryDate: Date | string, daysBefore: number): boolean {
   const days = daysUntil(expiryDate)
@@ -12,95 +8,69 @@ export function isDueBeforeExpiry(expiryDate: Date | string, daysBefore: number)
 
 export function isInReminderWindow(
   expiryDate: Date | string,
-  days: number,
-  timing: ReminderTiming = 'BEFORE',
+  daysBefore: number,
 ): boolean {
   const d = daysUntil(expiryDate)
-  if (timing === 'AFTER') {
-    return d <= -days
-  }
-  return d <= days
+  return d <= daysBefore && d >= 0
 }
 
 /** Exact day match — used by daily cron so reminders are not sent every day. */
 export function isDueForReminderToday(
   expiryDate: Date | string,
-  days: number,
-  timing: ReminderTiming = 'BEFORE',
+  daysBefore: number,
 ): boolean {
-  const d = daysUntil(expiryDate)
-  if (timing === 'AFTER') {
-    return d === -days
-  }
-  return d === days
-}
-
-/** @deprecated Use isInReminderWindow for UI or isDueForReminderToday for cron. */
-export function isDueForReminder(
-  expiryDate: Date | string,
-  days: number,
-  timing: ReminderTiming = 'BEFORE',
-): boolean {
-  return isInReminderWindow(expiryDate, days, timing)
+  return daysUntil(expiryDate) === daysBefore
 }
 
 export function filterServicesInReminderWindow<
   S extends {
     expiryDate: Date | string
-    productType: { reminderDaysBeforeExpiry: number; reminderTiming?: ReminderTiming }
+    client: { renewalDaysBeforeExpiry: number }
   },
 >(services: S[]): S[] {
   return services.filter(s =>
-    isInReminderWindow(
-      s.expiryDate,
-      s.productType.reminderDaysBeforeExpiry,
-      s.productType.reminderTiming ?? 'BEFORE',
-    ),
+    isInReminderWindow(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
   )
 }
 
 export function filterServicesDueForReminderToday<
   S extends {
     expiryDate: Date | string
-    productType: { reminderDaysBeforeExpiry: number; reminderTiming?: ReminderTiming }
+    client: { renewalDaysBeforeExpiry: number }
   },
 >(services: S[]): S[] {
   return services.filter(s =>
-    isDueForReminderToday(
-      s.expiryDate,
-      s.productType.reminderDaysBeforeExpiry,
-      s.productType.reminderTiming ?? 'BEFORE',
-    ),
+    isDueForReminderToday(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
   )
 }
 
+/** @deprecated Use filterServicesInReminderWindow. */
 export function filterServicesDueForReminder<
   S extends {
     expiryDate: Date | string
-    productType: { reminderDaysBeforeExpiry: number; reminderTiming?: ReminderTiming }
+    client: { renewalDaysBeforeExpiry: number }
   },
 >(services: S[]): S[] {
   return filterServicesInReminderWindow(services)
 }
 
 export function filterServicesDueForAutoInvoice<
-  S extends { expiryDate: Date | string; productType: { autoInvoiceDaysBeforeExpiry: number } },
+  S extends { expiryDate: Date | string; client: { renewalDaysBeforeExpiry: number } },
 >(services: S[]): S[] {
   return services.filter(s =>
-    isDueBeforeExpiry(s.expiryDate, s.productType.autoInvoiceDaysBeforeExpiry),
+    isDueBeforeExpiry(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
   )
 }
 
 export async function getMaxExpiryWindowDays(): Promise<number> {
-  const window = await getMaxReminderWindow()
-  return Math.max(window.before, window.after, window.invoice, 1)
+  const maxDays = await getMaxRenewalWindow()
+  return Math.max(maxDays, 1)
 }
 
 export async function getReminderExpiryBounds(): Promise<{ gte?: Date; lte: Date }> {
-  const window = await getMaxReminderWindow()
+  const before = await getMaxRenewalWindow()
   return {
-    gte: window.after > 0 ? expiryDaysAgo(window.after) : undefined,
-    lte: expiryWithinDays(window.before),
+    lte: expiryWithinDays(Math.max(before, 0)),
   }
 }
 
@@ -108,10 +78,10 @@ const REMINDER_SERVICE_STATUSES = ['ACTIVE', 'EXPIRED'] as const
 
 /** Services to show on dashboard/reminders (includes overdue; no lower date bound). */
 export async function listServicesForReminderDisplay() {
-  const window = await getMaxReminderWindow()
+  const maxDays = await getMaxRenewalWindow()
   const { listServices } = await import('@/lib/db/services')
   return listServices({
-    expiryDateLte: expiryWithinDays(window.before),
+    expiryDateLte: expiryWithinDays(Math.max(maxDays, 0)),
     statuses: [...REMINDER_SERVICE_STATUSES],
   })
 }

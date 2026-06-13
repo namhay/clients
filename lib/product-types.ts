@@ -1,15 +1,5 @@
 const COLORS = ['blue', 'green', 'orange', 'pink', 'purple', 'gray', 'yellow', 'red', 'indigo'] as const
 
-export type ReminderTiming = 'BEFORE' | 'AFTER'
-
-export function parseReminderTiming(value: unknown, fallback: ReminderTiming = 'BEFORE'): ReminderTiming {
-  return String(value || fallback).toUpperCase() === 'AFTER' ? 'AFTER' : 'BEFORE'
-}
-
-export function formatReminderRule(days: number, timing: ReminderTiming = 'BEFORE'): string {
-  return timing === 'AFTER' ? `${days}d after` : `${days}d before`
-}
-
 export type ProductTypeInput = {
   name: string
   slug: string
@@ -17,9 +7,6 @@ export type ProductTypeInput = {
   hasHostingSpecs: boolean
   active: boolean
   sortOrder: number
-  reminderDaysBeforeExpiry: number
-  reminderTiming: ReminderTiming
-  autoInvoiceDaysBeforeExpiry: number
 }
 
 export function slugify(name: string): string {
@@ -50,9 +37,6 @@ export function parseProductTypeInput(body: Record<string, unknown>): ProductTyp
     hasHostingSpecs: Boolean(body.hasHostingSpecs),
     active: body.active !== false,
     sortOrder: parseInt(String(body.sortOrder)) || 0,
-    reminderDaysBeforeExpiry: Math.max(1, parseInt(String(body.reminderDaysBeforeExpiry)) || 14),
-    reminderTiming: parseReminderTiming(body.reminderTiming),
-    autoInvoiceDaysBeforeExpiry: Math.max(1, parseInt(String(body.autoInvoiceDaysBeforeExpiry)) || 14),
   }
 }
 

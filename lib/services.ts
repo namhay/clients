@@ -12,7 +12,6 @@ export type ServiceInput = {
   name: string
   startDate: Date
   expiryDate: Date
-  nextDueDate: Date | null
   price: number
   setupFee: number
   recurring: boolean
@@ -50,22 +49,14 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
 
   const startDate = new Date((body.startDate as string) || new Date().toISOString().split('T')[0])
   let expiryDate = body.expiryDate ? new Date(body.expiryDate as string) : null
-  let nextDueDate = body.nextDueDate ? new Date(body.nextDueDate as string) : null
 
-  if (recurring && period) {
-    if (!expiryDate && !nextDueDate) {
-      const dates = calculateBillingDates(startDate, period)
-      expiryDate = dates.expiryDate
-      nextDueDate = dates.nextDueDate
-    } else if (expiryDate && !nextDueDate) {
-      nextDueDate = expiryDate
-    } else if (nextDueDate && !expiryDate) {
-      expiryDate = nextDueDate
-    }
+  if (recurring && period && !expiryDate) {
+    const dates = calculateBillingDates(startDate, period)
+    expiryDate = dates.expiryDate
   }
 
   if (!expiryDate) {
-    throw new Error('Renewal / expiry date is required')
+    throw new Error('Renewal date is required')
   }
 
   const status = (body.status as string) || 'ACTIVE'
@@ -92,7 +83,6 @@ export async function parseServiceInput(body: Record<string, unknown>): Promise<
     name: (body.name as string).trim(),
     startDate,
     expiryDate,
-    nextDueDate: recurring ? nextDueDate : null,
     price: parseFloat(String(body.price)) || 0,
     setupFee: parseFloat(String(body.setupFee)) || 0,
     recurring,

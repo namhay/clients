@@ -16,9 +16,6 @@ export type ProductTypeNested = {
   hasHostingSpecs: boolean
   active: boolean
   sortOrder: number
-  reminderDaysBeforeExpiry: number
-  reminderTiming: 'BEFORE' | 'AFTER'
-  autoInvoiceDaysBeforeExpiry: number
   createdAt: Date
   updatedAt: Date
 }
@@ -54,6 +51,7 @@ export type ClientNested = {
   vatTin: string | null
   telegramId: string | null
   notes: string | null
+  renewalDaysBeforeExpiry: number
   createdAt: Date
   updatedAt: Date
 }
@@ -73,16 +71,14 @@ const SERVICE_JOIN = `
 
 const SERVICE_SELECT = `
   s.id, s."clientId", s."productTypeId", s."productPackageId", s.name,
-  s."startDate", s."expiryDate", s."nextDueDate", s.price, s."setupFee",
+  s."startDate", s."expiryDate", s.price, s."setupFee",
   s.recurring, s.period, s.status, s.notes, s."createdAt", s."updatedAt",
   c.id AS c_id, c.name AS c_name, c.email AS c_email, c.phone AS c_phone,
   c.company AS c_company, c."companyKhmer" AS c_companyKhmer, c.address AS c_address, c."vatTin" AS c_vatTin,
-  c."telegramId" AS c_telegramId, c.notes AS c_notes, c."createdAt" AS c_createdAt, c."updatedAt" AS c_updatedAt,
+  c."telegramId" AS c_telegramId, c.notes AS c_notes, c."renewalDaysBeforeExpiry" AS c_renewalDaysBeforeExpiry,
+  c."createdAt" AS c_createdAt, c."updatedAt" AS c_updatedAt,
   pt.id AS pt_id, pt.name AS pt_name, pt.slug AS pt_slug, pt.color AS pt_color,
   pt."hasHostingSpecs" AS pt_hasHostingSpecs, pt.active AS pt_active, pt."sortOrder" AS pt_sortOrder,
-  pt."reminderDaysBeforeExpiry" AS pt_reminderDaysBeforeExpiry,
-  pt."reminderTiming" AS pt_reminderTiming,
-  pt."autoInvoiceDaysBeforeExpiry" AS pt_autoInvoiceDaysBeforeExpiry,
   pt."createdAt" AS pt_createdAt, pt."updatedAt" AS pt_updatedAt,
   pp.id AS pp_id, pp."productTypeId" AS pp_productTypeId, pp.name AS pp_name,
   pp."diskSpaceGb" AS pp_diskSpaceGb,
@@ -107,6 +103,7 @@ function mapClientNested(row: Record<string, unknown>): ClientNested {
     vatTin: row.c_vatTin != null ? String(row.c_vatTin) : null,
     telegramId: row.c_telegramId != null ? String(row.c_telegramId) : null,
     notes: row.c_notes != null ? String(row.c_notes) : null,
+    renewalDaysBeforeExpiry: Number(row.c_renewalDaysBeforeExpiry ?? 14),
     createdAt: new Date(row.c_createdAt as string),
     updatedAt: new Date(row.c_updatedAt as string),
   }
@@ -121,9 +118,6 @@ function mapProductTypeNested(row: Record<string, unknown>): ProductTypeNested {
     hasHostingSpecs: Boolean(row.pt_hasHostingSpecs),
     active: Boolean(row.pt_active),
     sortOrder: Number(row.pt_sortOrder),
-    reminderDaysBeforeExpiry: Number(row.pt_reminderDaysBeforeExpiry ?? 14),
-    reminderTiming: String(row.pt_reminderTiming ?? 'BEFORE').toUpperCase() === 'AFTER' ? 'AFTER' : 'BEFORE',
-    autoInvoiceDaysBeforeExpiry: Number(row.pt_autoInvoiceDaysBeforeExpiry ?? 14),
     createdAt: new Date(row.pt_createdAt as string),
     updatedAt: new Date(row.pt_updatedAt as string),
   }
@@ -161,7 +155,6 @@ export function mapServiceWithRelations(row: Record<string, unknown>): ServiceWi
     name: String(row.name),
     startDate: new Date(row.startDate as string),
     expiryDate: new Date(row.expiryDate as string),
-    nextDueDate: row.nextDueDate != null ? new Date(row.nextDueDate as string) : null,
     price: Number(row.price),
     setupFee: Number(row.setupFee ?? 0),
     recurring: Boolean(row.recurring),
@@ -335,11 +328,11 @@ export async function createService(data: ServiceInput): Promise<ServiceWithRela
   await sql`
     INSERT INTO "Service" (
       id, "clientId", "productTypeId", "productPackageId", name,
-      "startDate", "expiryDate", "nextDueDate", price, "setupFee",
+      "startDate", "expiryDate", price, "setupFee",
       recurring, period, status, notes, "createdAt", "updatedAt"
     ) VALUES (
       ${id}, ${data.clientId}, ${data.productTypeId}, ${data.productPackageId}, ${data.name},
-      ${data.startDate}, ${data.expiryDate}, ${data.nextDueDate}, ${data.price}, ${data.setupFee},
+      ${data.startDate}, ${data.expiryDate}, ${data.price}, ${data.setupFee},
       ${data.recurring}, ${data.period}, ${data.status}, ${data.notes}, ${now}, ${now}
     )
   `
@@ -359,7 +352,6 @@ export async function updateService(id: string, data: ServiceInput): Promise<Ser
       name = ${data.name},
       "startDate" = ${data.startDate},
       "expiryDate" = ${data.expiryDate},
-      "nextDueDate" = ${data.nextDueDate},
       price = ${data.price},
       "setupFee" = ${data.setupFee},
       recurring = ${data.recurring},

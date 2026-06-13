@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { getAppDateFormat, getAppTimezone } from '@/lib/app-date'
 import { formatDateTimeValue } from '@/lib/date-format'
 import { deleteClient, getClientDetail, updateClient } from '@/lib/db/clients'
+import { parseClientInput } from '@/lib/clients'
 import { sumPaymentsForInvoices } from '@/lib/db/invoice-payments'
 
 export async function GET(_: NextRequest, { params }: { params: { id: string } }) {
@@ -30,7 +31,6 @@ export async function GET(_: NextRequest, { params }: { params: { id: string } }
         ...s,
         startDate: s.startDate.toISOString(),
         expiryDate: s.expiryDate.toISOString(),
-        nextDueDate: s.nextDueDate?.toISOString() ?? null,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
       })),
@@ -55,8 +55,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const body = await req.json()
-  const client = await updateClient(params.id, body)
-  return NextResponse.json(client)
+  try {
+    const data = parseClientInput(body)
+    const client = await updateClient(params.id, data)
+    return NextResponse.json(client)
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Invalid client data'
+    return NextResponse.json({ error: message }, { status: 400 })
+  }
 }
 
 export async function DELETE(_: NextRequest, { params }: { params: { id: string } }) {

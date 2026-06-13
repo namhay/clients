@@ -128,6 +128,13 @@ async function main() {
   console.log('✓ Client companyKhmer column ready')
 
   await sql`
+    ALTER TABLE "Client"
+    ADD COLUMN IF NOT EXISTS "renewalDaysBeforeExpiry" INTEGER NOT NULL DEFAULT 14
+  `
+
+  console.log('✓ Client renewalDaysBeforeExpiry column ready')
+
+  await sql`
     CREATE TABLE IF NOT EXISTS "BrandingAsset" (
       key TEXT PRIMARY KEY,
       data TEXT NOT NULL,
@@ -185,6 +192,36 @@ async function main() {
 
   console.log('✓ ProductPackage description/setupFee columns removed')
   console.log('✓ OrderItem setupFee column removed')
+
+  await sql`
+    UPDATE "Service"
+    SET "expiryDate" = COALESCE("nextDueDate", "expiryDate")
+    WHERE "nextDueDate" IS NOT NULL
+  `
+  await sql`
+    ALTER TABLE "Service"
+    DROP COLUMN IF EXISTS "nextDueDate"
+  `
+  await sql`
+    ALTER TABLE "OrderItem"
+    DROP COLUMN IF EXISTS "nextDueDate"
+  `
+  await sql`
+    ALTER TABLE "ProductType"
+    DROP COLUMN IF EXISTS "reminderDaysBeforeExpiry"
+  `
+  await sql`
+    ALTER TABLE "ProductType"
+    DROP COLUMN IF EXISTS "reminderTiming"
+  `
+  await sql`
+    ALTER TABLE "ProductType"
+    DROP COLUMN IF EXISTS "autoInvoiceDaysBeforeExpiry"
+  `
+
+  console.log('✓ Service nextDueDate column removed')
+  console.log('✓ OrderItem nextDueDate column removed')
+  console.log('✓ ProductType reminder columns removed')
 }
 
 main().catch(e => {
