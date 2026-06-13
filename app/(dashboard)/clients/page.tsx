@@ -7,9 +7,10 @@ import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
 import { prefetchClientProfile } from '@/lib/list-cache'
 import ClientLink from '@/components/clients/ClientLink'
-import { formatRenewalDaysShort, formatRenewalTiming, parseRenewalDaysBeforeExpiry, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
+import { formatRenewalDaysShort, parseRenewalDaysBeforeExpiry } from '@/lib/clients'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
+const ClientFormModal = dynamic(() => import('@/components/clients/ClientFormModal'), { ssr: false })
 
 export default function ClientsPage() {
   const {
@@ -187,70 +188,14 @@ export default function ClientsPage() {
         defaultClientName={orderClient?.name}
       />
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-base font-semibold">{editId ? 'Edit Client' : 'Add New Client'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
-            </div>
-            <div className="p-5 grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Full Name *</label>
-                <input type="text" className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">Phone</label>
-                <input type="text" className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Email *</label>
-                <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Company (KH)</label>
-                <input type="text" className="input" value={form.companyKhmer} onChange={e => setForm(f => ({ ...f, companyKhmer: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Company (EN)</label>
-                <input type="text" className="input" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Address</label>
-                <textarea className="input" rows={2} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">VAT TIN</label>
-                <input type="text" className="input" value={form.vatTin} onChange={e => setForm(f => ({ ...f, vatTin: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">Telegram ID</label>
-                <input type="text" className="input" value={form.telegramId} onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Notes</label>
-                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-              </div>
-              <div className="col-span-2 border-t border-gray-100 dark:border-gray-800 pt-4">
-                <label className="label">Generate Invoice & Send Reminder</label>
-                <select
-                  className="input"
-                  value={form.renewalDaysBeforeExpiry}
-                  onChange={e => setForm(f => ({ ...f, renewalDaysBeforeExpiry: parseInt(e.target.value) }))}
-                >
-                  {RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS.map(days => (
-                    <option key={days} value={days}>{formatRenewalTiming(days)}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={save}>{editId ? 'Save Changes' : 'Add Client'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClientFormModal
+        open={showModal}
+        onClose={() => { setShowModal(false); setEditId(null); setForm(emptyForm) }}
+        onSave={save}
+        editMode={Boolean(editId)}
+        form={form}
+        setForm={setForm}
+      />
     </div>
   )
 }

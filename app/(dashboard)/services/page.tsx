@@ -1,7 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import ClientLink from '@/components/clients/ClientLink'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Pagination from '@/components/Pagination'
 import { formatBillingCycle } from '@/lib/billing'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
@@ -9,12 +9,14 @@ import { daysUntil, formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
+import { useCachedList } from '@/lib/use-cached-list'
+import { PRODUCT_TYPES_ACTIVE_URL } from '@/lib/list-cache'
 
 const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
 
 export default function ServicesPage() {
   const { formatDate } = useAppSettings()
-  const [productTypes, setProductTypes] = useState<any[]>([])
+  const { items: productTypes } = useCachedList<any>(PRODUCT_TYPES_ACTIVE_URL)
   const [typeFilter, setTypeFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editService, setEditService] = useState<any>(null)
@@ -40,10 +42,6 @@ export default function ServicesPage() {
     endpoint: '/api/services',
     extraParams,
   })
-
-  useEffect(() => {
-    fetch('/api/product-types?active=true').then(r => r.json()).then(setProductTypes)
-  }, [])
 
   const openEdit = (s: any) => {
     setEditService(s)

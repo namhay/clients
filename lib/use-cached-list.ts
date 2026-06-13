@@ -1,11 +1,12 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
-import { getListCache, setListCache } from '@/lib/list-cache'
+import { getListCache, listItemsFromPayload, storeListPayload } from '@/lib/list-cache'
 
 /** Fetch a list once; show cached rows instantly on revisit while refreshing in background. */
 export function useCachedList<T>(endpoint: string, deps: unknown[] = []) {
-  const [items, setItems] = useState<T[]>([])
-  const [loading, setLoading] = useState(true)
+  const [items, setItems] = useState<T[]>(() => getListCache<T>(endpoint)?.items ?? [])
+  const [loading, setLoading] = useState(() => !getListCache<T>(endpoint))
+  const [refreshing, setRefreshing] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
 
   const load = useCallback(async (signal?: AbortSignal) => {
@@ -13,8 +14,10 @@ export function useCachedList<T>(endpoint: string, deps: unknown[] = []) {
     if (cached) {
       setItems(cached.items)
       setLoading(false)
+      setRefreshing(true)
     } else {
       setLoading(true)
+      setRefreshing(false)
     }
 
     try {
@@ -24,15 +27,17 @@ export function useCachedList<T>(endpoint: string, deps: unknown[] = []) {
         return
       }
       const data = await res.json()
-      const nextItems = Array.isArray(data) ? data : (data.items || [])
-      setItems(nextItems)
-      setListCache(endpoint, { items: nextItems })
+      storeListPayload<T>(endpoint, data)
+      setItems(listItemsFromPayload<T>(data))
     } catch (err) {
       if ((err as Error)?.name !== 'AbortError' && !cached) {
         setItems([])
       }
     } finally {
-      if (!signal?.aborted) setLoading(false)
+      if (!signal?.aborted) {
+        setLoading(false)
+        setRefreshing(false)
+      }
     }
   }, [endpoint])
 
@@ -44,7 +49,7 @@ export function useCachedList<T>(endpoint: string, deps: unknown[] = []) {
 
   const reload = () => setReloadToken(token => token + 1)
   const initialLoading = loading && items.length === 0
-  const refreshing = loading && items.length > 0
+  const showRefreshing = refreshing && items.length > 0
 
-  return { items, loading, initialLoading, refreshing, reload, setItems }
+  return { items, loading, initialLoading, refreshing: showRefreshing, reload, setItems }
 }

@@ -1,12 +1,14 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
+import { useCachedList } from '@/lib/use-cached-list'
+import { CLIENTS_ALL_URL } from '@/lib/list-cache'
 
 const RecordPaymentModal = dynamic(() => import('@/components/invoices/RecordPaymentModal'), { ssr: false })
 
@@ -30,7 +32,7 @@ const emptyForm = () => ({
 
 export default function InvoicesPage() {
   const { formatDate } = useAppSettings()
-  const [clients, setClients] = useState<any[]>([])
+  const { items: clients } = useCachedList<any>(CLIENTS_ALL_URL)
   const [statusFilter, setStatusFilter] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
@@ -59,10 +61,6 @@ export default function InvoicesPage() {
     endpoint: '/api/invoices',
     extraParams,
   })
-
-  useEffect(() => {
-    fetch('/api/clients').then(r => r.json()).then(setClients)
-  }, [])
 
   const updateItem = (i: number, field: string, val: unknown) => {
     setForm(f => {

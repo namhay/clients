@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { useCachedList } from '@/lib/use-cached-list'
+import { PRODUCT_TYPES_URL } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
 
 const emptyForm = (productTypeId = '') => ({
@@ -26,7 +27,7 @@ const emptyForm = (productTypeId = '') => ({
 
 export default function ProductPackagesPage() {
   const searchParams = useSearchParams()
-  const [types, setTypes] = useState<any[]>([])
+  const { items: types } = useCachedList<any>(PRODUCT_TYPES_URL)
   const [typeFilter, setTypeFilter] = useState('')
   const packagesEndpoint = typeFilter
     ? `/api/product-packages?productTypeId=${typeFilter}`
@@ -43,16 +44,9 @@ export default function ProductPackagesPage() {
   const selectedType = types.find(t => t.id === (form.productTypeId || typeFilter))
   const hasHostingSpecs = selectedType?.hasHostingSpecs
 
-  const loadTypes = async () => {
-    const res = await fetch('/api/product-types')
-    if (res.ok) setTypes(await res.json())
-  }
-
   useEffect(() => {
-    loadTypes().then(() => {
-      const fromUrl = searchParams.get('productTypeId')
-      if (fromUrl) setTypeFilter(fromUrl)
-    })
+    const fromUrl = searchParams.get('productTypeId')
+    if (fromUrl) setTypeFilter(fromUrl)
   }, [searchParams])
 
   const openAdd = () => {

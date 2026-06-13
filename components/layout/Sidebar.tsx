@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { signOut, useSession } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import ThemeToggle from '@/components/layout/ThemeToggle'
-import { prefetchJson, prefetchList } from '@/lib/list-cache'
+import { prefetchJson, prefetchList, CLIENTS_ALL_URL, CLIENTS_PAGE_1_URL, PRODUCT_TYPES_ACTIVE_URL, PRODUCT_TYPES_URL } from '@/lib/list-cache'
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
@@ -21,13 +21,19 @@ const navItems = [
 ]
 
 const prefetchListByHref: Record<string, string> = {
-  '/clients': '/api/clients?page=1',
+  '/clients': CLIENTS_PAGE_1_URL,
   '/services': '/api/services?page=1',
   '/orders': '/api/orders?page=1',
   '/invoices': '/api/invoices?page=1',
   '/transactions': '/api/transactions?page=1&period=all',
-  '/product-types': '/api/product-types',
+  '/product-types': PRODUCT_TYPES_URL,
   '/product-packages': '/api/product-packages',
+}
+
+const prefetchExtraListByHref: Record<string, string[]> = {
+  '/invoices': [CLIENTS_ALL_URL],
+  '/services': [PRODUCT_TYPES_ACTIVE_URL],
+  '/orders': [CLIENTS_ALL_URL, PRODUCT_TYPES_ACTIVE_URL],
 }
 
 const prefetchJsonByHref: Record<string, string> = {
@@ -109,6 +115,9 @@ export default function Sidebar({ mobileOpen = false, onClose }: SidebarProps) {
               onMouseEnter={() => {
                 const listUrl = prefetchListByHref[item.href]
                 if (listUrl) void prefetchList(listUrl)
+                for (const url of prefetchExtraListByHref[item.href] || []) {
+                  void prefetchList(url)
+                }
                 const jsonUrl = prefetchJsonByHref[item.href]
                 if (jsonUrl) void prefetchJson(jsonUrl)
                 if (item.href === '/settings') void prefetchJson('/api/settings/branding')

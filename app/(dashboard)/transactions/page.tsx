@@ -1,6 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import Pagination from '@/components/Pagination'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
@@ -12,6 +12,7 @@ import {
 } from '@/lib/revenue-periods'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { formatCurrency } from '@/lib/utils'
+import { usePaginatedList } from '@/lib/use-paginated-list'
 
 const TransactionEditModal = dynamic(
   () => import('@/components/transactions/TransactionEditModal'),
@@ -27,75 +28,34 @@ const emptySummary = (): RevenuePeriodSummary => ({
   lastMonth: { revenue: 0, count: 0 },
 })
 
-import { getListCache, setListCache } from '@/lib/list-cache'
-
 export default function TransactionsPage() {
   const { formatDate, timezone } = useAppSettings()
-  const [transactions, setTransactions] = useState<TransactionRow[]>([])
-  const [summary, setSummary] = useState<RevenuePeriodSummary>(emptySummary)
-  const [allTime, setAllTime] = useState({ revenue: 0, count: 0 })
-  const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(true)
   const [editTx, setEditTx] = useState<TransactionRow | null>(null)
   const [periodFilter, setPeriodFilter] = useState<RevenuePeriod>('all')
 
-  const initialLoading = loading && transactions.length === 0
-  const refreshing = loading && transactions.length > 0
+  const extraParams = useMemo(
+    () => ({ period: periodFilter, timezone }),
+    [periodFilter, timezone],
+  )
 
-  const load = async () => {
-    const params = new URLSearchParams({
-      page: String(page),
-      period: periodFilter,
-      timezone,
-    })
-    const cacheKey = `/api/transactions?${params}`
-    const cached = getListCache<TransactionRow>(cacheKey)
-    if (cached?.items?.length) {
-      setTransactions(cached.items)
-      setTotal(cached.total ?? 0)
-      setTotalPages(cached.totalPages ?? 1)
-      const summary = cached.meta?.summary as RevenuePeriodSummary | undefined
-      const allTimeMeta = cached.meta?.allTime as { revenue: number; count: number } | undefined
-      if (summary) setSummary(summary)
-      if (allTimeMeta) setAllTime(allTimeMeta)
-      setLoading(false)
-    } else {
-      setLoading(true)
-    }
+  const {
+    page,
+    setPage,
+    items: transactions,
+    total,
+    totalPages,
+    meta,
+    loading,
+    initialLoading,
+    refreshing,
+    reload,
+  } = usePaginatedList<TransactionRow>({
+    endpoint: '/api/transactions',
+    extraParams,
+  })
 
-    try {
-      const res = await fetch(cacheKey)
-      if (!res.ok) {
-        if (!cached) setTransactions([])
-        return
-      }
-      const data = await res.json()
-      const nextTransactions = data.items || []
-      const nextTotal = data.total || 0
-      const nextTotalPages = data.totalPages || 1
-      const nextSummary = data.summary || emptySummary()
-      const nextAllTime = data.allTime || { revenue: 0, count: 0 }
-      setTransactions(nextTransactions)
-      setTotal(nextTotal)
-      setTotalPages(nextTotalPages)
-      setSummary(nextSummary)
-      setAllTime(nextAllTime)
-      setListCache(cacheKey, {
-        items: nextTransactions,
-        total: nextTotal,
-        totalPages: nextTotalPages,
-        meta: { summary: nextSummary, allTime: nextAllTime },
-      })
-    } catch {
-      if (!cached) setTransactions([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => { load() }, [page, periodFilter, timezone])
+  const summary = (meta.summary as RevenuePeriodSummary | undefined) || emptySummary()
+  const allTime = (meta.allTime as { revenue: number; count: number } | undefined) || { revenue: 0, count: 0 }
 
   const viewPDF = (inv: TransactionRow) => {
     window.open(`/api/invoices/${inv.invoiceId || inv.id}/pdf?inline=1`, '_blank', 'noopener,noreferrer')
@@ -272,7 +232,7 @@ export default function TransactionsPage() {
         open={Boolean(editTx)}
         transaction={editTx}
         onClose={() => setEditTx(null)}
-        onSaved={load}
+        onSaved={reload}
       />
     </div>
   )

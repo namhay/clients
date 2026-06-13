@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BILLING_CYCLES } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
 import { isOneTimePackage } from '@/lib/product-packages'
+import { CLIENTS_ALL_URL, fetchCachedList, PRODUCT_TYPES_ACTIVE_URL } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
 
 type OrderLine = {
@@ -62,8 +63,8 @@ export default function OrderFormModal({
 
   useEffect(() => {
     if (!open) return
-    fetch('/api/clients').then(r => r.json()).then(setClients)
-    fetch('/api/product-types?active=true').then(r => r.json()).then(setProductTypes)
+    void fetchCachedList(CLIENTS_ALL_URL).then(setClients)
+    void fetchCachedList(PRODUCT_TYPES_ACTIVE_URL).then(setProductTypes)
     setClientId(defaultClientId || '')
     setLines([newLine()])
     setGenerateInvoice(true)
@@ -177,15 +178,15 @@ export default function OrderFormModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
+      <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900">
           <h2 className="text-base font-semibold">
             {defaultClientName ? `New Order — ${defaultClientName}` : 'New Order'}
           </h2>
           <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             {defaultClientId ? (
               <div className="col-span-2">

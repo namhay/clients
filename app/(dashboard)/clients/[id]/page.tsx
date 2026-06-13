@@ -1,10 +1,10 @@
 'use client'
 import dynamic from 'next/dynamic'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
-import { formatRenewalTiming, RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS } from '@/lib/clients'
+import { formatRenewalTiming } from '@/lib/clients'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
@@ -18,8 +18,10 @@ import {
   getJsonCache,
   setJsonCache,
 } from '@/lib/list-cache'
+import { useCachedList } from '@/lib/use-cached-list'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
+const ClientFormModal = dynamic(() => import('@/components/clients/ClientFormModal'), { ssr: false })
 const ServiceFormModal = dynamic(() => import('@/components/services/ServiceFormModal'), { ssr: false })
 const InvoiceFormModal = dynamic(() => import('@/components/invoices/InvoiceFormModal'), { ssr: false })
 const RecordPaymentModal = dynamic(() => import('@/components/invoices/RecordPaymentModal'), { ssr: false })
@@ -62,7 +64,7 @@ function clientFormFromData(data: {
 }
 
 export default function ClientProfilePage() {
-  const { formatDate, formatDateTime } = useAppSettings()
+  const { formatDate, formatDateTime, timezone } = useAppSettings()
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const [client, setClient] = useState<any>(null)
@@ -97,17 +99,22 @@ export default function ClientProfilePage() {
   const [editInvoice, setEditInvoice] = useState<any>(null)
   const [editTransaction, setEditTransaction] = useState<TransactionRow | null>(null)
   const [paymentInvoice, setPaymentInvoice] = useState<any>(null)
-  const [transactions, setTransactions] = useState<TransactionRow[]>([])
 
-  const loadTransactions = async () => {
-    const res = await fetch(`/api/transactions?clientId=${id}&page=1&pageSize=100`)
-    if (!res.ok) {
-      setTransactions([])
-      return
-    }
-    const data = await res.json()
-    setTransactions(data.items || [])
-  }
+  const transactionsUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      clientId: id,
+      page: '1',
+      pageSize: '100',
+      period: 'all',
+      timezone,
+    })
+    return `/api/transactions?${params}`
+  }, [id, timezone])
+
+  const { items: transactions, reload: reloadTransactions } = useCachedList<TransactionRow>(
+    transactionsUrl,
+    [transactionsUrl],
+  )
 
   const load = async () => {
     const apiUrl = clientProfileApiUrl(id)
@@ -117,7 +124,7 @@ export default function ClientProfilePage() {
       setForm(clientFormFromData(cached))
       setLoading(false)
       setRefreshing(true)
-      loadTransactions()
+      reloadTransactions()
     } else {
       setLoading(true)
     }
@@ -132,7 +139,7 @@ export default function ClientProfilePage() {
       setClient(data)
       setForm(clientFormFromData(data))
       setJsonCache(apiUrl, data)
-      loadTransactions()
+      reloadTransactions()
     } catch {
       if (!cached) setClient(null)
     } finally {
@@ -825,73 +832,14 @@ export default function ClientProfilePage() {
         onSaved={load}
       />
 
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-lg shadow-xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-base font-semibold">Edit Client</h2>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
-            </div>
-            <div className="p-5 grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Full Name *</label>
-                <input type="text" className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">Phone</label>
-                <input type="text" className="input" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Email *</label>
-                <input type="email" className="input" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Company (KH)</label>
-                <input type="text" className="input" value={form.companyKhmer} onChange={e => setForm(f => ({ ...f, companyKhmer: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Company (EN)</label>
-                <input type="text" className="input" value={form.company} onChange={e => setForm(f => ({ ...f, company: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Address</label>
-                <textarea className="input" rows={2} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">VAT TIN</label>
-                <input type="text" className="input" value={form.vatTin} onChange={e => setForm(f => ({ ...f, vatTin: e.target.value }))} />
-              </div>
-              <div>
-                <label className="label">Telegram Chat ID (auto-filled via bot link)</label>
-                <input type="text" className="input" value={form.telegramId} onChange={e => setForm(f => ({ ...f, telegramId: e.target.value }))} />
-              </div>
-              <div className="col-span-2">
-                <label className="label">Notes</label>
-                <textarea className="input" rows={2} value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-              </div>
-              <div className="col-span-2 border-t border-gray-100 dark:border-gray-800 pt-4">
-                <label className="label">Generate Invoice & Send Reminder</label>
-                <select
-                  className="input"
-                  value={form.renewalDaysBeforeExpiry}
-                  onChange={e => setForm(f => ({ ...f, renewalDaysBeforeExpiry: parseInt(e.target.value) }))}
-                >
-                  {RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS.map(days => (
-                    <option key={days} value={days}>{formatRenewalTiming(days)}</option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                  Applies to auto-generated invoices and renewal reminders for this client&apos;s services.
-                </p>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={saveClient}>Save Changes</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ClientFormModal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onSave={saveClient}
+        editMode
+        form={form}
+        setForm={setForm}
+      />
     </div>
   )
 }

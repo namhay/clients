@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { CLIENTS_ALL_URL, fetchCachedList } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
@@ -37,7 +38,7 @@ export default function InvoiceFormModal({
 
   useEffect(() => {
     if (!open) return
-    fetch('/api/clients').then(r => r.json()).then(setClients)
+    void fetchCachedList(CLIENTS_ALL_URL).then(setClients)
   }, [open])
 
   useEffect(() => {

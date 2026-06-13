@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { BILLING_CYCLES, calculateBillingDates, toDateInput } from '@/lib/billing'
 import { getPackagePrice } from '@/lib/package-pricing'
 import { isOneTimePackage } from '@/lib/product-packages'
+import { CLIENTS_ALL_URL, fetchCachedList, PRODUCT_TYPES_ACTIVE_URL } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
 
 const emptyForm = () => ({
@@ -91,10 +92,8 @@ export default function ServiceFormModal({
 
   useEffect(() => {
     if (!open) return
-    fetch('/api/clients').then(r => r.json()).then(setClients)
-    fetch('/api/product-types?active=true').then(r => r.json()).then(types => {
-      setProductTypes(types)
-    })
+    void fetchCachedList(CLIENTS_ALL_URL).then(setClients)
+    void fetchCachedList(PRODUCT_TYPES_ACTIVE_URL).then(setProductTypes)
   }, [open])
 
   useEffect(() => {
@@ -102,9 +101,8 @@ export default function ServiceFormModal({
       setProductPackages([])
       return
     }
-    fetch(`/api/product-packages?productTypeId=${form.productTypeId}&active=true`)
-      .then(r => r.json())
-      .then(setProductPackages)
+    const url = `/api/product-packages?productTypeId=${form.productTypeId}&active=true`
+    void fetchCachedList(url).then(setProductPackages)
   }, [open, form.productTypeId])
 
   useEffect(() => {

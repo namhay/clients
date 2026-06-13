@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useDebouncedValue } from '@/lib/use-debounced-value'
-import { getListCache, prefetchList, setListCache } from '@/lib/list-cache'
+import { getListCache, metaFromPayload, prefetchList, storeListPayload } from '@/lib/list-cache'
 import type { PaginatedResult } from '@/lib/pagination'
 
 type UsePaginatedListOptions = {
@@ -40,6 +40,7 @@ export function usePaginatedList<T>({
   const [items, setItems] = useState<T[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
+  const [meta, setMeta] = useState<Record<string, unknown>>({})
   const [loading, setLoading] = useState(true)
   const [reloadToken, setReloadToken] = useState(0)
   const filtersRef = useRef({ search: debouncedSearch, extraKey: '' })
@@ -66,6 +67,7 @@ export function usePaginatedList<T>({
       setItems(cached.items)
       setTotal(cached.total ?? 0)
       setTotalPages(cached.totalPages ?? 1)
+      if (cached.meta) setMeta(cached.meta)
       setLoading(false)
     } else {
       setLoading(true)
@@ -74,20 +76,18 @@ export function usePaginatedList<T>({
     fetch(cacheKey, { signal: ac.signal })
       .then(async res => {
         if (!res.ok) throw new Error('Failed to load')
-        return res.json() as Promise<PaginatedResult<T>>
+        return res.json() as Promise<PaginatedResult<T> & Record<string, unknown>>
       })
       .then(data => {
         const nextItems = data.items || []
         const nextTotal = data.total || 0
         const nextTotalPages = data.totalPages || 1
+        const nextMeta = metaFromPayload(data) || {}
         setItems(nextItems)
         setTotal(nextTotal)
         setTotalPages(nextTotalPages)
-        setListCache(cacheKey, {
-          items: nextItems,
-          total: nextTotal,
-          totalPages: nextTotalPages,
-        })
+        setMeta(nextMeta)
+        storeListPayload<T>(cacheKey, data)
 
         if (pageToLoad < nextTotalPages) {
           const nextParams = buildParams(pageToLoad + 1, debouncedSearch, searchParam, extraParams)
@@ -99,6 +99,7 @@ export function usePaginatedList<T>({
           setItems([])
           setTotal(0)
           setTotalPages(1)
+          setMeta({})
         }
       })
       .finally(() => {
@@ -122,6 +123,7 @@ export function usePaginatedList<T>({
     items,
     total,
     totalPages,
+    meta,
     loading,
     initialLoading,
     refreshing,

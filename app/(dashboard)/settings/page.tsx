@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { DATE_FORMAT_OPTIONS } from '@/lib/date-format'
 import { getJsonCache, setJsonCache } from '@/lib/list-cache'
-import { APP_TIMEZONES, reminderTimeToUtcCron } from '@/lib/reminder-schedule'
+import { APP_TIMEZONES } from '@/lib/reminder-schedule'
 import { toast } from '@/lib/toast'
 import { useCachedJson } from '@/lib/use-cached-json'
 
@@ -354,33 +354,6 @@ export default function SettingsPage() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Minimum sequence number. Next invoice uses highest existing number + 1, or this if higher.</p>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="label">Date format</label>
-                <select
-                  className="input"
-                  value={form.dateFormat}
-                  onChange={e => setForm(f => ({ ...f, dateFormat: e.target.value }))}
-                >
-                  {DATE_FORMAT_OPTIONS.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="label">Global time zone</label>
-                <select
-                  className="input"
-                  value={form.reminderTimezone}
-                  onChange={e => setForm(f => ({ ...f, reminderTimezone: e.target.value }))}
-                >
-                  {APP_TIMEZONES.map(tz => (
-                    <option key={tz} value={tz}>{tz}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400 dark:text-gray-500">Used for dates, times, reminders, PDFs, emails, and Telegram. Default: Cambodia (Asia/Phnom_Penh).</p>
           </div>
         </div>
         <div className="card p-5">
@@ -431,21 +404,6 @@ export default function SettingsPage() {
               <input className="input" value={form.telegramDefaultChatId} onChange={e => setForm(f => ({ ...f, telegramDefaultChatId: e.target.value }))} placeholder="-100123456789" />
             </div>
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-1">
-              <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Client connect links</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                Register the webhook once so clients can connect via <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">t.me/your_bot?start=CLIENT_ID</code>.
-                Telegram only accepts <strong>public HTTPS</strong> URLs — not localhost.
-              </p>
-              {webhookStatus?.httpsRequired && (
-                <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 space-y-2">
-                  <p className="font-medium">Cannot register on localhost</p>
-                  <p>Choose one option:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-amber-900">
-                    <li><strong>Production (recommended):</strong> deploy ClientDesk, set <code className="bg-amber-100 px-1 rounded">NEXTAUTH_URL=https://your-domain.com</code>, then click Register Webhook on the live site.</li>
-                    <li><strong>Local testing:</strong> run <code className="bg-amber-100 px-1 rounded">ngrok http 3000</code>, add <code className="bg-amber-100 px-1 rounded">TELEGRAM_WEBHOOK_URL=https://YOUR-ID.ngrok-free.app</code> to .env, restart <code className="bg-amber-100 px-1 rounded">npm run dev</code>, then register again.</li>
-                  </ol>
-                </div>
-              )}
               {webhookStatus && (
                 <div className="text-xs text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 mb-3 space-y-1">
                   <div>Base URL: <span className="font-mono">{webhookStatus.webhookBaseUrl}</span></div>
@@ -478,6 +436,35 @@ export default function SettingsPage() {
             Alerts are sent once per day at your reminder time. On Vercel Hobby, the cron job may only run once daily — update <span className="font-mono">vercel.json</span> if you change the time below.
           </p>
           <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label">Date format</label>
+                <select
+                  className="input"
+                  value={form.dateFormat}
+                  onChange={e => setForm(f => ({ ...f, dateFormat: e.target.value }))}
+                >
+                  {DATE_FORMAT_OPTIONS.map(opt => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Global time zone</label>
+                <select
+                  className="input"
+                  value={form.reminderTimezone}
+                  onChange={e => setForm(f => ({ ...f, reminderTimezone: e.target.value }))}
+                >
+                  {APP_TIMEZONES.map(tz => (
+                    <option key={tz} value={tz}>{tz}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              Used for dates, times, reminders, PDFs, emails, and Telegram. Default: Cambodia (Asia/Phnom_Penh).
+            </p>
             <div>
               <label className="label">Reminder time</label>
               <input
@@ -490,55 +477,44 @@ export default function SettingsPage() {
                 Daily at this time in your global time zone ({form.reminderTimezone}). e.g. 12:30 for 12:30 PM.
               </p>
             </div>
-            <div>
-              <label className="label">Default reminder days (new product types)</label>
-              <input type="number" min="1" className="input max-w-xs" value={form.reminderDays} onChange={e => setForm(f => ({ ...f, reminderDays: e.target.value }))} />
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Per-type timing is set under Product Types → Edit (e.g. Domain 14 days, WiFi 1 day).</p>
-            </div>
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 space-y-1">
-              <div>Vercel cron (UTC): <span className="font-mono font-medium">{reminderTimeToUtcCron(form.reminderTime, form.reminderTimezone)}</span></div>
-              <div>Cron endpoint: <span className="font-mono">GET /api/cron/reminders</span></div>
-              <div>Set <span className="font-mono">CRON_SECRET</span> in .env / Vercel (Vercel Cron sends it automatically).</div>
-              {form.lastReminderRunDate && (
-                <div>Last auto-run: <span className="font-medium">{form.lastReminderRunDate}</span></div>
-              )}
-            </div>
           </div>
         </div>
-        <div className="card p-5">
+        <div className="card p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Account Security</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Change your admin login password</p>
           <div className="space-y-3">
-            <div>
-              <label className="label">Current password</label>
-              <input
-                type="password"
-                className="input"
-                value={passwordForm.currentPassword}
-                onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
-                autoComplete="current-password"
-              />
-            </div>
-            <div>
-              <label className="label">New password</label>
-              <input
-                type="password"
-                className="input"
-                value={passwordForm.newPassword}
-                onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
-                autoComplete="new-password"
-                placeholder="At least 6 characters"
-              />
-            </div>
-            <div>
-              <label className="label">Confirm new password</label>
-              <input
-                type="password"
-                className="input"
-                value={passwordForm.confirmPassword}
-                onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                autoComplete="new-password"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="label">Current password</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={passwordForm.currentPassword}
+                  onChange={e => setPasswordForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  autoComplete="current-password"
+                />
+              </div>
+              <div>
+                <label className="label">New password</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={passwordForm.newPassword}
+                  onChange={e => setPasswordForm(f => ({ ...f, newPassword: e.target.value }))}
+                  autoComplete="new-password"
+                  placeholder="At least 6 characters"
+                />
+              </div>
+              <div>
+                <label className="label">Confirm new password</label>
+                <input
+                  type="password"
+                  className="input"
+                  value={passwordForm.confirmPassword}
+                  onChange={e => setPasswordForm(f => ({ ...f, confirmPassword: e.target.value }))}
+                  autoComplete="new-password"
+                />
+              </div>
             </div>
             <div className="flex items-center gap-3 pt-1">
               <button type="button" className="btn-secondary" onClick={changePassword} disabled={passwordSaving}>
@@ -550,23 +526,6 @@ export default function SettingsPage() {
             <p className="text-xs text-gray-400 dark:text-gray-500 pt-1">
               Forgot your password? Run <span className="font-mono">npm run db:seed-admin</span> with <span className="font-mono">ADMIN_EMAIL</span> and <span className="font-mono">ADMIN_PASSWORD</span> set to reset the admin account.
             </p>
-          </div>
-        </div>
-        <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4">Database & Deployment</h2>
-          <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3 font-mono text-xs">DATABASE_URL=postgresql://...@neon.tech/neondb</div>
-            <p className="text-gray-500 dark:text-gray-400">Neon PostgreSQL — set DATABASE_URL in .env (local) or Vercel env vars (production).</p>
-            <div className="pt-2 space-y-1">
-              <p className="font-medium text-gray-700 dark:text-gray-300">Quick commands:</p>
-              <div className="bg-gray-900 text-green-400 rounded-lg p-3 font-mono space-y-1">
-                <div>npm install</div>
-                <div>npm run db:migrate</div>
-                <div>npm run db:setup</div>
-                <div>npm run build</div>
-                <div>pm2 start npm --name clientdesk -- start</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
