@@ -1,6 +1,6 @@
-import { formatAppDate } from '@/lib/app-date'
-import type { InvoiceItemRow, InvoiceWithRelations } from '@/lib/db/invoices'
+import type { InvoiceItemRow, InvoiceRow, InvoiceWithRelations } from '@/lib/db/invoices'
 import { createInvoicePdfToken } from '@/lib/invoice-tokens'
+import { roundMoney } from '@/lib/invoice-payments'
 import { getTelegramMiniAppUrl } from '@/lib/telegram-webapp'
 
 export type MiniAppInvoiceItem = {
@@ -9,6 +9,15 @@ export type MiniAppInvoiceItem = {
   quantity: number
   unitPrice: number
   total: number
+}
+
+export type MiniAppInvoiceListItem = {
+  id: string
+  invoiceNo: string
+  status: string
+  total: number
+  dueDate: string
+  remaining: number
 }
 
 export type MiniAppInvoice = {
@@ -36,14 +45,32 @@ function mapItem(item: InvoiceItemRow): MiniAppInvoiceItem {
   }
 }
 
-export async function serializeMiniAppInvoice(
+export function serializeMiniAppInvoiceListItem(
+  invoice: InvoiceRow,
+  amountPaid: number,
+  formatDate: (date: Date | string) => string,
+): MiniAppInvoiceListItem {
+  const remaining = invoice.status === 'PAID'
+    ? 0
+    : roundMoney(Math.max(0, invoice.total - amountPaid))
+
+  return {
+    id: invoice.id,
+    invoiceNo: invoice.invoiceNo,
+    status: invoice.status,
+    total: invoice.total,
+    dueDate: formatDate(invoice.dueDate),
+    remaining,
+  }
+}
+
+export function serializeMiniAppInvoice(
   invoice: InvoiceWithRelations,
-  payment?: { amountPaid: number; remaining: number },
-): Promise<MiniAppInvoice> {
+  payment: { amountPaid: number; remaining: number },
+  formatDate: (date: Date | string) => string,
+): MiniAppInvoice {
   const baseUrl = getTelegramMiniAppUrl('').replace(/\/$/, '')
   const token = createInvoicePdfToken(invoice.id)
-  const dueDate = await formatAppDate(invoice.dueDate)
-  const paidAt = invoice.paidAt ? await formatAppDate(invoice.paidAt) : null
 
   return {
     id: invoice.id,
@@ -52,21 +79,13 @@ export async function serializeMiniAppInvoice(
     subtotal: invoice.subtotal,
     tax: invoice.tax,
     total: invoice.total,
-    dueDate,
-    paidAt,
-    amountPaid: payment?.amountPaid ?? (invoice.status === 'PAID' ? invoice.total : 0),
-    remaining: payment?.remaining ?? (invoice.status === 'PAID' ? 0 : invoice.total),
+    dueDate: formatDate(invoice.dueDate),
+    paidAt: invoice.paidAt ? formatDate(invoice.paidAt) : null,
+    amountPaid: payment.amountPaid,
+    remaining: payment.remaining,
     items: invoice.items.map(mapItem),
     pdfUrl: `${baseUrl}/api/telegram/mini-app/invoices/${invoice.id}/pdf?token=${token}`,
   }
-}
-
-export function statusBadgeClass(status: string) {
-  const normalized = status.toUpperCase()
-  if (normalized === 'PAID') return 'badge-paid'
-  if (normalized === 'OVERDUE') return 'badge-overdue'
-  if (normalized === 'CANCELLED') return 'badge-gray'
-  return 'badge-unpaid'
 }
 
 export function canMarkPaid(status: string) {

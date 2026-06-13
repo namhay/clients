@@ -1,80 +1,49 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
-import { canMarkPaid, formatMoney, statusBadgeClass, statusLabel, useMiniApp } from '@/components/telegram/MiniAppProvider'
-
-type InvoiceListItem = {
-  id: string
-  invoiceNo: string
-  status: string
-  total: number
-  dueDate: string
-  remaining: number
-}
+import { useMemo, useState } from 'react'
+import {
+  canMarkPaid,
+  formatMoney,
+  statusBadgeClass,
+  statusLabel,
+  useMiniApp,
+} from '@/components/telegram/MiniAppProvider'
+import { InvoiceListSkeleton } from '@/components/telegram/InvoiceListSkeleton'
 
 export default function TelegramInvoicesPage() {
-  const { ready, session, error, miniAppFetch } = useMiniApp()
-  const [invoices, setInvoices] = useState<InvoiceListItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const { ready, home, loading, error } = useMiniApp()
   const [filter, setFilter] = useState<'open' | 'all'>('open')
 
-  useEffect(() => {
-    if (!ready || !session?.linked) {
-      setLoading(false)
-      return
-    }
-
-    let cancelled = false
-    async function load() {
-      setLoading(true)
-      setLoadError(null)
-      const res = await miniAppFetch('/api/telegram/mini-app/invoices')
-      const data = await res.json().catch(() => ({}))
-      if (cancelled) return
-      if (!res.ok) {
-        setLoadError(data.error || 'Failed to load invoices')
-        setInvoices([])
-        setLoading(false)
-        return
-      }
-      setInvoices((data.invoices || []) as InvoiceListItem[])
-      setLoading(false)
-    }
-
-    void load()
-    return () => { cancelled = true }
-  }, [ready, session?.linked, miniAppFetch])
-
+  const invoices = home?.invoices ?? []
   const visibleInvoices = useMemo(
     () => (filter === 'open' ? invoices.filter(inv => canMarkPaid(inv.status)) : invoices),
     [invoices, filter],
   )
-
   const openCount = useMemo(
     () => invoices.filter(inv => canMarkPaid(inv.status)).length,
     [invoices],
   )
 
   if (!ready) {
-    return <Shell><LoadingState message="Starting..." /></Shell>
-  }
-
-  if (error && !session) {
     return (
       <Shell>
-        <EmptyState
-          title="Telegram only"
-          message={error}
-        />
+        <InvoiceListSkeleton />
       </Shell>
     )
   }
 
-  if (session && !session.linked) {
+  if (error && !home) {
     return (
-      <Shell companyName={session.companyName}>
+      <Shell>
+        <EmptyState title="Telegram only" message={error} />
+      </Shell>
+    )
+  }
+
+  if (home && !home.linked) {
+    return (
+      <Shell companyName={home.companyName}>
         <EmptyState
           title="Account not linked"
           message="Ask your account manager for your personal Telegram connect link, open it in this bot, and tap Start. Then reopen this menu."
@@ -84,7 +53,7 @@ export default function TelegramInvoicesPage() {
   }
 
   return (
-    <Shell companyName={session?.companyName} clientName={session?.client?.name}>
+    <Shell companyName={home?.companyName} clientName={home?.client?.name}>
       <div className="flex items-center justify-between gap-3 mb-4">
         <div>
           <h2 className="text-lg font-semibold">Your invoices</h2>
@@ -98,10 +67,8 @@ export default function TelegramInvoicesPage() {
         </div>
       </div>
 
-      {loading ? (
-        <LoadingState message="Loading invoices..." />
-      ) : loadError ? (
-        <EmptyState title="Could not load" message={loadError} />
+      {loading && !home ? (
+        <InvoiceListSkeleton />
       ) : visibleInvoices.length === 0 ? (
         <EmptyState
           title={filter === 'open' ? 'All caught up' : 'No invoices yet'}
@@ -113,6 +80,7 @@ export default function TelegramInvoicesPage() {
             <Link
               key={invoice.id}
               href={`/telegram/invoices/${invoice.id}`}
+              prefetch
               className="block tg-card rounded-xl p-4 active:opacity-80 transition-opacity"
             >
               <div className="flex items-start justify-between gap-3">
@@ -175,14 +143,6 @@ function FilterButton({
     >
       {children}
     </button>
-  )
-}
-
-function LoadingState({ message }: { message: string }) {
-  return (
-    <div className="tg-card rounded-xl p-8 text-center">
-      <p className="tg-muted">{message}</p>
-    </div>
   )
 }
 

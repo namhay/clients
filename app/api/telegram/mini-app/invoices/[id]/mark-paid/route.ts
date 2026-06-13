@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getInvoiceById } from '@/lib/db/invoices'
-import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { getInvoicePaymentSummary, recordInvoicePayment } from '@/lib/invoice-payments'
 import { createReminderLog } from '@/lib/db/reminder-logs'
 import { getAppSettings } from '@/lib/settings'
 import { sendTelegram } from '@/lib/telegram'
-import { serializeMiniAppInvoice } from '@/lib/telegram-mini-app-serialize'
+import { loadMiniAppInvoiceDetail } from '@/lib/telegram-mini-app-data'
 import { getInitDataFromRequest, MiniAppAuthError, requireLinkedTelegramClient } from '@/lib/telegram-webapp'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
@@ -70,13 +69,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     }
 
-    const updated = await getInvoiceById(params.id)
-    if (!updated) throw new Error('Invoice not found')
-
-    const serialized = await serializeMiniAppInvoice(updated, {
-      amountPaid: result.amountPaid,
-      remaining: result.remaining,
-    })
+    const serialized = await loadMiniAppInvoiceDetail(params.id, client.id)
 
     return NextResponse.json({
       success: true,

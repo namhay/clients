@@ -10,6 +10,7 @@ import {
   statusLabel,
   useMiniApp,
 } from '@/components/telegram/MiniAppProvider'
+import { InvoiceDetailSkeleton } from '@/components/telegram/InvoiceListSkeleton'
 
 type InvoiceDetail = {
   id: string
@@ -35,7 +36,7 @@ type InvoiceDetail = {
 export default function TelegramInvoiceDetailPage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
-  const { ready, session, miniAppFetch } = useMiniApp()
+  const { ready, home, miniAppFetch } = useMiniApp()
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +45,7 @@ export default function TelegramInvoiceDetailPage() {
   const [success, setSuccess] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!ready || !session?.linked || !params.id) {
+    if (!ready || !home?.linked || !params.id) {
       setLoading(false)
       return
     }
@@ -67,7 +68,7 @@ export default function TelegramInvoiceDetailPage() {
 
     void load()
     return () => { cancelled = true }
-  }, [ready, session?.linked, params.id, miniAppFetch])
+  }, [ready, home?.linked, params.id, miniAppFetch])
 
   async function handleMarkPaid() {
     if (!invoice || submitting) return
@@ -95,10 +96,14 @@ export default function TelegramInvoiceDetailPage() {
   }
 
   if (!ready || loading) {
-    return <PageShell backHref="/telegram"><StateCard message="Loading invoice..." /></PageShell>
+    return (
+      <PageShell backHref="/telegram">
+        <InvoiceDetailSkeleton />
+      </PageShell>
+    )
   }
 
-  if (!session?.linked) {
+  if (home && !home.linked) {
     return (
       <PageShell backHref="/telegram">
         <StateCard message="Account not linked. Connect via your personal Telegram link first." />

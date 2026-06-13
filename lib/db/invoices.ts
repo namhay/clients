@@ -219,6 +219,16 @@ export async function listInvoices(filters: InvoiceFilters = {}): Promise<Invoic
   return attachItems(invoices)
 }
 
+export async function listInvoiceRowsByClient(clientId: string): Promise<InvoiceRow[]> {
+  const sql = getSql()
+  const rows = await sql`
+    SELECT * FROM "Invoice"
+    WHERE "clientId" = ${clientId}
+    ORDER BY "createdAt" DESC
+  `
+  return rows.map(r => mapInvoiceRow(r as Record<string, unknown>))
+}
+
 export type InvoiceTableFilters = {
   status?: string
   search?: string
