@@ -25,7 +25,10 @@ export async function sendTelegramDocument(
   pdf: Buffer,
   filename: string,
   caption?: string,
-  parseMode?: 'HTML' | 'Markdown',
+  options?: {
+    parseMode?: 'HTML' | 'Markdown'
+    replyMarkup?: Record<string, unknown>
+  },
 ) {
   const token = process.env.TELEGRAM_BOT_TOKEN
   if (!token) throw new Error('TELEGRAM_BOT_TOKEN not set')
@@ -34,7 +37,8 @@ export async function sendTelegramDocument(
   form.append('chat_id', chatId)
   form.append('document', new Blob([new Uint8Array(pdf)], { type: 'application/pdf' }), filename)
   if (caption) form.append('caption', caption)
-  if (parseMode) form.append('parse_mode', parseMode)
+  if (options?.parseMode) form.append('parse_mode', options.parseMode)
+  if (options?.replyMarkup) form.append('reply_markup', JSON.stringify(options.replyMarkup))
 
   const res = await fetch(url, { method: 'POST', body: form })
   if (!res.ok) {

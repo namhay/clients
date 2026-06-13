@@ -3,6 +3,7 @@ import { createReminderLog } from '@/lib/db/reminder-logs'
 import { listUnpaidInvoicesByClient } from '@/lib/db/invoices'
 import { sendUnpaidInvoicesViaTelegram } from '@/lib/invoices'
 import { getAppSettings } from '@/lib/settings'
+import { getTelegramMiniAppUrl } from '@/lib/telegram-webapp'
 
 export type TelegramUpdate = {
   update_id?: number
@@ -140,7 +141,8 @@ export async function handleTelegramUpdate(update: TelegramUpdate) {
 
     let welcomeText =
       `✅ Connected to ${companyName}!\n\n`
-      + `Hello ${client?.name}, you will now receive invoices and payment reminders here on Telegram.`
+      + `Hello ${client?.name}, you will now receive invoices and payment reminders here on Telegram.\n\n`
+      + `Tap the menu button below to open the Mini App and view or mark invoices as paid.`
 
     if (unpaidInvoices.length > 0) {
       const label = unpaidInvoices.length === 1 ? 'invoice' : 'invoices'
@@ -195,6 +197,27 @@ export async function registerTelegramWebhook(webhookUrl: string) {
   })
   const data = await res.json()
   if (!data.ok) throw new Error(data.description || 'Failed to set webhook')
+
+  await setTelegramMenuButton()
+
+  return data.result
+}
+
+export async function setTelegramMenuButton(text = 'My Invoices') {
+  const token = await getTelegramBotToken()
+  const res = await fetch(`https://api.telegram.org/bot${token}/setChatMenuButton`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      menu_button: {
+        type: 'web_app',
+        text,
+        web_app: { url: getTelegramMiniAppUrl('/telegram') },
+      },
+    }),
+  })
+  const data = await res.json()
+  if (!data.ok) throw new Error(data.description || 'Failed to set menu button')
   return data.result
 }
 

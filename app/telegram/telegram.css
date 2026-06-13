@@ -1,0 +1,30 @@
+.telegram-mini-app {
+  background: var(--tg-bg, rgb(249 250 251));
+  color: var(--tg-text, rgb(17 24 39));
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.telegram-mini-app .tg-card {
+  background: var(--tg-secondary-bg, #fff);
+  border: 1px solid color-mix(in srgb, var(--tg-hint, #9ca3af) 25%, transparent);
+}
+
+.telegram-mini-app .tg-btn-primary {
+  background: var(--tg-button, rgb(29 78 216));
+  color: var(--tg-button-text, #fff);
+}
+
+.telegram-mini-app .tg-btn-secondary {
+  background: var(--tg-secondary-bg, #fff);
+  color: var(--tg-text, rgb(17 24 39));
+  border: 1px solid color-mix(in srgb, var(--tg-hint, #9ca3af) 35%, transparent);
+}
+
+.telegram-mini-app .tg-muted {
+  color: var(--tg-hint, rgb(107 114 128));
+}
+
+.telegram-mini-app .tg-link {
+  color: var(--tg-link, rgb(29 78 216));
+}

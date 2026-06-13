@@ -19,6 +19,7 @@ import { createReminderLog } from '@/lib/db/reminder-logs'
 import { sendInvoiceEmailWithPdf } from '@/lib/invoice-email'
 import { paymentReceivedEmailTemplate, sendEmail } from '@/lib/email'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
+import { buildInvoiceMiniAppReplyMarkup } from '@/lib/telegram-webapp'
 import { sendTelegram, sendTelegramDocument, invoiceTelegramMessage, paymentReceivedTelegramMessage } from '@/lib/telegram'
 import { formatAppDate } from '@/lib/app-date'
 import {
@@ -660,6 +661,7 @@ export async function sendInvoiceTelegram(invoiceId: string, clientId: string, c
     buffer,
     `${invoice.invoiceNo}.pdf`,
     caption,
+    { replyMarkup: buildInvoiceMiniAppReplyMarkup(invoiceId) },
   )
 
   await createReminderLog({

@@ -8,6 +8,7 @@ import {
   isHttpsUrl,
   registerTelegramWebhook,
 } from '@/lib/telegram-bot'
+import { getTelegramMiniAppUrl } from '@/lib/telegram-webapp'
 
 function webhookStatusPayload(info?: Awaited<ReturnType<typeof getTelegramWebhookInfo>>) {
   const expectedUrl = getTelegramWebhookEndpoint()
@@ -25,6 +26,7 @@ function webhookStatusPayload(info?: Awaited<ReturnType<typeof getTelegramWebhoo
     httpsRequired: !canRegister,
     pendingUpdates: info?.pending_update_count ?? 0,
     lastError: info?.last_error_message || null,
+    miniAppUrl: getTelegramMiniAppUrl('/telegram'),
   }
 }
 
@@ -52,7 +54,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       ...webhookStatusPayload(info),
-      message: 'Webhook registered. Clients can now connect via their personal Telegram links.',
+      message: 'Webhook and Mini App menu button registered. Clients can connect via their personal Telegram links and open My Invoices from the menu.',
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : 'Failed to register webhook'

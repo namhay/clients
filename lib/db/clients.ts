@@ -159,6 +159,13 @@ export async function getClientById(id: string): Promise<ClientRow | null> {
   return row ? mapClient(row) : null
 }
 
+export async function getClientByTelegramId(telegramId: string): Promise<ClientRow | null> {
+  const sql = getSql()
+  const rows = await sql`SELECT * FROM "Client" WHERE "telegramId" = ${telegramId} LIMIT 1`
+  const row = rows[0] as Record<string, unknown> | undefined
+  return row ? mapClient(row) : null
+}
+
 export async function getClientDetail(id: string): Promise<ClientDetail | null> {
   const client = await getClientById(id)
   if (!client) return null
