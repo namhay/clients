@@ -357,7 +357,10 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
             {paymentRows.map((payment, i) => (
               <View
                 key={`${payment.paidAt}-${i}`}
-                style={[styles.paymentTableRow, i === paymentRows.length - 1 ? { borderBottom: 0 } : undefined]}
+                style={[
+                  styles.paymentTableRow,
+                  ...(i === paymentRows.length - 1 ? [{ borderBottom: 0 }] : []),
+                ]}
               >
                 <View style={[styles.paymentCell, styles.paymentColDate, styles.cellCenter]}>
                   <Text style={styles.paymentTd}>{formatInvoiceDateTime(payment.paidAt)}</Text>
