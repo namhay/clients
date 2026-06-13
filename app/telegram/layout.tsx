@@ -18,7 +18,7 @@ export const viewport: Viewport = {
 export default function TelegramLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       <MiniAppProvider>
         <div className="telegram-mini-app min-h-screen font-sans">{children}</div>
       </MiniAppProvider>

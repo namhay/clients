@@ -47,6 +47,21 @@ function writeHomeCache(data: MiniAppHomeData) {
   }
 }
 
+function applyTelegramTheme(tg: NonNullable<ReturnType<typeof getTelegramWebApp>>) {
+  tg.ready()
+  tg.expand()
+
+  const params = tg.themeParams
+  const root = document.documentElement
+  if (params.bg_color) root.style.setProperty('--tg-bg', params.bg_color)
+  if (params.text_color) root.style.setProperty('--tg-text', params.text_color)
+  if (params.hint_color) root.style.setProperty('--tg-hint', params.hint_color)
+  if (params.link_color) root.style.setProperty('--tg-link', params.link_color)
+  if (params.button_color) root.style.setProperty('--tg-button', params.button_color)
+  if (params.button_text_color) root.style.setProperty('--tg-button-text', params.button_text_color)
+  if (params.secondary_bg_color) root.style.setProperty('--tg-secondary-bg', params.secondary_bg_color)
+}
+
 export function MiniAppProvider({ children }: { children: ReactNode }) {
   const cachedHome = useMemo(() => readHomeCache(), [])
   const [ready, setReady] = useState(false)
@@ -57,28 +72,42 @@ export function MiniAppProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const tg = getTelegramWebApp()
-    if (!tg) {
-      setError('Open this page from Telegram to view your invoices.')
+    let cancelled = false
+
+    function connectTelegram() {
+      const tg = getTelegramWebApp()
+      if (!tg || cancelled) return false
+
+      applyTelegramTheme(tg)
+      setInitData(tg.initData || '')
+      setError(null)
       setReady(true)
-      return
+      return true
     }
 
-    tg.ready()
-    tg.expand()
+    if (connectTelegram()) return
 
-    const params = tg.themeParams
-    const root = document.documentElement
-    if (params.bg_color) root.style.setProperty('--tg-bg', params.bg_color)
-    if (params.text_color) root.style.setProperty('--tg-text', params.text_color)
-    if (params.hint_color) root.style.setProperty('--tg-hint', params.hint_color)
-    if (params.link_color) root.style.setProperty('--tg-link', params.link_color)
-    if (params.button_color) root.style.setProperty('--tg-button', params.button_color)
-    if (params.button_text_color) root.style.setProperty('--tg-button-text', params.button_text_color)
-    if (params.secondary_bg_color) root.style.setProperty('--tg-secondary-bg', params.secondary_bg_color)
+    // Script may still be loading — wait briefly before showing the outside-Telegram message.
+    let attempts = 0
+    const interval = window.setInterval(() => {
+      attempts += 1
+      if (connectTelegram() || cancelled) {
+        window.clearInterval(interval)
+        return
+      }
+      if (attempts >= 50) {
+        window.clearInterval(interval)
+        if (!cancelled) {
+          setError('Open this page from Telegram to view your invoices.')
+          setReady(true)
+        }
+      }
+    }, 100)
 
-    setInitData(tg.initData || '')
-    setReady(true)
+    return () => {
+      cancelled = true
+      window.clearInterval(interval)
+    }
   }, [])
 
   const miniAppFetch = useCallback(async (path: string, options: RequestInit = {}) => {
