@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { startOfDay } from '@/lib/billing'
 import type { InvoiceInput, InvoiceItemInput } from '@/lib/invoices'
 import type { ClientRow } from '@/lib/db/clients'
 import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
@@ -403,6 +404,11 @@ export async function countUnpaidInvoices(): Promise<number> {
   return Number((rows[0] as { count: number }).count)
 }
 
+function invoicePeriodDay(periodStart: Date): string {
+  const d = startOfDay(periodStart)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 /** True when client already has an open renewal invoice for this service (matched by period start = current expiry). */
 export async function hasOpenRenewalInvoice(
   clientId: string,
@@ -410,7 +416,7 @@ export async function hasOpenRenewalInvoice(
   renewalPeriodStart: Date,
 ): Promise<boolean> {
   const sql = getSql()
-  const day = renewalPeriodStart.toISOString().slice(0, 10)
+  const day = invoicePeriodDay(renewalPeriodStart)
   const rows = await sql`
     SELECT 1
     FROM "InvoiceItem" ii
@@ -431,7 +437,7 @@ export async function hasInvoiceForPeriod(
   periodStart: Date,
 ): Promise<boolean> {
   const sql = getSql()
-  const day = periodStart.toISOString().slice(0, 10)
+  const day = invoicePeriodDay(periodStart)
   const rows = await sql`
     SELECT 1
     FROM "InvoiceItem" ii

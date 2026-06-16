@@ -58,7 +58,7 @@ export function filterServicesDueForAutoInvoice<
   S extends { expiryDate: Date | string; client: { renewalDaysBeforeExpiry: number } },
 >(services: S[]): S[] {
   return services.filter(s =>
-    isDueBeforeExpiry(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
+    isDueForReminderToday(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
   )
 }
 

@@ -1,4 +1,4 @@
-import { hasInvoiceForPeriod, hasOpenRenewalInvoice } from '@/lib/db/invoices'
+import { hasInvoiceForPeriod } from '@/lib/db/invoices'
 import { listServices } from '@/lib/db/services'
 import type { ServiceWithRelations } from '@/lib/db/services'
 import type { ServiceForInvoice } from '@/lib/invoices'
@@ -50,7 +50,7 @@ async function resolveServiceInvoicePlan(
     return { kind: 'first', input: serviceRecordToInvoiceInput(svc) }
   }
 
-  const hasRenewal = await hasOpenRenewalInvoice(svc.clientId, label, svc.expiryDate)
+  const hasRenewal = await hasInvoiceForPeriod(svc.clientId, label, svc.expiryDate)
   if (hasRenewal) return null
 
   return { kind: 'renewal', input: serviceRecordToInvoiceInput(svc) }
