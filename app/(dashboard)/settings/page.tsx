@@ -270,7 +270,7 @@ export default function SettingsPage() {
         <div className="card p-5 lg:col-span-2">
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Branding Assets</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            Upload logo, stamp, and payment QR code. Changes apply immediately to invoices, login, and the sidebar — no redeploy needed.
+            Upload logo, stamp, and payment QR code. When KHQR is configured in environment variables, invoices use a dynamic QR with the outstanding balance instead of the static QR image.
           </p>
           {brandingInitialLoading && brandingAssets.length === 0 ? (
             <p className="text-sm text-gray-500 dark:text-gray-400">Loading assets...</p>

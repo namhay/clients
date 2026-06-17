@@ -50,6 +50,14 @@ export function readEnvDefaults(): Record<string, string> {
     BANK_NAME: process.env.BANK_NAME || '',
     BANK_ACCOUNT_NO: process.env.BANK_ACCOUNT_NO || '',
     BANK_ACCOUNT_NAME: process.env.BANK_ACCOUNT_NAME || '',
+    KHQR_ENABLED: process.env.KHQR_ENABLED || 'true',
+    KHQR_BAKONG_ACCOUNT_ID: process.env.KHQR_BAKONG_ACCOUNT_ID || '',
+    KHQR_MERCHANT_ID: process.env.KHQR_MERCHANT_ID || '',
+    KHQR_ACCOUNT_INFORMATION: process.env.KHQR_ACCOUNT_INFORMATION || '',
+    KHQR_MERCHANT_TYPE: process.env.KHQR_MERCHANT_TYPE || '',
+    KHQR_CURRENCY: process.env.KHQR_CURRENCY || 'USD',
+    KHQR_MERCHANT_CITY: process.env.KHQR_MERCHANT_CITY || '',
+    KHQR_ACQUIRING_BANK: process.env.KHQR_ACQUIRING_BANK || '',
   }
 }
 

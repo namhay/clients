@@ -8,11 +8,47 @@ import { getInvoiceForPdf } from '@/lib/db/invoices'
 import { listPaymentsForInvoice } from '@/lib/db/invoice-payments'
 import { enrichInvoiceItemsWithPeriods } from '@/lib/invoices'
 import { getBrandingAssetSrc } from '@/lib/branding-assets'
+import { generateKhqrQrDataUrl, getKhqrConfig } from '@/lib/khqr'
 
 type InvoiceWithRelations = NonNullable<Awaited<ReturnType<typeof getInvoiceForPdf>>>
 
 export async function getPaymentQrSrc() {
   return getBrandingAssetSrc('qr')
+}
+
+export function getInvoiceBalanceDue(
+  total: number,
+  payments: { amount: number }[] = [],
+): number {
+  const paid = payments.reduce((sum, payment) => sum + payment.amount, 0)
+  return Math.max(0, total - paid)
+}
+
+export async function getDynamicPaymentQrSrc(params: {
+  invoiceNo: string
+  total: number
+  payments: { amount: number }[]
+  merchantName: string
+}): Promise<{ src: string; amount: number; currency: 'USD' | 'KHR' } | null> {
+  const config = getKhqrConfig()
+  if (!config) return null
+
+  const amount = getInvoiceBalanceDue(params.total, params.payments)
+  if (amount <= 0) return null
+
+  try {
+    const src = await generateKhqrQrDataUrl({
+      amount,
+      merchantName: params.merchantName,
+      acquiringBank: config.acquiringBank,
+      billNumber: params.invoiceNo,
+      config,
+    })
+    return { src, amount, currency: config.currency }
+  } catch (error) {
+    console.error('Dynamic KHQR generation failed:', error)
+    return null
+  }
 }
 
 export function toPdfInvoicePayload(
@@ -65,11 +101,18 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
     listPaymentsForInvoice(invoiceId),
   ])
   const pdfInvoice = toPdfInvoicePayload({ ...invoice, items }, payments)
-  const [paymentQrSrc, logoSrc, stampSrc] = await Promise.all([
+  const [dynamicQr, staticQrSrc, logoSrc, stampSrc] = await Promise.all([
+    getDynamicPaymentQrSrc({
+      invoiceNo: invoice.invoiceNo,
+      total: invoice.total,
+      payments,
+      merchantName: company.bankAccountName || company.name,
+    }),
     getBrandingAssetSrc('qr'),
     getBrandingAssetSrc('logo'),
     getBrandingAssetSrc('stamp'),
   ])
+  const paymentQrSrc = dynamicQr?.src ?? staticQrSrc
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,
