@@ -12,6 +12,8 @@ import {
   getMaxExpiryWindowDays,
   listServicesForReminderDisplay,
 } from '@/lib/reminders'
+import { parseReminderTimezone } from '@/lib/reminder-schedule'
+import { getAppSettings } from '@/lib/settings'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -50,6 +52,9 @@ export async function GET(req: NextRequest) {
   if (clientId) filters.clientId = clientId
 
   if (usePerTypeFilter) {
+    const settings = await getAppSettings()
+    const timezone = parseReminderTimezone(settings.reminderTimezone)
+
     if (dueForReminder || expiringSoon) {
       let services = await listServicesForReminderDisplay()
       if (productTypeId) {
@@ -61,7 +66,7 @@ export async function GET(req: NextRequest) {
       if (clientId) {
         services = services.filter(s => s.clientId === clientId)
       }
-      services = filterServicesInReminderWindow(services)
+      services = filterServicesInReminderWindow(services, timezone)
       return NextResponse.json(services)
     }
 
@@ -71,7 +76,9 @@ export async function GET(req: NextRequest) {
   let services = await listServices(filters)
 
   if (dueForAutoInvoice) {
-    services = filterServicesDueForAutoInvoice(services)
+    const settings = await getAppSettings()
+    const timezone = parseReminderTimezone(settings.reminderTimezone)
+    services = filterServicesDueForAutoInvoice(services, timezone)
   }
 
   return NextResponse.json(services)

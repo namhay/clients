@@ -12,6 +12,8 @@ import {
   filterServicesDueForAutoInvoice,
   getMaxExpiryWindowDays,
 } from '@/lib/reminders'
+import { parseReminderTimezone } from '@/lib/reminder-schedule'
+import { getAppSettings } from '@/lib/settings'
 
 export type AutoInvoiceRunResult = {
   processed: number
@@ -132,9 +134,11 @@ async function createInvoicesForPlanGroups(
 
 /** Generate renewal invoices for eligible services of one client (manual fallback for cron). */
 export async function runAutoInvoicesForClient(clientId: string): Promise<AutoInvoiceRunResult> {
+  const settings = await getAppSettings()
+  const timezone = parseReminderTimezone(settings.reminderTimezone)
   const candidates = await listServices({ clientId, status: 'ACTIVE' })
   const recurring = candidates.filter(s => s.recurring)
-  const eligible = filterServicesDueForAutoInvoice(recurring)
+  const eligible = filterServicesDueForAutoInvoice(recurring, timezone)
   const tooEarly = recurring.length - eligible.length
 
   const { groups, skipped, errors } = await buildInvoicePlanGroups(eligible)
@@ -151,6 +155,8 @@ export async function runAutoInvoicesForClient(clientId: string): Promise<AutoIn
 }
 
 export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
+  const settings = await getAppSettings()
+  const timezone = parseReminderTimezone(settings.reminderTimezone)
   const maxDays = await getMaxExpiryWindowDays()
   const candidates = await listServices({
     expiryDateLte: expiryWithinDays(maxDays),
@@ -158,7 +164,7 @@ export async function runAutoInvoices(): Promise<AutoInvoiceRunResult> {
   })
 
   const recurring = candidates.filter(s => s.recurring)
-  const eligible = filterServicesDueForAutoInvoice(recurring)
+  const eligible = filterServicesDueForAutoInvoice(recurring, timezone)
   const tooEarly = recurring.length - eligible.length
 
   const { groups, skipped, errors } = await buildInvoicePlanGroups(eligible)

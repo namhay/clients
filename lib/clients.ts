@@ -3,9 +3,22 @@ export const RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS = [14, 7, 0] as const
 export type RenewalDaysBeforeExpiry = (typeof RENEWAL_DAYS_BEFORE_EXPIRY_OPTIONS)[number]
 
 export function parseRenewalDaysBeforeExpiry(value: unknown): RenewalDaysBeforeExpiry {
-  const n = parseInt(String(value))
+  return normalizeRenewalDaysBeforeExpiry(value)
+}
+
+/** Preserve 0 (same-day); only null/undefined/invalid fall back to 14. */
+export function normalizeRenewalDaysBeforeExpiry(value: unknown): RenewalDaysBeforeExpiry {
+  if (value === 0 || value === '0') return 0
+  if (value === null || value === undefined) return 14
+  const n = typeof value === 'number' ? value : parseInt(String(value), 10)
   if (n === 0 || n === 7 || n === 14) return n
   return 14
+}
+
+export function getClientRenewalDays(
+  client: { renewalDaysBeforeExpiry?: number | null },
+): RenewalDaysBeforeExpiry {
+  return normalizeRenewalDaysBeforeExpiry(client.renewalDaysBeforeExpiry)
 }
 
 export function formatRenewalTiming(days: number): string {

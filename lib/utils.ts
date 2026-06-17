@@ -1,6 +1,7 @@
 import {
   DEFAULT_DATE_FORMAT,
   DEFAULT_TIMEZONE,
+  calendarDaysUntil,
   formatDateTimeValue,
   formatDateValue,
 } from '@/lib/date-format'
@@ -21,8 +22,6 @@ export function formatCurrency(amount: number) {
 }
 
 export function daysUntil(date: Date | string) {
-  const d = new Date(date)
-  const now = new Date()
-  return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  return calendarDaysUntil(date, DEFAULT_TIMEZONE)
 }
 

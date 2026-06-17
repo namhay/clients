@@ -6,7 +6,7 @@ import ReminderSendButtons from '@/components/reminders/ReminderSendButtons'
 import StatCard from '@/components/dashboard/StatCard'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { productTypeBadgeClass } from '@/lib/product-badges'
-import { formatRenewalTiming } from '@/lib/clients'
+import { formatRenewalTiming, getClientRenewalDays } from '@/lib/clients'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { useCachedJson } from '@/lib/use-cached-json'
 import { daysUntil, formatCurrency } from '@/lib/utils'
@@ -218,13 +218,13 @@ export default function RemindersPage() {
               {expiringServices.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-xs text-gray-400 dark:text-gray-500 sm:px-4">
-                    No services due for reminder based on each client&apos;s settings
+                    No services due for reminder today based on each client&apos;s settings
                   </td>
                 </tr>
               )}
               {expiringServices.map(svc => {
                 const d = daysUntil(svc.expiryDate)
-                const remindDays = svc.client?.renewalDaysBeforeExpiry ?? 14
+                const remindDays = getClientRenewalDays(svc.client ?? {})
                 const remindRule = formatRenewalTiming(remindDays)
                 return (
                   <tr key={svc.id} className="border-t border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50">

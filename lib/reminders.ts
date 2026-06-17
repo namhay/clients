@@ -1,46 +1,59 @@
 import { getMaxRenewalWindow } from '@/lib/db/clients'
-import { daysUntil } from '@/lib/utils'
+import { getClientRenewalDays } from '@/lib/clients'
+import { calendarDaysUntil, DEFAULT_TIMEZONE } from '@/lib/date-format'
 
-export function isDueBeforeExpiry(expiryDate: Date | string, daysBefore: number): boolean {
-  const days = daysUntil(expiryDate)
+function daysLeftUntilExpiry(
+  expiryDate: Date | string,
+  timeZone: string = DEFAULT_TIMEZONE,
+): number {
+  return calendarDaysUntil(expiryDate, timeZone)
+}
+
+export function isDueBeforeExpiry(
+  expiryDate: Date | string,
+  daysBefore: number,
+  timeZone: string = DEFAULT_TIMEZONE,
+): boolean {
+  const days = daysLeftUntilExpiry(expiryDate, timeZone)
   return days <= daysBefore && days >= 0
 }
 
 export function isInReminderWindow(
   expiryDate: Date | string,
   daysBefore: number,
+  timeZone: string = DEFAULT_TIMEZONE,
 ): boolean {
-  const d = daysUntil(expiryDate)
-  return d <= daysBefore && d >= 0
+  return isDueBeforeExpiry(expiryDate, daysBefore, timeZone)
 }
 
-/** Exact day match — used by daily cron so reminders are not sent every day. */
+/** Exact calendar-day match — used by daily cron so reminders are not sent every day. */
 export function isDueForReminderToday(
   expiryDate: Date | string,
   daysBefore: number,
+  timeZone: string = DEFAULT_TIMEZONE,
 ): boolean {
-  return daysUntil(expiryDate) === daysBefore
+  return daysLeftUntilExpiry(expiryDate, timeZone) === daysBefore
 }
 
 export function filterServicesInReminderWindow<
   S extends {
     expiryDate: Date | string
-    client: { renewalDaysBeforeExpiry: number }
+    client: { renewalDaysBeforeExpiry?: number | null }
   },
->(services: S[]): S[] {
+>(services: S[], timeZone: string = DEFAULT_TIMEZONE): S[] {
   return services.filter(s =>
-    isInReminderWindow(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
+    isInReminderWindow(s.expiryDate, getClientRenewalDays(s.client), timeZone),
   )
 }
 
 export function filterServicesDueForReminderToday<
   S extends {
     expiryDate: Date | string
-    client: { renewalDaysBeforeExpiry: number }
+    client: { renewalDaysBeforeExpiry?: number | null }
   },
->(services: S[]): S[] {
+>(services: S[], timeZone: string = DEFAULT_TIMEZONE): S[] {
   return services.filter(s =>
-    isDueForReminderToday(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
+    isDueForReminderToday(s.expiryDate, getClientRenewalDays(s.client), timeZone),
   )
 }
 
@@ -48,23 +61,24 @@ export function filterServicesDueForReminderToday<
 export function filterServicesDueForReminder<
   S extends {
     expiryDate: Date | string
-    client: { renewalDaysBeforeExpiry: number }
+    client: { renewalDaysBeforeExpiry?: number | null }
   },
->(services: S[]): S[] {
-  return filterServicesInReminderWindow(services)
+>(services: S[], timeZone: string = DEFAULT_TIMEZONE): S[] {
+  return filterServicesInReminderWindow(services, timeZone)
 }
 
 export function filterServicesDueForAutoInvoice<
-  S extends { expiryDate: Date | string; client: { renewalDaysBeforeExpiry: number } },
->(services: S[]): S[] {
-  return services.filter(s =>
-    isDueForReminderToday(s.expiryDate, s.client.renewalDaysBeforeExpiry ?? 14),
-  )
+  S extends {
+    expiryDate: Date | string
+    client: { renewalDaysBeforeExpiry?: number | null }
+  },
+>(services: S[], timeZone: string = DEFAULT_TIMEZONE): S[] {
+  return filterServicesDueForReminderToday(services, timeZone)
 }
 
 export async function getMaxExpiryWindowDays(): Promise<number> {
   const maxDays = await getMaxRenewalWindow()
-  return Math.max(maxDays, 1)
+  return Math.max(maxDays, 0)
 }
 
 export async function getReminderExpiryBounds(): Promise<{ gte?: Date; lte: Date }> {

@@ -7,7 +7,7 @@ import { toast } from '@/lib/toast'
 import { usePaginatedList } from '@/lib/use-paginated-list'
 import { prefetchClientProfile } from '@/lib/list-cache'
 import ClientLink from '@/components/clients/ClientLink'
-import { formatRenewalDaysShort, parseRenewalDaysBeforeExpiry } from '@/lib/clients'
+import { formatRenewalDaysShort, normalizeRenewalDaysBeforeExpiry } from '@/lib/clients'
 
 const OrderFormModal = dynamic(() => import('@/components/orders/OrderFormModal'), { ssr: false })
 const ClientFormModal = dynamic(() => import('@/components/clients/ClientFormModal'), { ssr: false })
@@ -87,7 +87,7 @@ export default function ClientsPage() {
       vatTin: c.vatTin || '',
       telegramId: c.telegramId || '',
       notes: c.notes || '',
-      renewalDaysBeforeExpiry: c.renewalDaysBeforeExpiry ?? 14,
+      renewalDaysBeforeExpiry: normalizeRenewalDaysBeforeExpiry(c.renewalDaysBeforeExpiry),
     })
     setEditId(c.id)
     setShowModal(true)
@@ -149,7 +149,7 @@ export default function ClientsPage() {
                         )}
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        {formatRenewalDaysShort(parseRenewalDaysBeforeExpiry(c.renewalDaysBeforeExpiry))}
+                        {formatRenewalDaysShort(normalizeRenewalDaysBeforeExpiry(c.renewalDaysBeforeExpiry))}
                       </div>
                     </div>
                   </ClientLink>

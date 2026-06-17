@@ -129,3 +129,17 @@ export function formatDateTimeValue(
   const timePart = formatTimeValue(date, tz)
   return timePart ? `${datePart}, ${timePart}` : datePart
 }
+
+/** Whole calendar days from `fromDate` until `targetDate` in the given timezone. */
+export function calendarDaysUntil(
+  targetDate: Date | string,
+  timeZone: string = DEFAULT_TIMEZONE,
+  fromDate: Date = new Date(),
+): number {
+  const target = readZonedParts(targetDate, timeZone)
+  const from = readZonedParts(fromDate, timeZone)
+  if (!target || !from) return NaN
+  const targetMs = Date.UTC(target.year, target.month - 1, target.day)
+  const fromMs = Date.UTC(from.year, from.month - 1, from.day)
+  return Math.round((targetMs - fromMs) / 86_400_000)
+}

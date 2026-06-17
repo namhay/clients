@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { normalizeRenewalDaysBeforeExpiry } from '@/lib/clients'
 import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
 import type { ServiceInput } from '@/lib/services'
 
@@ -103,7 +104,7 @@ function mapClientNested(row: Record<string, unknown>): ClientNested {
     vatTin: row.c_vatTin != null ? String(row.c_vatTin) : null,
     telegramId: row.c_telegramId != null ? String(row.c_telegramId) : null,
     notes: row.c_notes != null ? String(row.c_notes) : null,
-    renewalDaysBeforeExpiry: Number(row.c_renewalDaysBeforeExpiry ?? 14),
+    renewalDaysBeforeExpiry: normalizeRenewalDaysBeforeExpiry(row.c_renewalDaysBeforeExpiry),
     createdAt: new Date(row.c_createdAt as string),
     updatedAt: new Date(row.c_updatedAt as string),
   }

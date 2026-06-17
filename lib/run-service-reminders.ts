@@ -2,6 +2,7 @@ import { createReminderLog } from '@/lib/db/reminder-logs'
 import { formatAppDate } from '@/lib/app-date'
 import { sendEmail, serviceReminderEmailTemplate } from '@/lib/email'
 import { filterServicesDueForReminderToday, listServicesForReminderCron } from '@/lib/reminders'
+import { parseReminderTimezone } from '@/lib/reminder-schedule'
 import { getAppSettings } from '@/lib/settings'
 import { sendTelegram, reminderTelegramMessage } from '@/lib/telegram'
 
@@ -14,8 +15,9 @@ export type ReminderRunResult = {
 
 export async function runServiceExpiryReminders(): Promise<ReminderRunResult> {
   const settings = await getAppSettings()
+  const timezone = parseReminderTimezone(settings.reminderTimezone)
   const candidates = await listServicesForReminderCron()
-  const services = filterServicesDueForReminderToday(candidates)
+  const services = filterServicesDueForReminderToday(candidates, timezone)
 
   const result: ReminderRunResult = {
     processed: services.length,

@@ -1,4 +1,5 @@
 import { getSql, newId } from '@/lib/db'
+import { normalizeRenewalDaysBeforeExpiry } from '@/lib/clients'
 import { type PaginatedResult, toPaginatedResult } from '@/lib/pagination'
 import type { InvoiceItemRow, InvoiceRow } from '@/lib/db/invoices'
 import type { ServiceWithRelations } from '@/lib/db/services'
@@ -55,7 +56,7 @@ function mapClient(row: Record<string, unknown>): ClientRow {
     vatTin: row.vatTin != null ? String(row.vatTin) : null,
     telegramId: row.telegramId != null ? String(row.telegramId) : null,
     notes: row.notes != null ? String(row.notes) : null,
-    renewalDaysBeforeExpiry: Number(row.renewalDaysBeforeExpiry ?? 14),
+    renewalDaysBeforeExpiry: normalizeRenewalDaysBeforeExpiry(row.renewalDaysBeforeExpiry),
     createdAt: new Date(row.createdAt as string),
     updatedAt: new Date(row.updatedAt as string),
   }
@@ -197,7 +198,7 @@ export async function createClient(data: ClientInput): Promise<ClientRow> {
     ) VALUES (
       ${id}, ${data.name}, ${data.email}, ${data.phone ?? null}, ${data.company ?? null},
       ${data.companyKhmer ?? null}, ${data.address ?? null}, ${data.vatTin ?? null}, ${data.telegramId ?? null}, ${data.notes ?? null},
-      ${data.renewalDaysBeforeExpiry ?? 14}, ${now}, ${now}
+      ${normalizeRenewalDaysBeforeExpiry(data.renewalDaysBeforeExpiry)}, ${now}, ${now}
     )
     RETURNING *
   `

@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import { formatBillingCycle } from '@/lib/billing'
-import { formatRenewalTiming } from '@/lib/clients'
+import { formatRenewalTiming, getClientRenewalDays, normalizeRenewalDaysBeforeExpiry } from '@/lib/clients'
 import { useAppSettings } from '@/components/providers/AppSettingsProvider'
 import { formatCurrency, daysUntil } from '@/lib/utils'
 import type { TransactionRow } from '@/components/transactions/TransactionEditModal'
-import { productTypeBadgeClass } from '@/lib/product-badges'
 import { formatReminderLogMessage } from '@/lib/reminder-log-display'
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/lib/payment-methods'
 import { toast } from '@/lib/toast'
@@ -59,7 +58,7 @@ function clientFormFromData(data: {
     vatTin: data.vatTin || '',
     telegramId: data.telegramId || '',
     notes: data.notes || '',
-    renewalDaysBeforeExpiry: data.renewalDaysBeforeExpiry ?? 14,
+    renewalDaysBeforeExpiry: normalizeRenewalDaysBeforeExpiry(data.renewalDaysBeforeExpiry),
   }
 }
 
@@ -484,7 +483,7 @@ export default function ClientProfilePage() {
           </div>
           <div className="stat-card min-w-0">
             <div className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Invoice & Reminder</div>
-            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1 break-words">{formatRenewalTiming(client.renewalDaysBeforeExpiry ?? 14)}</div>
+            <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mt-1 break-words">{formatRenewalTiming(getClientRenewalDays(client))}</div>
           </div>
         </div>
       </div>
@@ -568,7 +567,7 @@ export default function ClientProfilePage() {
                 />
               </th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Service</th>
-              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Type</th>
+              <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Package</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Billing</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Renewal Date</th>
               <th className="text-left px-4 py-2.5 text-xs text-gray-500 dark:text-gray-400 font-medium">Amount</th>
@@ -599,10 +598,9 @@ export default function ClientProfilePage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900 dark:text-gray-100">{s.name}</div>
-                    {s.productPackage && <div className="text-xs text-gray-400 dark:text-gray-500">{s.productPackage.name}</div>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`badge ${productTypeBadgeClass(s.productType?.color)}`}>{s.productType?.name || '—'}</span>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-300">
+                    {s.productPackage?.name || '—'}
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{formatBillingCycle(s.period, s.recurring)}</td>
                   <td className="px-4 py-3">

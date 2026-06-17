@@ -2,10 +2,10 @@ import { listInvoiceSummaries } from '@/lib/db/invoices'
 import { listRecentReminderLogsPaginated } from '@/lib/db/reminder-logs'
 import { getAppSettings } from '@/lib/settings'
 import {
-  filterServicesInReminderWindow,
+  filterServicesDueForReminderToday,
   listServicesForReminderDisplay,
 } from '@/lib/reminders'
-import { formatReminderTimeLabel } from '@/lib/reminder-schedule'
+import { formatReminderTimeLabel, parseReminderTimezone } from '@/lib/reminder-schedule'
 
 export async function getRemindersPageData(logPage = 1) {
   const [openInvoices, candidateServices, recentLogsResult, settings] = await Promise.all([
@@ -15,7 +15,8 @@ export async function getRemindersPageData(logPage = 1) {
     getAppSettings(),
   ])
 
-  const expiringServices = filterServicesInReminderWindow(candidateServices)
+  const timezone = parseReminderTimezone(settings.reminderTimezone)
+  const expiringServices = filterServicesDueForReminderToday(candidateServices, timezone)
   const outstandingAmount = openInvoices.reduce((sum, inv) => sum + inv.total, 0)
   const overdueCount = openInvoices.filter(inv => inv.status === 'OVERDUE').length
   const telegramReadyInvoices = openInvoices.filter(inv => inv.client?.telegramId).length
