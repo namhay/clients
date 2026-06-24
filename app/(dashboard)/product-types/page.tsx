@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import ProductPackageFormModal from '@/components/product-packages/ProductPackageFormModal'
 import { PRODUCT_TYPE_COLORS } from '@/lib/product-types'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { useCachedList } from '@/lib/use-cached-list'
@@ -17,6 +18,7 @@ const emptyForm = () => ({
 export default function ProductTypesPage() {
   const { items: types, initialLoading, refreshing, reload } = useCachedList<any>('/api/product-types')
   const [showModal, setShowModal] = useState(false)
+  const [packageTypeId, setPackageTypeId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState(emptyForm())
@@ -64,6 +66,10 @@ export default function ProductTypesPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const openAddPackage = (typeId: string) => {
+    setPackageTypeId(typeId)
   }
 
   const del = async (id: string, name: string) => {
@@ -118,7 +124,8 @@ export default function ProductTypesPage() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap gap-1">
+                    <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openAddPackage(t.id)}>Add Package</button>
                     <button className="btn-secondary py-1 px-2 text-xs" onClick={() => openEdit(t)}>Edit</button>
                     <button className="btn-danger py-1 px-2 text-xs" onClick={() => del(t.id, t.name)}>Delete</button>
                   </div>
@@ -175,6 +182,14 @@ export default function ProductTypesPage() {
           </div>
         </div>
       )}
+
+      <ProductPackageFormModal
+        open={packageTypeId !== null}
+        types={types}
+        defaultProductTypeId={packageTypeId || ''}
+        onClose={() => setPackageTypeId(null)}
+        onSaved={reload}
+      />
     </div>
   )
 }

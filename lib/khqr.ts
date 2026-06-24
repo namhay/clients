@@ -1,5 +1,8 @@
 import { KHQRGenerator } from 'konthaina-khqr'
 import QRCode from 'qrcode'
+import sharp from 'sharp'
+
+const QR_IMAGE_SIZE = 220
 
 export type KhqrCurrency = 'USD' | 'KHR'
 export type KhqrMerchantType = 'individual' | 'merchant'
@@ -105,11 +108,34 @@ export function generateKhqrPayload({
   return qr
 }
 
+async function overlayPaymentQrBadge(qrPng: Buffer, size: number): Promise<Buffer> {
+  const center = size / 2
+  const badgeRadius = Math.round(size * 0.105)
+  const ringRadius = badgeRadius + Math.round(size * 0.02)
+  const fontSize = Math.round(badgeRadius * 1.15)
+
+  const badgeSvg = Buffer.from(`<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="${center}" cy="${center}" r="${ringRadius}" fill="#ffffff"/>
+  <circle cx="${center}" cy="${center}" r="${badgeRadius}" fill="#000000"/>
+  <text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="central"
+    fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="${fontSize}px">$</text>
+</svg>`)
+
+  return sharp(qrPng)
+    .composite([{ input: badgeSvg, top: 0, left: 0 }])
+    .png()
+    .toBuffer()
+}
+
 export async function generateKhqrQrDataUrl(params: KhqrPaymentParams): Promise<string> {
   const payload = generateKhqrPayload(params)
-  return QRCode.toDataURL(payload, {
-    width: 220,
+  const qrPng = await QRCode.toBuffer(payload, {
+    type: 'png',
+    width: QR_IMAGE_SIZE,
     margin: 1,
-    errorCorrectionLevel: 'M',
+    errorCorrectionLevel: 'H',
+    color: { dark: '#000000', light: '#ffffff' },
   })
+  const withBadge = await overlayPaymentQrBadge(qrPng, QR_IMAGE_SIZE)
+  return `data:image/png;base64,${withBadge.toString('base64')}`
 }

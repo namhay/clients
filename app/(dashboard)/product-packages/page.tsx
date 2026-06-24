@@ -1,29 +1,12 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import ProductPackageFormModal from '@/components/product-packages/ProductPackageFormModal'
 import { formatCurrency } from '@/lib/utils'
 import { productTypeBadgeClass } from '@/lib/product-badges'
 import { useCachedList } from '@/lib/use-cached-list'
 import { PRODUCT_TYPES_URL } from '@/lib/list-cache'
 import { toast } from '@/lib/toast'
-
-const emptyForm = (productTypeId = '') => ({
-  productTypeId,
-  name: '',
-  billingType: 'RECURRING' as 'RECURRING' | 'ONE_TIME',
-  diskSpaceGb: '5',
-  bandwidthGb: '50',
-  emailAccounts: '5',
-  databases: '1',
-  addonDomains: '0',
-  oneTimePrice: '',
-  priceMonthly: '',
-  priceQuarterly: '',
-  priceSemiAnnual: '',
-  priceYearly: '',
-  active: true,
-  sortOrder: '0',
-})
 
 export default function ProductPackagesPage() {
   const searchParams = useSearchParams()
@@ -37,86 +20,36 @@ export default function ProductPackagesPage() {
     [typeFilter],
   )
   const [showModal, setShowModal] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
-  const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState(emptyForm())
-
-  const selectedType = types.find(t => t.id === (form.productTypeId || typeFilter))
-  const hasHostingSpecs = selectedType?.hasHostingSpecs
+  const [editPackage, setEditPackage] = useState<any | null>(null)
+  const [defaultProductTypeId, setDefaultProductTypeId] = useState('')
 
   useEffect(() => {
     const fromUrl = searchParams.get('productTypeId')
+    const shouldAdd = searchParams.get('add') === '1'
     if (fromUrl) setTypeFilter(fromUrl)
+    if (shouldAdd && fromUrl) {
+      setEditPackage(null)
+      setDefaultProductTypeId(fromUrl)
+      setShowModal(true)
+    }
   }, [searchParams])
 
   const openAdd = () => {
-    setEditId(null)
-    setForm(emptyForm(typeFilter || types[0]?.id || ''))
+    setEditPackage(null)
+    setDefaultProductTypeId(typeFilter || types[0]?.id || '')
     setShowModal(true)
   }
 
   const openEdit = (p: any) => {
-    setEditId(p.id)
-    setForm({
-      productTypeId: p.productTypeId,
-      name: p.name,
-      diskSpaceGb: String(p.diskSpaceGb ?? 5),
-      bandwidthGb: String(p.bandwidthGb ?? 50),
-      emailAccounts: String(p.emailAccounts ?? 5),
-      databases: String(p.databases ?? 1),
-      addonDomains: String(p.addonDomains ?? 0),
-      billingType: p.billingType === 'ONE_TIME' ? 'ONE_TIME' : 'RECURRING',
-      oneTimePrice: p.billingType === 'ONE_TIME' ? String(p.priceYearly) : '',
-      priceMonthly: String(p.priceMonthly),
-      priceQuarterly: String(p.priceQuarterly),
-      priceSemiAnnual: String(p.priceSemiAnnual),
-      priceYearly: String(p.priceYearly),
-      active: p.active,
-      sortOrder: String(p.sortOrder),
-    })
+    setEditPackage(p)
+    setDefaultProductTypeId(p.productTypeId)
     setShowModal(true)
   }
 
-  const save = async () => {
-    if (!form.name.trim()) return toast.error('Package name is required')
-    if (!form.productTypeId) return toast.error('Product type is required')
-    setSaving(true)
-    try {
-      const method = editId ? 'PUT' : 'POST'
-      const url = editId ? `/api/product-packages/${editId}` : '/api/product-packages'
-      const body: Record<string, unknown> = {
-        ...form,
-        billingType: form.billingType,
-        oneTimePrice: parseFloat(form.oneTimePrice) || 0,
-        priceMonthly: parseFloat(form.priceMonthly) || 0,
-        priceQuarterly: parseFloat(form.priceQuarterly) || 0,
-        priceSemiAnnual: parseFloat(form.priceSemiAnnual) || 0,
-        priceYearly: parseFloat(form.priceYearly) || 0,
-        sortOrder: parseInt(form.sortOrder) || 0,
-      }
-      if (hasHostingSpecs) {
-        body.diskSpaceGb = parseInt(form.diskSpaceGb) || 0
-        body.bandwidthGb = parseInt(form.bandwidthGb) || 0
-        body.emailAccounts = parseInt(form.emailAccounts) || 0
-        body.databases = parseInt(form.databases) || 0
-        body.addonDomains = parseInt(form.addonDomains) || 0
-      }
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const result = await res.json().catch(() => ({}))
-      if (!res.ok) return toast.error(result.error || 'Failed to save package')
-      toast.success(editId ? 'Package updated' : 'Package created')
-      setShowModal(false)
-      setEditId(null)
-      await reload()
-    } catch {
-      toast.error('Failed to save package')
-    } finally {
-      setSaving(false)
-    }
+  const closeModal = () => {
+    setShowModal(false)
+    setEditPackage(null)
+    setDefaultProductTypeId('')
   }
 
   const del = async (id: string, name: string) => {
@@ -215,109 +148,14 @@ export default function ProductPackagesPage() {
         </table>
       </div>
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900">
-              <h2 className="text-base font-semibold">{editId ? 'Edit Package' : 'Add Product Package'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">✕</button>
-            </div>
-
-            <div className="p-5 space-y-5">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
-                  <label className="label">Product Type *</label>
-                  <select
-                    className="input"
-                    value={form.productTypeId}
-                    onChange={e => setForm(f => ({ ...f, productTypeId: e.target.value }))}
-                  >
-                    <option value="">Select type...</option>
-                    {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-2">
-                  <label className="label">Package Name *</label>
-                  <input className="input" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Registration" />
-                </div>
-                <div>
-                  <label className="label">Sort Order</label>
-                  <input type="number" className="input" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="label">Status</label>
-                  <select className="input" value={form.active ? 'active' : 'inactive'} onChange={e => setForm(f => ({ ...f, active: e.target.value === 'active' }))}>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                </div>
-              </div>
-
-              {hasHostingSpecs && (
-                <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-                  <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Hosting Resources</h3>
-                  <div className="grid grid-cols-3 gap-3">
-                    {[['diskSpaceGb', 'Disk (GB)'], ['bandwidthGb', 'Bandwidth (GB)'], ['emailAccounts', 'Email Accounts'], ['databases', 'Databases'], ['addonDomains', 'Addon Domains']].map(([k, l]) => (
-                      <div key={k}>
-                        <label className="label">{l}</label>
-                        <input type="number" min="0" className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t border-gray-100 dark:border-gray-800 pt-5">
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Pricing</h3>
-                <div className="mb-3">
-                  <label className="label">Billing Type</label>
-                  <select
-                    className="input max-w-xs"
-                    value={form.billingType}
-                    onChange={e => setForm(f => ({
-                      ...f,
-                      billingType: e.target.value as 'RECURRING' | 'ONE_TIME',
-                    }))}
-                  >
-                    <option value="RECURRING">Recurring</option>
-                    <option value="ONE_TIME">One-time</option>
-                  </select>
-                </div>
-                {form.billingType === 'ONE_TIME' ? (
-                  <div>
-                    <label className="label">One-time Price (USD)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      className="input max-w-xs"
-                      value={form.oneTimePrice}
-                      onChange={e => setForm(f => ({ ...f, oneTimePrice: e.target.value }))}
-                      placeholder="e.g. 299"
-                    />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
-                    {[['priceMonthly', 'Monthly'], ['priceQuarterly', 'Quarterly'], ['priceSemiAnnual', 'Semi-Annual'], ['priceYearly', 'Annually']].map(([k, l]) => (
-                      <div key={k}>
-                        <label className="label">{l} (USD)</label>
-                        <input type="number" min="0" step="0.01" className="input" value={(form as any)[k]} onChange={e => setForm(f => ({ ...f, [k]: e.target.value }))} />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900">
-              <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={save} disabled={saving}>
-                {saving ? 'Saving...' : editId ? 'Save Changes' : 'Add Package'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ProductPackageFormModal
+        open={showModal}
+        types={types}
+        editPackage={editPackage}
+        defaultProductTypeId={defaultProductTypeId}
+        onClose={closeModal}
+        onSaved={reload}
+      />
     </div>
   )
 }
