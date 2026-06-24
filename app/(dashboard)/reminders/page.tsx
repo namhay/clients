@@ -77,7 +77,7 @@ export default function RemindersPage() {
     return <div className="page-content text-gray-500 dark:text-gray-400">Loading reminders...</div>
   }
 
-  const { openInvoices, expiringServices, recentLogs, recentLogsPagination, summary, schedule } = data
+  const { openInvoices, expiringServices, recentLogs, recentLogsPagination, summary } = data
   const { total: logsTotal, page: logsPage, pageSize: logsPageSize, totalPages: logsTotalPages } = recentLogsPagination
   const logsRangeStart = logsTotal === 0 ? 0 : (logsPage - 1) * logsPageSize + 1
   const logsRangeEnd = Math.min(logsPage * logsPageSize, logsTotal)
@@ -96,13 +96,10 @@ export default function RemindersPage() {
         </Link>
       </div>
 
-      <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-        <div className="text-sm font-medium text-blue-900 dark:text-blue-200">Automatic reminders</div>
-        <p className="mt-1 text-sm text-blue-800 dark:text-blue-300">
-          Service expiry reminders run daily at {schedule.timeLabel} via cron.
-          {schedule.lastRunDate
-            ? ` Last auto-run: ${schedule.lastRunDate}.`
-            : ' No automatic run recorded yet.'}
+      <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+        <div className="text-sm font-medium text-amber-900 dark:text-amber-200">Manual reminders only</div>
+        <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+          Automatic Telegram and email reminders are disabled. Use the buttons below to send reminders when you are ready.
         </p>
       </div>
 

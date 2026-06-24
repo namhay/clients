@@ -431,9 +431,9 @@ export default function SettingsPage() {
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Automated Reminders</h2>
+          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">Schedule &amp; Time Zone</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-            Alerts are sent once per day at your reminder time. On Vercel Hobby, the cron job may only run once daily — update <span className="font-mono">vercel.json</span> if you change the time below.
+            Automatic reminder alerts are disabled. These settings still control invoice auto-generation timing, dates, PDFs, emails, and Telegram.
           </p>
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
