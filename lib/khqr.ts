@@ -1,6 +1,5 @@
 import { KHQRGenerator } from 'konthaina-khqr'
 import QRCode from 'qrcode'
-import sharp from 'sharp'
 
 const QR_IMAGE_SIZE = 220
 
@@ -108,6 +107,16 @@ export function generateKhqrPayload({
   return qr
 }
 
+async function toPdfImageDataUrl(image: Buffer): Promise<string> {
+  try {
+    const sharp = (await import('sharp')).default
+    const jpeg = await sharp(image).jpeg({ quality: 92 }).toBuffer()
+    return `data:image/jpeg;base64,${jpeg.toString('base64')}`
+  } catch {
+    return `data:image/png;base64,${image.toString('base64')}`
+  }
+}
+
 async function overlayPaymentQrBadge(qrPng: Buffer, size: number): Promise<Buffer> {
   const center = size / 2
   const badgeRadius = Math.round(size * 0.105)
@@ -121,21 +130,35 @@ async function overlayPaymentQrBadge(qrPng: Buffer, size: number): Promise<Buffe
     fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="${fontSize}px">$</text>
 </svg>`)
 
-  return sharp(qrPng)
-    .composite([{ input: badgeSvg, top: 0, left: 0 }])
-    .png()
-    .toBuffer()
+  try {
+    const sharp = (await import('sharp')).default
+    return sharp(qrPng)
+      .composite([{ input: badgeSvg, top: 0, left: 0 }])
+      .png()
+      .toBuffer()
+  } catch {
+    return qrPng
+  }
 }
 
 export async function generateKhqrQrDataUrl(params: KhqrPaymentParams): Promise<string> {
   const payload = generateKhqrPayload(params)
-  const qrPng = await QRCode.toBuffer(payload, {
-    type: 'png',
+  const qrOptions = {
     width: QR_IMAGE_SIZE,
     margin: 1,
-    errorCorrectionLevel: 'H',
+    errorCorrectionLevel: 'H' as const,
     color: { dark: '#000000', light: '#ffffff' },
-  })
-  const withBadge = await overlayPaymentQrBadge(qrPng, QR_IMAGE_SIZE)
-  return `data:image/png;base64,${withBadge.toString('base64')}`
+  }
+
+  try {
+    const qrPng = await QRCode.toBuffer(payload, {
+      type: 'png',
+      ...qrOptions,
+    })
+    const withBadge = await overlayPaymentQrBadge(qrPng, QR_IMAGE_SIZE)
+    return toPdfImageDataUrl(withBadge)
+  } catch (error) {
+    console.error('KHQR PNG generation failed, falling back to data URL:', error)
+    return QRCode.toDataURL(payload, qrOptions)
+  }
 }

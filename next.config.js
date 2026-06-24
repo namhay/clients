@@ -9,6 +9,7 @@ const nextConfig = {
       '@react-pdf/renderer',
       'sharp',
       '@resvg/resvg-js',
+      'qrcode',
     ],
     optimizePackageImports: ['sonner'],
     outputFileTracingIncludes: {
@@ -18,6 +19,15 @@ const nextConfig = {
         './public/invoice-stamp.png',
         './public/aba-qr.png',
         './node_modules/@resvg/resvg-js/**/*',
+        './node_modules/sharp/**/*',
+      ],
+      '/api/telegram/mini-app/invoices/[id]/pdf': [
+        './public/fonts/**/*',
+        './public/invoice-logo.png',
+        './public/invoice-stamp.png',
+        './public/aba-qr.png',
+        './node_modules/@resvg/resvg-js/**/*',
+        './node_modules/sharp/**/*',
       ],
       '/api/settings/branding': [
         './node_modules/@resvg/resvg-js/**/*',

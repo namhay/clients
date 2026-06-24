@@ -4,6 +4,9 @@ import { authOptions } from '@/lib/auth'
 import { generateInvoicePdfBuffer } from '@/lib/invoice-pdf'
 import { verifyInvoicePdfToken } from '@/lib/invoice-tokens'
 
+export const runtime = 'nodejs'
+export const maxDuration = 60
+
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   const token = new URL(req.url).searchParams.get('token')
   const session = await getServerSession(authOptions)

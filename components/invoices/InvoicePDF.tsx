@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   paymentColRight: { width: '50%' },
   paymentBankLine: { fontSize: 9, lineHeight: 1.4 },
   paymentNotes: { fontSize: 8, lineHeight: 1.4 },
-  qrCenter: { alignItems: 'center', marginBottom: 4 },
+  qrCenter: { alignItems: 'center', justifyContent: 'center', marginBottom: 4, minHeight: 74 },
   paymentQr: { width: 70, height: 70 },
   footer: { flexDirection: 'row', marginTop: -75, justifyContent: 'space-between', alignItems: 'flex-end' },
   signCol: { width: '33%', textAlign: 'center' },
@@ -399,11 +399,9 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
               </View>
             )}
           </View>
-          {paymentQrSrc && (
-            <View style={styles.qrCenter}>
-              <Image src={paymentQrSrc} style={styles.paymentQr} />
-            </View>
-          )}
+          <View style={styles.qrCenter}>
+            {paymentQrSrc ? <Image src={paymentQrSrc} style={styles.paymentQr} /> : null}
+          </View>
         </View>
 
         <View style={styles.footer}>

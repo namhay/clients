@@ -20,8 +20,23 @@ export function getInvoiceBalanceDue(
   total: number,
   payments: { amount: number }[] = [],
 ): number {
-  const paid = payments.reduce((sum, payment) => sum + payment.amount, 0)
-  return Math.max(0, total - paid)
+  const paid = payments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+  return Math.max(0, Number(total) - paid)
+}
+
+function isRenderableImageSrc(src?: string | null): src is string {
+  return Boolean(src && src.startsWith('data:image/'))
+}
+
+function resolvePaymentQrSrc(
+  balanceDue: number,
+  dynamicSrc?: string | null,
+  staticSrc?: string | null,
+): string | undefined {
+  if (balanceDue <= 0) return undefined
+  if (isRenderableImageSrc(dynamicSrc)) return dynamicSrc
+  if (isRenderableImageSrc(staticSrc)) return staticSrc
+  return undefined
 }
 
 export async function getDynamicPaymentQrSrc(params: {
@@ -89,7 +104,7 @@ export function toPdfInvoicePayload(
 }
 
 export async function generateInvoicePdfBuffer(invoiceId: string) {
-  registerInvoiceFontsForPdf()
+  await registerInvoiceFontsForPdf()
 
   const invoice = await getInvoiceForPdf(invoiceId)
   if (!invoice) throw new Error('Invoice not found')
@@ -112,7 +127,8 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
     getBrandingAssetSrc('logo'),
     getBrandingAssetSrc('stamp'),
   ])
-  const paymentQrSrc = dynamicQr?.src ?? staticQrSrc
+  const balanceDue = getInvoiceBalanceDue(invoice.total, payments)
+  const paymentQrSrc = resolvePaymentQrSrc(balanceDue, dynamicQr?.src, staticQrSrc)
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,
