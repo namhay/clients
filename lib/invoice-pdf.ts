@@ -129,6 +129,7 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
   ])
   const balanceDue = getInvoiceBalanceDue(invoice.total, payments)
   const paymentQrSrc = resolvePaymentQrSrc(balanceDue, dynamicQr?.src, staticQrSrc)
+  const paymentQrShowBadge = Boolean(dynamicQr?.src)
 
   const doc = React.createElement(InvoicePDF, {
     invoice: pdfInvoice,
@@ -136,6 +137,7 @@ export async function generateInvoicePdfBuffer(invoiceId: string) {
     dateFormat,
     timezone,
     paymentQrSrc,
+    paymentQrShowBadge,
     logoSrc,
     stampSrc,
   })

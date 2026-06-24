@@ -88,7 +88,33 @@ const styles = StyleSheet.create({
   paymentBankLine: { fontSize: 9, lineHeight: 1.4 },
   paymentNotes: { fontSize: 8, lineHeight: 1.4 },
   qrCenter: { alignItems: 'center', justifyContent: 'center', marginBottom: 4, minHeight: 74 },
+  qrWrapper: { width: 70, height: 70, position: 'relative' },
   paymentQr: { width: 70, height: 70 },
+  qrBadgeRing: {
+    position: 'absolute',
+    top: 27,
+    left: 27,
+    width: 16,
+    height: 16,
+    borderRadius: 11,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrBadge: {
+    width: 13,
+    height: 13,
+    borderRadius: 9,
+    backgroundColor: '#000000',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qrBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: 700,
+    lineHeight: 1.2,
+  },
   footer: { flexDirection: 'row', marginTop: -75, justifyContent: 'space-between', alignItems: 'flex-end' },
   signCol: { width: '33%', textAlign: 'center' },
   signTopArea: { minHeight: 5, alignItems: 'center', justifyContent: 'flex-end' },
@@ -195,11 +221,12 @@ interface Props {
   dateFormat?: DateFormatId
   timezone?: string
   paymentQrSrc?: string
+  paymentQrShowBadge?: boolean
   logoSrc?: string
   stampSrc?: string
 }
 
-export default function InvoicePDF({ invoice, company, dateFormat, timezone, paymentQrSrc, logoSrc, stampSrc }: Props) {
+export default function InvoicePDF({ invoice, company, dateFormat, timezone, paymentQrSrc, paymentQrShowBadge, logoSrc, stampSrc }: Props) {
   const companyKh = invoice.client.companyKhmer?.trim()
   const companyEn = invoice.client.company?.trim()
   const hasCompanyKh = Boolean(companyKh)
@@ -400,7 +427,18 @@ export default function InvoicePDF({ invoice, company, dateFormat, timezone, pay
             )}
           </View>
           <View style={styles.qrCenter}>
-            {paymentQrSrc ? <Image src={paymentQrSrc} style={styles.paymentQr} /> : null}
+            {paymentQrSrc ? (
+              <View style={styles.qrWrapper}>
+                <Image src={paymentQrSrc} style={styles.paymentQr} />
+                {paymentQrShowBadge ? (
+                  <View style={styles.qrBadgeRing}>
+                    <View style={styles.qrBadge}>
+                      <Text style={styles.qrBadgeText}>$</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
           </View>
         </View>
 

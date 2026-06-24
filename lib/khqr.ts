@@ -117,30 +117,6 @@ async function toPdfImageDataUrl(image: Buffer): Promise<string> {
   }
 }
 
-async function overlayPaymentQrBadge(qrPng: Buffer, size: number): Promise<Buffer> {
-  const center = size / 2
-  const badgeRadius = Math.round(size * 0.105)
-  const ringRadius = badgeRadius + Math.round(size * 0.02)
-  const fontSize = Math.round(badgeRadius * 1.15)
-
-  const badgeSvg = Buffer.from(`<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="${center}" cy="${center}" r="${ringRadius}" fill="#ffffff"/>
-  <circle cx="${center}" cy="${center}" r="${badgeRadius}" fill="#000000"/>
-  <text x="${center}" y="${center}" text-anchor="middle" dominant-baseline="central"
-    fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-weight="700" font-size="${fontSize}px">$</text>
-</svg>`)
-
-  try {
-    const sharp = (await import('sharp')).default
-    return sharp(qrPng)
-      .composite([{ input: badgeSvg, top: 0, left: 0 }])
-      .png()
-      .toBuffer()
-  } catch {
-    return qrPng
-  }
-}
-
 export async function generateKhqrQrDataUrl(params: KhqrPaymentParams): Promise<string> {
   const payload = generateKhqrPayload(params)
   const qrOptions = {
@@ -155,8 +131,7 @@ export async function generateKhqrQrDataUrl(params: KhqrPaymentParams): Promise<
       type: 'png',
       ...qrOptions,
     })
-    const withBadge = await overlayPaymentQrBadge(qrPng, QR_IMAGE_SIZE)
-    return toPdfImageDataUrl(withBadge)
+    return toPdfImageDataUrl(qrPng)
   } catch (error) {
     console.error('KHQR PNG generation failed, falling back to data URL:', error)
     return QRCode.toDataURL(payload, qrOptions)
